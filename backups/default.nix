@@ -4,8 +4,8 @@ let
 
   # Main backup directives
   datasets = [
-   { source = "primary/home"; backup = "secondary/encrypted/backups/home"; }
-   { source = "primary/root"; backup = "secondary/encrypted/backups/root"; }
+    { source = "primary/home"; backup = "secondary/encrypted/backups/home"; }
+    { source = "primary/root"; backup = "secondary/encrypted/backups/root"; }
   ];
 
   # Backup configuration
@@ -53,7 +53,7 @@ let
     dataset
   ];
 
-  buildSyncoidCommand = {source, backup}: lib.escapeShellArgs ([
+  buildSyncoidCommand = { source, backup }: lib.escapeShellArgs ([
     "${pkgs.sanoid}/bin/syncoid"
     "--no-resume"
     "--no-privilege-elevation"
@@ -64,25 +64,32 @@ let
   ]);
 
   # Common configuration between sanoid and syncoid
-  buildServiceConfig = user: overrides@{...}: systemdUtil.buildSecureServiceConfig {
-    Type = "oneshot";
-    User = user;
-    Group = user;
-    RuntimeDirectory = user;
-    CacheDirectory = user;
-    PrivateDevices = "no"; # Need access to the devices for zfs management
-    DeviceAllow = "/dev/zfs"; # Whitelist only particular devices
-    ProtectProc = "default"; # Needed by zfs
-    ProcSubset = "all"; # Needed by zfs
-    ProtectHostname = "no"; # Needed by zfs
-    ProtectClock = "no"; # Needed by zfs
-    KillMode = "process";
-    KillSignal = "SIGINT";
-  } // overrides;
+  buildServiceConfig = user: overrides@{ ... }: systemdUtil.buildSecureServiceConfig
+    {
+      Type = "oneshot";
+      User = user;
+      Group = user;
+      RuntimeDirectory = user;
+      CacheDirectory = user;
+      PrivateDevices = "no"; # Need access to the devices for zfs management
+      DeviceAllow = "/dev/zfs"; # Whitelist only particular devices
+      ProtectProc = "default"; # Needed by zfs
+      ProcSubset = "all"; # Needed by zfs
+      ProtectHostname = "no"; # Needed by zfs
+      ProtectClock = "no"; # Needed by zfs
+      KillMode = "process";
+      KillSignal = "SIGINT";
+    } // overrides;
 in
 {
   # Make this globally available
   environment.systemPackages = with pkgs; [ sanoid ];
+
+  # Add the sanoid and syncoid users for running commands
+  users.users = {
+    syncoid = { isNormalUser = true; };
+    sanoid = { isNormalUser = true; };
+  };
 
   # Snaphots
   systemd.services.sanoid = {
@@ -127,3 +134,4 @@ in
     };
   };
 }
+
