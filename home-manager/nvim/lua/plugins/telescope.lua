@@ -1,11 +1,12 @@
 return {
 
-  -- change some telescope options and a keymap to browse plugin files
+  -- change some telescope options
   {
-    "nvim-telescope/telescope.nvim", keys = { -- add a keymap to browse plugin files stylua: ignore { "<leader>fp", function() require("telescope.builtin").find_files({ cwd = require("lazy.core.config").options.root }) end, desc = "Find Plugin File", },
-     { "<leader>p", function() require("telescope").extensions.project.project{ display_type = 'full'} end, desc = "Open project"}
+    "nvim-telescope/telescope.nvim",
+    lazy = false,
+    keys = {
+      { "<leader><space>", "<cmd>:lua require('telescope').extensions.frecency.frecency({ workspace = 'CWD' })<cr>", desc = "Find file" },
     },
-    -- change some options
     opts = {
       defaults = {
         layout_strategy = "horizontal",
@@ -14,30 +15,27 @@ return {
         winblend = 0,
       },
     },
-  },
 
-  -- add telescope-fzf-native
-  {
-    "telescope.nvim",
+    config = function(_, opts)
+      local telescope = require('telescope')
+      telescope.setup(opts)
+      telescope.load_extension("frecency")
+      telescope.load_extension("fzf")
+
+    end,
+
     dependencies = {
-      "nvim-telescope/telescope-fzf-native.nvim",
-      "nvim-telescope/telescope-project.nvim",
-      build = "make",
-      config = function()
-        require("telescope").setup {
-          extensions = {
-            project = {
-              base_dirs = {
-                {path = "~/repos/", max_depth = 4 },
-              }
-            },
-            hidden_files = true,
-            sync_with_nvim_tree = true,
-          }
+      {
+        "nvim-telescope/telescope-fzf-native.nvim",
+        build = "make",
+      },
+      {
+        "nvim-telescope/telescope-frecency.nvim",
+        dependencies = {
+          "kkharji/sqlite.lua",
+          "nvim-tree/nvim-web-devicons"
         }
-        require("telescope").load_extension("fzf")
-        require("telescope").load_extension("project")
-      end,
+      }
     },
   },
 }

@@ -1,10 +1,6 @@
 { config, pkgs, unstable, lib, ... }:
 let
-  swayModifier = "Mod4";
-  scripts = with pkgs; {
-    sway-tree-switch = (writeShellScriptBin "sway-tree-switch" (builtins.readFile ./sway/tree-switch.sh));
-    sway-workspace-switch = (writeShellScriptBin "sway-workspace-switch" (builtins.readFile ./sway/workspace-switch.sh));
-  };
+  scripts = with pkgs; { };
 in
 {
   home.stateVersion = "22.11";
@@ -41,73 +37,6 @@ in
   ################################
   ##  Sway
   ################################
-  wayland.windowManager.sway = {
-    enable = true;
-    systemdIntegration = false;
-    config = {
-      modifier = swayModifier;
-      terminal = "alacritty";
-      menu = "fuzzel";
-      output = {
-        "Goldstar Company Ltd LG HDR 4K 0x00000ED1" = { mode = "3840x2160"; pos = "7280 2160"; };
-        "Goldstar Company Ltd LG HDR 4K 0x0000D70E" = { mode = "3840x2160"; pos = "7280 0"; };
-        "Samsung Electric Company C49RG9x H1AK500000" = { mode = "5120x1440"; pos = "2160 0"; };
-        "Samsung Electric Company LS49AG95 HCSW100482" = { mode = "5120x1440"; pos = "2160 1440"; };
-        "Goldstar Company Ltd LG HDR 4K 0x00004BD2" = { mode = "3840x2160"; pos = "0 0"; transform = "270"; };
-      };
-      workspaceOutputAssign = [
-        { "workspace" = "1"; output = "Samsung Electric Company C49RG9x H1AK500000"; }
-        { "workspace" = "2"; output = "Goldstar Company Ltd LG HDR 4K 0x00004BD2"; }
-        { "workspace" = "3"; output = "Goldstar Company Ltd LG HDR 4K 0x0000D70E"; }
-        { "workspace" = "4"; output = "Samsung Electric Company LS49AG95 HCSW100482"; }
-        { "workspace" = "5"; output = "Goldstar Company Ltd LG HDR 4K 0x00000ED1"; }
-        { "workspace" = "messages"; output = "Samsung Electric Company C49RG9x H1AK500000"; }
-        { "workspace" = "monitoring"; output = "Samsung Electric Company C49RG9x H1AK500000"; }
-        { "workspace" = "editor"; output = "Samsung Electric Company C49RG9x H1AK500000"; }
-        { "workspace" = "password"; output = "Samsung Electric Company C49RG9x H1AK500000"; }
-      ];
-      gaps = {
-        inner = 10;
-      };
-      #      keybindings = {
-      #        "${swayModifier}+Shift+w" = "exec ${scripts.sway-workspace-switch}";
-      #      };
-    };
-    extraConfig = ''
-      # any window with the title "fzf-switcher" will be floating
-      for_window [title="fzf-switcher"] floating enable
-
-      bindsym ${swayModifier}+Shift+w exec sway-workspace-switch
-      bindsym ${swayModifier}+Shift+s exec sway-tree-switch
-
-      # for moving the workspaces between monitors
-      bindsym ${swayModifier}+Control+Shift+Up move workspace to output up
-      bindsym ${swayModifier}+Control+Shift+Down move workspace to output down
-      bindsym ${swayModifier}+Control+Shift+Left move workspace to output left
-      bindsym ${swayModifier}+Control+Shift+Right move workspace to output right
-
-      # for moving between screens quickly
-      bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
-      bindsym ${swayModifier}+Alt+s [instance="signal"] focus
-      bindsym ${swayModifier}+Alt+l [instance="slack"] focus
-      bindsym ${swayModifier}+Alt+e [title="nvim"] focus
-      bindsym ${swayModifier}+Alt+b [title="bpytop"] focus
-      
-      exec dbus-sway-environment
-      exec configure-gtk
-
-      exec swaymsg "workspace messages; exec slack; exec signal-desktop"
-      exec swaymsg "workspace password; exec keepassxc"
-      exec swaymsg "workspace editor; exec alacritty -t nvim"
-      exec swaymsg "workspace monitoring; exec alacritty -t bpytop -e bpytop"
-
-      
-
-      # Indicate to systemd that we have started the sway session
-      exec_always systemctl --user start sway-session.target
-    '';
-  };
-
   ################################
   ##  Setup Starship
   ################################
@@ -158,6 +87,7 @@ in
     unstable.php82Packages.composer
     python310
     python310Packages.pip
+    ruby_3_1
     jdk
     julia
     powershell
@@ -181,14 +111,9 @@ in
     ################################
     ##  IDEs and Doc Editors
     ################################
-    jetbrains.goland
-    jetbrains.webstorm
-    jetbrains.pycharm-professional
-    jetbrains.datagrip
     libreoffice
     unstable.drawio # TODO: Need to edit desktop config to start with --disable-gpu
     libsForQt5.okular # PDF editing
-    marktext
 
     ################################
     ##  KVM
@@ -231,8 +156,6 @@ in
     discord # X11 (electron)
     unstable.signal-desktop # X11 (electron)
     slack # X11 (electron)
-    unstable.slack-term
-    weechat
     signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
 
     ################################
@@ -259,13 +182,20 @@ in
     ################################
     ##  Scanners and Printers
     ################################
-    gscan2pdf # Scanning GUI
+
+    # Disabled test until https://github.com/NixOS/nixpkgs/issues/223446 is resolved
+    unstable.gscan2pdf # Scanning GUI
 
     ################################
     ##  Gaming
     ################################
     steam
     lutris
+
+    ################################
+    ## Databases 
+    ################################
+    sqlite
 
   ] ++ (builtins.attrValues scripts);
 
@@ -289,6 +219,15 @@ in
 
     # For checkings block stats on a zfs dataset
     zblock = "sudo zdb -bbb";
+  };
+
+  home.sessionVariables = {
+    # Used for getting the shared object file for working with sqlite databases
+    SQLITE_SO_PATH = "${pkgs.sqlite.out}/lib/libsqlite3.so";
+
+    # Set the repo directories for use in dynamic repo scripts
+    REPOS = "$HOME/repos";
+    BAMBEE_REPOS = "$HOME/repos/bambee";
   };
 
   programs.bash = {
@@ -315,12 +254,6 @@ in
       eval "$(direnv hook bash)"
       export DIRENV_WARN_TIMEOUT=60s
 
-      # Common ENV Variables
-      export REPOS="$HOME/repos"
-
-      # Bambee configurations
-      export BAMBEE_REPOS="$REPOS/bambee"
-
       # Add my custom scripts to the path
       export PATH="$PATH:${lib.strings.concatStringsSep ":"
         (lib.mapAttrsToList (name: src: (writeScriptBin name (builtins.readFile src)).outPath + "/bin") extraScripts)
@@ -329,12 +262,12 @@ in
 
     # Make sure the desktop entries show up
     profileExtra = ''
-      	export XDG_DATA_DIRS=\"$HOME/.nix-profile/share:$XDG_DATA_DIRS\"
+      export XDG_DATA_DIRS=\"$HOME/.nix-profile/share:$XDG_DATA_DIRS\"
 
-              if [ "$(tty)" = "/dev/tty1" ]; then
-                export XDG_CURRENT_DESKTOP=sway
-                exec systemd-cat -t sway sway
-              fi
+      if [ "$(tty)" = "/dev/tty1" ]; then
+        export XDG_CURRENT_DESKTOP=sway
+        exec systemd-cat -t sway sway
+      fi
     '';
   };
 
