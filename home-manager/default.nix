@@ -126,7 +126,7 @@ in
     electrum # BTC
     wasabiwallet # BTC (privacy focused with coinjoin)
     monero-gui # Monero w/ GUI
-    mycrypto # EthereumW
+    mycrypto # Ethereum
 
     ################################
     ##  Password Managers
