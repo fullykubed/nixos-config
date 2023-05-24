@@ -85,12 +85,6 @@ in
   # Make this globally available
   environment.systemPackages = with pkgs; [ sanoid ];
 
-  # Add the sanoid and syncoid users for running commands
-  users.users = {
-    syncoid = { isNormalUser = true; };
-    sanoid = { isNormalUser = true; };
-  };
-
   # Snaphots
   systemd.services.sanoid = {
     description = "Sanoid ZFS backups";
