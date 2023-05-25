@@ -155,7 +155,7 @@ in
     ##  Messaging
     ################################
     teams # X11 (electron)
-    discord # X11 (electron)
+    discord
     # Fix for https://github.com/NixOS/nixpkgs/issues/222043
     (unstable.signal-desktop.overrideAttrs
       (old: {
