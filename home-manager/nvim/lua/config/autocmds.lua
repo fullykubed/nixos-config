@@ -11,7 +11,7 @@ vim.api.nvim_create_autocmd({'WinEnter', 'BufWinEnter', 'TermOpen'}, {
     if vim.bo.buftype == 'terminal' then
       vim.wo.relativenumber = false
       vim.wo.number = false
-    else
+    elseif vim.bo.filetype == '' then -- indicates a normal file
       vim.wo.number = true
       vim.wo.relativenumber = true
     end
@@ -28,8 +28,6 @@ vim.api.nvim_create_autocmd({ 'BufWinEnter', 'WinEnter', 'TermOpen' }, {
     -- start insert mode when moving to a terminal window
     if vim.bo.buftype == 'terminal' then vim.cmd('startinsert') end
     
-    -- start normal mode when moving to neo-tree
-    if vim.bo.filetype == 'neo-tree' then vim.api.nvim_input('<Esc>') end
   end,
   group = terminalInsertGroup
 })
