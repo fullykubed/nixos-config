@@ -28,9 +28,13 @@ in
     userName = "jclangst";
   };
 
-  home.file.".config/nvim" = {
-    source = ./nvim;
-    recursive = true;
+  ################################
+  ##  Config Files
+  ################################
+  xdg.configFile = {
+    "nvim" = { source = ./nvim; recursive = true; };
+    "electron-flags.conf" = { source = ./electron/electron-flags.conf; };
+    "electron-flags13.conf" = { source = ./electron/electron13-flags.conf; };
   };
 
 
@@ -247,16 +251,16 @@ in
 
     in
     ''
-      # Used for adding jump autocomplete
-      eval "$(jump shell bash)"
+            # Used for adding jump autocomplete
+            eval "$(jump shell bash)"
 
-      # Setup direnv
-      eval "$(direnv hook bash)"
-      export DIRENV_WARN_TIMEOUT=60s
+            # Setup direnv
+            eval "$(direnv hook bash)"
+            export DIRENV_WARN_TIMEOUT=60s
 
-      # Add my custom scripts to the path
-      export PATH="$PATH:${lib.strings.concatStringsSep ":"
-        (lib.mapAttrsToList (name: src: (writeScriptBin name (builtins.readFile src)).outPath + "/bin") extraScripts)
+            # Add my custom scripts to the path
+            export PATH="$PATH:${lib.strings.concatStringsSep ":"
+      (lib.mapAttrsToList (name: src: (writeScriptBin name (builtins.readFile src)).outPath + "/bin") extraScripts)
       }"
     '';
 

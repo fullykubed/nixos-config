@@ -40,13 +40,16 @@ in
       sway-session-start
       sway-switch-and-launch-if-ne
     ];
-    extraSessionCommands = ''
-      export SDL_VIDEODRIVER=wayland
-      export QT_QPA_PLATFORM=wayland
-      export QT_WAYLAND_DISABLE_WINDOWDECORATION="1"
-      export _JAVA_AWT_WM_NONREPARENTING=1
-      export MOZ_ENABLE_WAYLAND=1
-    '';
+  };
+
+  # Set environment variables
+  environment.sessionVariables = {
+    SDL_VIDEODRIVER = "wayland";
+    QT_QPA_PLATFORM = "wayland";
+    QT_WAYLAND_DISABLE_WINDOWDECORATION = "1";
+    _JAVA_AWT_WM_NONREPARENTING = "1";
+    MOZ_ENABLE_WAYLAND = "1";
+    NIXOS_OZONE_WL = "1";
   };
 
   # Disable the login manager
@@ -61,10 +64,6 @@ in
 
     # Only use for wl-roots based systems
     wlr.enable = true;
-
-    # Do NOT enable this; adds extra 30 seconds to boot time and causes failures
-    # https://github.com/NixOS/nixpkgs/issues/156950
-    gtkUsePortal = false;
 
     # For screen sharing in gnome
     extraPortals = with pkgs; [
