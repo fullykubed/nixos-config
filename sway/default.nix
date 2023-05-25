@@ -225,8 +225,8 @@ in
 
           # for moving between workspaces quickly
           bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
-          bindsym ${swayModifier}+Alt+s [instance="signal"] focus
-          bindsym ${swayModifier}+Alt+l [instance="slack"] focus
+          bindsym ${swayModifier}+Alt+s [app_id="signal"] focus
+          bindsym ${swayModifier}+Alt+l [app_id="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
           bindsym ${swayModifier}+Alt+b [title="bpytop"] focus
