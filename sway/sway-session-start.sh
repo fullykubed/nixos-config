@@ -46,7 +46,7 @@ SESSION_TARGET="sway-session.target"
 WITH_CLEANUP=""
 
 print_usage() {
-	cat <<EOH
+	cat <<EOH  
 Usage:
   --help            Show this help message and exit.
   --add-env NAME, -E NAME

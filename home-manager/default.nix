@@ -36,6 +36,29 @@ in
   };
 
 
+  # Set the default applications for each mime type
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "x-scheme-handler/http" = [ "firefox.desktop" ];
+      "x-scheme-handler/https" = [ "firefox.desktop" ];
+      "x-scheme-handler/chrome" = [ "firefox.desktop" ];
+      "text/html" = [ "firefox.desktop" ];
+      "application/x-extension-htm" = [ "firefox.desktop" ];
+      "application/x-extension-html" = [ "firefox.desktop" ];
+      "application/x-extension-shtml" = [ "firefox.desktop" ];
+      "application/xhtml+xml" = [ "firefox.desktop" ];
+      "application/x-extension-xhtml" = [ "firefox.desktop" ];
+      "application/x-extension-xht" = [ "firefox.desktop" ];
+      "image/jpeg" = [ "swayimg.desktop" ];
+      "image/png" = [ "swayimg.desktop" ];
+      "image/webp" = [ "swayimg.desktop" ];
+      "image/gif" = [ "swayimg.desktop" ];
+      "image/bmp" = [ "swayimg.desktop" ];
+      "application/pdf" = [ "okular.desktop" ];
+    };
+  };
+
   ################################
   ##  Sway
   ################################

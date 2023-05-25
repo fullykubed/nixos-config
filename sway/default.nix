@@ -36,6 +36,14 @@ in
       config.nix-unstable.sov
       wofi # menu / launcher
       ranger # file manager
+      ueberzug # image previewer for ranger
+      poppler_utils # pdf util suite (used for pdf previews)
+      ffmpegthumbnailer # previews for videos
+      odt2txt # previews for open office files
+      exiftool # tool for working with files in the file manager
+      mediainfo # tool for working with files in the file manager
+      pandoc # document conversion
+      swayimg # image viewer
 
       # Custom sway scripts
       configure-gtk
@@ -58,7 +66,12 @@ in
 
     # Used for the notifications daemon settings
     SWAY_NOTIFICATION_OUTPUT = monitors.main;
+
+    # Disable loading default settings for ranger
+    RANGER_LOAD_DEFAULT_RC = "FALSE";
   };
+
+
 
   # Disable the login manager
   services.xserver.displayManager.lightdm.enable = false;
@@ -124,6 +137,25 @@ in
   };
 
   home-manager.users.jack = {
+
+    # Set up desktop applications
+    xdg.desktopEntries = {
+      "swayimg" = {
+        name = "swayimg";
+        comment = "Image viewer for Sway";
+        exec = "swayimg %U";
+        type = "Application";
+        mimeType = [ "image/bmp" "image/gif" "image/png" "image/webp" "image/jpeg" ];
+      };
+
+      "ranger" = {
+        name = "ranger";
+        comment = "File explorer";
+        exec = "kitty -T ranger ranger";
+        type = "Application";
+      };
+    };
+
     xdg.configFile = {
       # Sets up electron to use Wayland by default
       "electron-flags.conf" = { source = ./electron/electron-flags.conf; };
@@ -131,6 +163,9 @@ in
 
       # Sets up mako config (notifications)
       "mako/config" = { text = (import ./mako/default.nix { }).config; };
+
+      # Sets up ranger (file explorer)
+      "ranger" = { source = ./ranger; recursive = true; };
     };
 
     wayland.windowManager.sway =
@@ -261,7 +296,7 @@ in
           exec swaymsg "workspace messages; exec slack; exec signal-desktop"
           exec swaymsg "workspace password; exec keepassxc"
           exec swaymsg "workspace editor; exec alacritty -t nvim"
-          exec swaymsg "workspace files; exec alacritty -t ranger -e ranger $HOME"
+          exec swaymsg "workspace files; exec kitty -T ranger ranger $HOME" # use kitty for image previews
           exec swaymsg "workspace monitoring; exec alacritty -t bpytop -e bpytop"
           exec swaymsg "workspace spotify; exec spotify"
 

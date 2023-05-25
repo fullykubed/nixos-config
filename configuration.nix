@@ -265,6 +265,7 @@ in
     ##  Terminal Management
     ################################
     alacritty
+    kitty
     unstable.neovim-unwrapped
 
     ################################
