@@ -156,8 +156,17 @@ in
     ################################
     teams # X11 (electron)
     discord # X11 (electron)
-    unstable.signal-desktop # X11 (electron)
-    slack # X11 (electron)
+    # Fix for https://github.com/NixOS/nixpkgs/issues/222043
+    (unstable.signal-desktop.overrideAttrs
+      (old: {
+        preFixup = old.preFixup + ''
+          gappsWrapperArgs+=(
+            --add-flags "--enable-features=UseOzonePlatform"
+            --add-flags "--ozone-platform=wayland"
+          )
+        '';
+      }))
+    slack
     signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
 
     ################################
