@@ -4,6 +4,7 @@ let
   sway-session-start = (pkgs.writeShellScriptBin "sway-session-start" (builtins.readFile ./sway-session-start.sh));
   sway-switch-and-launch-if-ne = (pkgs.writeShellScriptBin "sway-switch-and-launch-if-ne" (builtins.readFile ./sway-switch-and-launch-if-ne.sh));
   mako-start = (pkgs.writeShellScriptBin "mako-start" (builtins.readFile ./mako/mako-start.sh));
+  single-monitor-mode = (pkgs.writeShellScriptBin "single-monitor-mode" (builtins.readFile ./scripts/single-monitor-mode.sh));
 
   monitors = {
     main = "Samsung Electric Company LS49AG95 HCSW100482";
@@ -44,12 +45,14 @@ in
       mediainfo # tool for working with files in the file manager
       pandoc # document conversion
       swayimg # image viewer
+      mpv # video player
 
       # Custom sway scripts
       configure-gtk
       sway-session-start
       sway-switch-and-launch-if-ne
       mako-start
+      single-monitor-mode
     ];
   };
 
@@ -147,7 +150,13 @@ in
         type = "Application";
         mimeType = [ "image/bmp" "image/gif" "image/png" "image/webp" "image/jpeg" ];
       };
-
+      "mkv" = {
+        name = "mkv";
+        comment = "Video player for Sway";
+        exec = "mkv %U";
+        type = "Application";
+        mimeType = [ "video/mp4" "video/webm" "video/x-m4v" "video/quicktime" ];
+      };
       "ranger" = {
         name = "ranger";
         comment = "File explorer";
@@ -292,6 +301,9 @@ in
         
           # for locking the screen
           bindsym ${swayModifier}+grave exec swaylock
+
+          # for toggling single monitor mode
+          bindsym ${swayModifier}+Shift+f exec single-monitor-mode
 
           exec swaymsg "workspace messages; exec slack; exec signal-desktop"
           exec swaymsg "workspace password; exec keepassxc"

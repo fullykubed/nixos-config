@@ -56,6 +56,10 @@ in
       "image/gif" = [ "swayimg.desktop" ];
       "image/bmp" = [ "swayimg.desktop" ];
       "application/pdf" = [ "okular.desktop" ];
+      "video/mp4" = [ "mpv.desktop" ];
+      "video/webm" = [ "mpv.desktop" ];
+      "video/x-m4v" = [ "mpv.desktop" ];
+      "video/quicktime" = [ "mpv.desktop" ];
     };
   };
 
