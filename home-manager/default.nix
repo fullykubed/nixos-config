@@ -110,7 +110,7 @@ in
     ##  Dev Utilities
     ################################
     direnv
-    (import (fetchTarball https://github.com/cachix/devenv/archive/v0.5.1.tar.gz)).default # https://devenv.sh/getting-started/
+    (import (fetchTarball https://github.com/cachix/devenv/archive/latest.tar.gz)).default # https://devenv.sh/getting-started/
 
     ################################
     ##  IDEs and Doc Editors
