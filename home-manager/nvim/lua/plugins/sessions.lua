@@ -14,7 +14,7 @@ return {
   },
   {
     "rmagatti/session-lens",
-    keys = {
+    keys = {  
       {"<leader>p", "<cmd>:SearchSession<cr>", desc = "Switch Project", nowait = true}
     },
     dependencies = {
