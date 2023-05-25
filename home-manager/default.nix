@@ -33,8 +33,6 @@ in
   ################################
   xdg.configFile = {
     "nvim" = { source = ./nvim; recursive = true; };
-    "electron-flags.conf" = { source = ./electron/electron-flags.conf; };
-    "electron-flags13.conf" = { source = ./electron/electron13-flags.conf; };
   };
 
 
