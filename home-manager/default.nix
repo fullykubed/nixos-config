@@ -211,7 +211,6 @@ in
     pavucontrol # For controlling audio sinks
     imagemagick # For image manipulation
     gimp # Image manipulation
-    zoom-us
 
     ################################
     ##  Scanners and Printers

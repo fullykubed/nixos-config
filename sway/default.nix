@@ -195,8 +195,9 @@ in
         };
 
         extraConfig = ''
-          # any window with the title "fzf-switcher" will be floating
+          # floating windows
           for_window [title="fzf-switcher"] floating enable
+          for_window [title="Firefox — Sharing Indicator"] floating enable
 
           # These are the default sway keybindings
           bindsym ${swayModifier}+1 workspace number 1
@@ -269,7 +270,6 @@ in
           bindsym ${swayModifier}+Alt+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
           bindsym ${swayModifier}+Alt+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
           bindsym ${swayModifier}+Alt+o exec sway-switch-and-launch-if-ne obs obs obs
-          bindsym ${swayModifier}+Alt+z exec sway-switch-and-launch-if-ne zoom zoom zoom
           bindsym ${swayModifier}+Alt+t workspace terminal
           bindsym ${swayModifier}+Alt+a [instance="spotify"] focus
 
