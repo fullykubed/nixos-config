@@ -5,7 +5,8 @@
 
 {
   imports =
-    [ (modulesPath + "/installer/scan/not-detected.nix")
+    [
+      (modulesPath + "/installer/scan/not-detected.nix")
     ];
 
   boot.initrd.kernelModules = [
@@ -69,45 +70,53 @@
   services.avahi.nssmdns = true;
 
   fileSystems."/" =
-    { device = "primary/root";
+    {
+      device = "primary/root";
       fsType = "zfs";
     };
 
   fileSystems."/home" =
-    { device = "primary/home";
+    {
+      device = "primary/home";
       fsType = "zfs";
     };
 
   fileSystems."/nix/store" =
-    { device = "primary/nix-store";
+    {
+      device = "primary/nix-store";
       fsType = "zfs";
     };
 
-  fileSystems."/tmp" = 
-    { device = "primary/tmp";
+  fileSystems."/tmp" =
+    {
+      device = "primary/tmp";
       fsType = "zfs";
     };
 
   fileSystems."/home/jack/media" =
-    { device = "secondary/encrypted/media";
+    {
+      device = "secondary/encrypted/media";
       fsType = "zfs";
     };
 
   fileSystems."/nix/var/log" =
-    { device = "secondary/encrypted/logs/nix";
+    {
+      device = "secondary/encrypted/logs/nix";
       fsType = "zfs";
     };
 
   # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
   # us from booting.
   fileSystems."/boot0" =
-    { device = "/dev/disk/by-uuid/3103-B6F3";
+    {
+      device = "/dev/disk/by-uuid/3103-B6F3";
       fsType = "vfat";
       options = [ "nofail" ];
     };
 
   fileSystems."/boot1" =
-    { device = "/dev/disk/by-uuid/3182-4B71";
+    {
+      device = "/dev/disk/by-uuid/3182-4B71";
       fsType = "vfat";
       options = [ "nofail" ];
     };
@@ -115,19 +124,17 @@
 
   # Again, "nofail" as these are not critical
   swapDevices =
-    [ { 
-        device = "/dev/disk/by-partuuid/5c7ca6b5-ddd8-9442-b94e-e3eb55d8ca20";
-        randomEncryption = true;
-        options = [ "nofail" ]; 
-      }
-      { 
+    [{
+      device = "/dev/disk/by-partuuid/5c7ca6b5-ddd8-9442-b94e-e3eb55d8ca20";
+      randomEncryption = true;
+      options = [ "nofail" ];
+    }
+      {
         device = "/dev/disk/by-partuuid/5ad84ba3-013c-084b-9685-02f979ac5dd0";
         randomEncryption = true;
         options = [ "nofail" ];
-      }
-    ];
+      }];
 
   hardware.cpu.amd.updateMicrocode = true;
   powerManagement.cpuFreqGovernor = "performance";
-  hardware.video.hidpi.enable = lib.mkDefault true;
 }

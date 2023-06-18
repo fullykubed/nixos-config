@@ -5,7 +5,18 @@ in
 {
   home.stateVersion = "22.11";
 
+  #################################################
+  ## Fixes for deprecated packages
+  #################################################
+  nixpkgs.overlays = [
+    (self: super: {
+      fcitx-engines = self.fcitx5; #fcitx-engines is deprecated, please use fcitx5 instead.
+    })
+  ];
+
+  #################################################
   # Set up default directories in $HOME
+  #################################################
   xdg.userDirs = {
     enable = true;
     desktop = "$HOME/desktop";

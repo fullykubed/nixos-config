@@ -9,9 +9,9 @@ let
   monitors = {
     main = "Samsung Electric Company LS49AG95 HCSW100482";
     top = "Samsung Electric Company C49RG9x H1AK500000";
-    topRight = "Goldstar Company Ltd LG HDR 4K 0x0000D70E";
-    bottomRight = "Goldstar Company Ltd LG HDR 4K 0x00000ED1";
-    vertical = "Goldstar Company Ltd LG HDR 4K 0x00004BD2";
+    topRight = "LG Electronics LG HDR 4K 0x0000D70E";
+    bottomRight = "LG Electronics LG HDR 4K 0x00000ED1";
+    vertical = "LG Electronics LG HDR 4K 0x00004BD2";
   };
 in
 {
@@ -274,7 +274,7 @@ in
           bindsym ${swayModifier}+Alt+l [app_id="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
-          bindsym ${swayModifier}+Alt+b [title="bpytop"] focus
+          bindsym ${swayModifier}+Alt+b [title="btop"] focus
           bindsym ${swayModifier}+Alt+f exec sway-switch-and-launch-if-ne browser firefox firefox
           bindsym ${swayModifier}+Alt+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
           bindsym ${swayModifier}+Alt+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
@@ -308,8 +308,8 @@ in
           exec swaymsg "workspace messages; exec slack; exec signal-desktop"
           exec swaymsg "workspace password; exec keepassxc"
           exec swaymsg "workspace editor; exec alacritty -t nvim"
+          exec swaymsg "workspace monitoring; exec alacritty -t btop -e btop"
           exec swaymsg "workspace files; exec kitty -T ranger ranger $HOME" # use kitty for image previews
-          exec swaymsg "workspace monitoring; exec alacritty -t bpytop -e bpytop"
           exec swaymsg "workspace spotify; exec spotify"
 
           # Indicate to systemd that we have started the sway session

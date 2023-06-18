@@ -41,6 +41,7 @@ in
   #################################################
   nix-unstable = unstable;
 
+
   #################################################
   ## Virtualization
   #################################################
@@ -48,7 +49,7 @@ in
     podman = {
       enable = true;
       extraPackages = with pkgs; [ zfs ];
-      defaultNetwork.dnsname.enable = true;
+      defaultNetwork.settings.dns_enabled = true;
       dockerCompat = true;
     };
     containers = {
@@ -362,7 +363,7 @@ in
     lnav # Structured log file navigator
     dmidecode # Reads info about connected devices from MOBO through SMBIOS/DMI
     htop # Interactive process monitoring
-    bpytop # Better interactive process monitoring
+    btop # Better interactive process monitoring
     lshw # Alternative way to query hardware
     lm_sensors # For reading hardware sensors
     psensor # For displaying hardware sensors graphically
