@@ -13,6 +13,17 @@ return {
         layout_config = { prompt_position = "top" },
         sorting_strategy = "ascending",
         winblend = 0,
+        file_ignore_patterns = {"%.git/", "node_modules/", "%.cache/"},
+        vimgrep_arguments = {
+          "rg",
+          "--color=never",
+          "--no-heading",
+          "--with-filename",
+          "--line-number",
+          "--column",
+          "--hidden",
+          "--smart-case"
+        }
       },
     },
 
