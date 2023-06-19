@@ -199,7 +199,7 @@ in
   ## Security
   ################################
   security.polkit.enable = true;
-
+  services.pcscd.enable = true; # need for working with yubikey
 
 
   ################################
