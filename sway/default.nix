@@ -280,7 +280,7 @@ in
           bindsym ${swayModifier}+Alt+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
           bindsym ${swayModifier}+Alt+o exec sway-switch-and-launch-if-ne obs obs obs
           bindsym ${swayModifier}+Alt+t workspace terminal
-          bindsym ${swayModifier}+Alt+a [instance="spotify"] focus
+          bindsym ${swayModifier}+Alt+a [title="Spotify"] focus
 
           # for moving workspaces to  monitors quickly
           bindsym ${swayModifier}+Alt+1 move workspace to output "${monitors.main}"
