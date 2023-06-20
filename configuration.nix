@@ -293,6 +293,7 @@ in
     ################################
     jq # JSON parser
     yq # YAML parser
+    envsubst # Environment variable interpolation
 
     ################################
     ##  General Tooling
