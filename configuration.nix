@@ -63,9 +63,7 @@ in
           };
           engine = {
             helper_binaries_dir = [
-              # Fixes DNS resolution in containers
-              "${pkgs.netavark}/bin"
-              "${pkgs.aardvark-dns}/bin"
+              "${pkgs.podman}/libexec/podman"
             ];
           };
         };
@@ -200,7 +198,6 @@ in
   ################################
   security.polkit.enable = true;
   services.pcscd.enable = true; # need for working with yubikey
-
 
   ################################
   ## ZFS
