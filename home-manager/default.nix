@@ -208,9 +208,15 @@ in
     signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
 
     ################################
+    ##  Finance
+    ################################
+    homebank
+
+    ################################
     ##  File Sharing
     ################################
     qbittorrent
+    croc
 
     ################################
     ##  Media Players
