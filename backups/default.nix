@@ -4,8 +4,8 @@ let
 
   # Main backup directives
   datasets = [
-    { source = "primary/home"; backup = "secondary/encrypted/backups/home"; }
-    { source = "primary/root"; backup = "secondary/encrypted/backups/root"; }
+    { source = "primary/nixos/home"; backup = "secondary/encrypted/backups/home"; }
+    { source = "primary/nixos/root"; backup = "secondary/encrypted/backups/root"; }
   ];
 
   # Backup configuration
@@ -55,6 +55,8 @@ let
 
   buildSyncoidCommand = { source, backup }: lib.escapeShellArgs ([
     "${pkgs.sanoid}/bin/syncoid"
+    "--sendoptions=\"Rw\"" # send raw and recursive
+    "--recvoptions=\"u\"" # do not mount
     "--no-resume"
     "--no-privilege-elevation"
     "--no-sync-snap"

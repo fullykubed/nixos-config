@@ -2,18 +2,7 @@
 # your system.  Help is available in the configuration.nix(5) man page
 # and in the NixOS manual (accessible by running ‘nixos-help’).
 
-{ config, pkgs, lib, ... }:
-let
-
-  # Make the unstable branch availble to us in case we need to switch out a particular package
-  unstable = import
-    (builtins.fetchTarball https://github.com/nixos/nixpkgs/tarball/nixos-unstable)
-    # reuse the current configuration
-    { config = config.nixpkgs.config; };
-in
-{
-
-
+{ config, pkgs, lib, ... }: {
   #################################################
   ## Imports
   #################################################
@@ -23,11 +12,8 @@ in
     ./hardware-configuration.nix
 
     # Our segemented modules
-    ./systemd-boot/systemd-boot.nix
     ./backups/default.nix
-
-    # Home Manager
-    <home-manager/nixos>
+    ./disable-wakeup-triggers/default.nix
 
     # Custom Global Options
     ./global/default.nix
@@ -37,10 +23,19 @@ in
   ];
 
   #################################################
-  ## Custom Global Config Options
+  ## Ergodox EZ Keyboard Mappings
   #################################################
-  nix-unstable = unstable;
+ services.udev.extraRules = ''
+    ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="04[789B]?", ENV{ID_MM_DEVICE_IGNORE}="1"
+    ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="04[789A]?", ENV{MTP_NO_PROBE}="1"
+    SUBSYSTEMS=="usb", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="04[789ABCD]?", MODE:="0666"
+    KERNEL=="ttyACM*", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="04[789B]?", MODE:="0666"
+  '';
 
+  #################################################
+  ## Gaming
+  #################################################
+  programs.steam.enable = true;
 
   #################################################
   ## Virtualization
@@ -50,13 +45,26 @@ in
       enable = true;
       extraPackages = with pkgs; [ zfs ];
       defaultNetwork.settings.dns_enabled = true;
-      dockerCompat = true;
+      dockerCompat = false;
+      autoPrune = {
+        enable = true;
+        flags = ["--all"];
+        dates = "weekly";
+      };
     };
     containers = {
+      storage = {
+        settings = {
+          storage = {
+            driver = "overlay";
+          };
+        };
+      };
       containersConf = {
         settings = {
           containers = {
             pids_limit = 65536;
+            default_ulimits = ["nofile=65536:65536"];
           };
           network = {
             network_backend = "netavark";
@@ -70,6 +78,9 @@ in
       };
     };
   };
+
+  # Podman user service is broken by default
+  systemd.user.services.podman.enable = false;
 
   systemd.enableUnifiedCgroupHierarchy = true;
   # See https://rootlesscontaine.rs/getting-started/common/cgroup2/#enabling-cpu-cpuset-and-io-delegation
@@ -88,68 +99,38 @@ in
   boot.kernel.sysctl."fs.inotify.max_user_watches" = 655360;
   systemd.user.extraConfig = "DefaultLimitNOFILE=65536";
 
-  # Unprivilege ports 80 and above to allow rootless containers to bind to these ports
-  boot.kernel.sysctl."net.ipv4.ip_unprivileged_port_start" = 80;
-
   # Allow OOM watching
   boot.kernel.sysctl."kernel.dmesg_restrict" = 0;
-
-  # Podman user service is broken by default
-  systemd.user.services.podman.enable = false;
-  systemd.user.services.podman2 = {
-    # Podman needs to access binaries like newsuid but the have to be setcapped 
-    # which in nixos means they will be found here (see wrappers.security)
-    path = [ "/var/run/wrappers" ];
-    unitConfig = {
-      Description = "Podman API Service";
-      Documentation = "man:podman-system-service(1)";
-      StartLimitIntervalSec = "0";
-    };
-    serviceConfig = {
-      ExecStart = "${pkgs.podman}/bin/podman $LOGGING system service -t 0";
-      Restart = "always";
-      Delegate = "true";
-      Type = "exec";
-      KillMode = "process";
-      Environment = "LOGGING=\"--log-level=info\"";
-    };
-    wantedBy = [ "default.target" ];
-  };
-  systemd.user.sockets.podman = {
-    socketConfig = {
-      TriggerLimitIntervalSec = 0;
-      TriggerLimitBurst = 0;
-    };
-  };
 
   # Enable linux auditing
   security.auditd.enable = true;
 
-  # Use the systemd-boot EFI boot loader with secureboot.
-  # See https://www.rodsbooks.com/efi-bootloaders/controlling-sb.html for detailed info on secureboot + generating and installing keys
-  # See https://github.com/frogamic/nix-machines/tree/main/modules/systemd-secure-boot for references to resources for integration with NixOS
-  # Note: I edited the nix script to support multiple efi mountpoints
-  # Note: If you accidentally delete the boot partition in testing, just run 'bootctl install' to reinstall
-  disabledModules = [ "system/boot/loader/systemd-boot/systemd-boot.nix" ];
-  boot.loader.systemd-boot = {
-    enable = true;
-    secureBoot = {
-      enable = true;
-      keyPath = "/etc/nixos/systemd-boot/DB.key";
-      certPath = "/etc/nixos/systemd-boot/DB.crt";
+  boot.loader = {
+    systemd-boot.enable = lib.mkForce false;
+    efi = {
+      efiSysMountPoint = "/boot";
+      canTouchEfiVariables = true;
     };
-    efiSysMountPoints = [ "/boot0" "/boot1" ];
-    configurationLimit = 10;
-    memtest86.enable = true;
   };
-  boot.loader.efi.canTouchEfiVariables = true;
+  boot.lanzaboote = {
+    enable = true;
+    pkiBundle = "/etc/secureboot";
+  };
   boot.kernelParams = [
     "nohibernate" # With ZFS we cannot hibernate (also poses a security issue due to RAM persistence)
     "zfs.zfs_max_recordsize=16777216" # Allow large 16M record sizes
     "zfs.zfs_dirty_data_max_percent=50" # Allows 50% of RAM to be consumed by writes before throttling
     "zfs.zfs_dirty_data_sync=1073741824" # Allows 1GiB of data to accumulate before forcing a disk sync more often than 5 sec interval
     "amdgpu.ras_enable=0" # disable RAS which was causing hw errors with the W6800 gpu
+    "acpi_enforce_resources=lax" # allows for hardware sensors from the motherboard to appear
   ];
+
+  # Copies the EFI partition to a backup partition. This allows us to boot even if the first
+  # drive becomes corrupted.
+  system.activationScripts = {
+    boot-sync.text = "${pkgs.rsync}/bin/rsync -avq --delete /boot/ /boot1/";
+  };
+
 
   networking.hostName = "jack-desktop"; # Define your hostname.
   networking.hostId = "925bf176";
@@ -159,16 +140,17 @@ in
   # Set your time zone.
   time.timeZone = "America/Indianapolis";
 
-  # The okta_core useDHCP flag is deprecated, therefore explicitly set to false here.
+  # The useDHCP flag is deprecated, therefore explicitly set to false here.
   # Per-interface useDHCP will be mandatory in the future, so this generated config
   # replicates the default behaviour.
   networking.useDHCP = false;
-  networking.interfaces.enp5s0.useDHCP = true;
-  networking.interfaces.enp6s0.useDHCP = true;
+  networking.interfaces.enp75s0.useDHCP = true;
 
   # Fixes dns lookups at local host addresses
   # https://github.com/NixOS/nix/issues/5441
   networking.hosts."127.0.0.1" = [ "this.pre-initializes.the.dns.resolvers.invalid." ];
+
+  networking.nameservers = ["1.1.1.1" "8.8.8.8" ];
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
@@ -191,6 +173,9 @@ in
     driSupport32Bit = true;
   };
 
+  # enable amd gpu debugging
+  programs.corectrl.enable = true;
+
   services.xserver.layout = "us";
 
   ################################
@@ -204,6 +189,20 @@ in
   ################################
   services.zfs.autoScrub.enable = true;
   services.zfs.trim.enable = true;
+  boot.extraModprobeConfig = ''
+    options zfs l2arc_rebuild_enabled=1 l2arc_headroom=0 l2arc_write_max=${builtins.toString (100 * 1024 * 1024)} l2arc_write_boost=${builtins.toString (1024 * 1024 * 1024)} l2arc_noprefetch=0
+  '';
+  services.zfs.zed = {
+    settings = {
+       # TODO: Make secret
+      ZED_PUSHOVER_TOKEN = "REDACTED_PUSHOVER_TOKEN";
+      ZED_PUSHOVER_USER = "ubeszsjqr12emacca1wgqgca5g3yau";
+    };
+  };
+  boot.zfs.requestEncryptionCredentials = [
+    "primary/nixos"
+    "secondary/encrypted"
+  ];
 
   ################################
   ## Printing
@@ -228,7 +227,7 @@ in
   ################################
   users.users.jack = {
     isNormalUser = true;
-    extraGroups = [ "wheel" "scanner" "lp" ];
+    extraGroups = [ "wheel" "scanner" "lp" "corectrl" "plugdev" ];
     subUidRanges = [
       {
         count = 65543;
@@ -243,8 +242,6 @@ in
     ];
   };
   users.groups.jack.members = [ "jack" ];
-  home-manager.users.jack = import ./home-manager/default.nix { inherit pkgs lib config unstable; };
-
 
   environment.sessionVariables = {
     EDITOR = "nvim";
@@ -270,6 +267,8 @@ in
     ##  Virtualization Utilities
     ################################
     slirp4netns
+    # TODO: remove when native overlay fs is supported in zfs 2.2
+    # See: https://github.com/openzfs/zfs/issues/8648
     fuse-overlayfs
 
     ################################
@@ -284,6 +283,7 @@ in
     tpm2-abrmd
     efibootmgr
     efitools
+    sbctl # secure boot key manager
 
     ################################
     ##  Parsers
@@ -299,7 +299,7 @@ in
     rsync # Local file syncronization
     python310 # Scripting language
     pv # Stream monitoring
-    exa # "Better" ls written in rust
+    eza # "Better" ls written in rust
     ripgrep # "Better" grep written in rust
     fd # "Better" find written in rust
     sysstat # Performance monitoring tools (e.g., iostat, pidstat)
@@ -343,7 +343,8 @@ in
     ################################
     ##  Low-Level Graphics Tooling
     ################################
-
+    gtk3 # toolkit for creating guis
+    webkitgtk # webkit rendering engine
     # Note: See https://mozillagfx.wordpress.com/2021/10/30/switching-the-linux-graphics-stack-from-glx-to-egl/
     glxinfo # CLI for debugging some issues with GLX, powers X graphics (older)
     egl-wayland # CLI for debugging some issues with the EGLStreams; EGLStreams powers Wayland desktop (newer)
@@ -379,6 +380,7 @@ in
     ################################
     android-udev-rules # Working with pixel
     android-tools # Working with pixel (and other android devices)
+    libusb1 # for programming usb devices
 
     ################################
     ##  Windows Emulation
@@ -396,33 +398,34 @@ in
     systemService = true;
     overrideDevices = true;
     overrideFolders = true;
-    devices = {
-      "zenbook" = { id = "5AO3FST-KPWRUCV-ASJQLMI-BHY2LEY-X5LKA7I-UWEZOZT-MSKLFFS-45SBFAI"; };
-      "bambee_mac" = { id = "CRVU545-X32YNWD-PRMIT6Z-XILLZ4C-F433UCH-VNG7SBI-CCFZAGS-UU3KNAM"; };
-      "pixel6" = { id = "C475M4E-JGQ6PNA-PQD5WTV-OQRBRXW-AGQO6ZI-WS4JO6U-DSJR7OK-T2RWIQN"; };
+    settings = {
+      devices = {
+        "zenbook" = { id = "5AO3FST-KPWRUCV-ASJQLMI-BHY2LEY-X5LKA7I-UWEZOZT-MSKLFFS-45SBFAI"; };
+        "bambee_mac" = { id = "CRVU545-X32YNWD-PRMIT6Z-XILLZ4C-F433UCH-VNG7SBI-CCFZAGS-UU3KNAM"; };
+        "pixel6" = { id = "C475M4E-JGQ6PNA-PQD5WTV-OQRBRXW-AGQO6ZI-WS4JO6U-DSJR7OK-T2RWIQN"; };
+      };
+      folders = {
+        "keepass" = {
+          id = "keepass";
+          label = "Keepass";
+          path = "/home/jack/keepass";
+          devices = [ "zenbook" "bambee_mac" "pixel6" ];
+        };
+        "docs" = {
+          id = "djyz3-mgw9k";
+          label = "Documents";
+          path = "/home/jack/docs";
+          devices = [ "zenbook" ];
+        };
+        "pixel_camera" = {
+          id = "pixel_6_jgkv-photos";
+          label = "S9_Camera";
+          path = "/home/jack/camera/pixel";
+          devices = [ "pixel6" ];
+          type = "receiveonly";
+        };
+      };
     };
-    folders = {
-      "keepass" = {
-        id = "keepass";
-        label = "Keepass";
-        path = "/home/jack/keepass";
-        devices = [ "zenbook" "bambee_mac" "pixel6" ];
-      };
-      "docs" = {
-        id = "djyz3-mgw9k";
-        label = "Documents";
-        path = "/home/jack/docs";
-        devices = [ "zenbook" ];
-      };
-      "pixel_camera" = {
-        id = "pixel_6_jgkv-photos";
-        label = "S9_Camera";
-        path = "/home/jack/camera/pixel";
-        devices = [ "pixel6" ];
-        type = "receiveonly";
-      };
-    };
-
   };
 
   # Secrets management
@@ -462,16 +465,27 @@ in
   system.stateVersion = "22.11"; # Did you read the comment?
 
   # Configure autoupdating
-  system.autoUpgrade.enable = true;
-  system.autoUpgrade.allowReboot = false;
-  system.autoUpgrade.dates = "04:00";
+  system.autoUpgrade = {
+    enable = true;
+    allowReboot = false;
+    dates = "04:00";
+    persistent = true;
+  };
 
   # Configure automatic package garbage collection
-  nix.gc.automatic = true;
-  nix.gc.dates = "05:00";
+  nix.gc = {
+    automatic = true;
+    dates = "05:00";
+    persistent = true;
+    options = "-d"; # ensures old profiles are cleaned
+  };
+
 
   # Ensure the cpu doesn't get blasted
   nix.daemonCPUSchedPolicy = "idle";
   nix.settings.max-jobs = 16;
+
+  # Enable flakes
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 }
 

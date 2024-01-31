@@ -1,4 +1,4 @@
-{ config, pkgs, unstable, lib, ... }:
+{ config, pkgs, lib, ... }:
 let
   scripts = with pkgs; { };
 in
@@ -145,8 +145,8 @@ in
     ################################
     ##  Dev Utilities
     ################################
+    sysz
     direnv
-    (import (fetchTarball https://github.com/cachix/devenv/archive/latest.tar.gz)).default # https://devenv.sh/getting-started/
 
     ################################
     ##  IDEs and Doc Editors
@@ -154,6 +154,7 @@ in
     libreoffice
     unstable.drawio # TODO: Need to edit desktop config to start with --disable-gpu
     libsForQt5.okular # PDF editing
+    unstable.jetbrains.webstorm
 
     ################################
     ##  KVM
@@ -192,18 +193,8 @@ in
     ################################
     ##  Messaging
     ################################
-    teams # X11 (electron)
     discord
-    # Fix for https://github.com/NixOS/nixpkgs/issues/222043
-    (unstable.signal-desktop.overrideAttrs
-      (old: {
-        preFixup = old.preFixup + ''
-          gappsWrapperArgs+=(
-            --add-flags "--enable-features=UseOzonePlatform"
-            --add-flags "--ozone-platform=wayland"
-          )
-        '';
-      }))
+    signal-desktop # TODO: this does not have wayland enabled
     slack
     signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
 
@@ -243,8 +234,9 @@ in
     ################################
     ##  Gaming
     ################################
-    steam
     lutris
+    gamemode
+    gamescope
 
     ################################
     ## Databases 

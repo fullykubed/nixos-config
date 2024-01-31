@@ -58,7 +58,7 @@
   # Scanning driver for Brother scanners (brother no longer provides the default version in nixpkgs)
   nixpkgs.overlays = [
     (self: super: {
-      brscan5 = config.nix-unstable.brscan5;
+      brscan5 = pkgs.unstable.brscan5;
     })
   ];
   hardware.sane = {
@@ -71,25 +71,31 @@
 
   fileSystems."/" =
     {
-      device = "primary/root";
+      device = "primary/nixos/root";
       fsType = "zfs";
     };
 
   fileSystems."/home" =
     {
-      device = "primary/home";
+      device = "primary/nixos/home";
       fsType = "zfs";
     };
 
   fileSystems."/nix/store" =
     {
-      device = "primary/nix-store";
+      device = "primary/nixos/nix-store";
+      fsType = "zfs";
+    };
+
+  fileSystems."/nix/var/nix/db" =
+    {
+      device = "primary/nixos/nix-db";
       fsType = "zfs";
     };
 
   fileSystems."/tmp" =
     {
-      device = "primary/tmp";
+      device = "primary/nixos/tmp";
       fsType = "zfs";
     };
 
@@ -107,7 +113,7 @@
 
   # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
   # us from booting.
-  fileSystems."/boot0" =
+  fileSystems."/boot" =
     {
       device = "/dev/disk/by-uuid/3103-B6F3";
       fsType = "vfat";

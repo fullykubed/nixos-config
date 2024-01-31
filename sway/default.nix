@@ -24,7 +24,8 @@ in
       swaytools # tooling to help debug and setup sway
       swaylock # sway lock screen
       swayidle # sway idle timer
-      config.nix-unstable.swayr # window switcher
+      waybar # status bar
+      unstable.swayr # window switcher
       wl-clipboard
       wf-recorder
       mako # notification daemon
@@ -34,7 +35,7 @@ in
       xdg-utils # for opening default programs when clicking links
       glib # gsettings
       dracula-theme # gtk theme
-      config.nix-unstable.sov
+      unstable.sov
       wofi # menu / launcher
       ranger # file manager
       ueberzug # image previewer for ranger
@@ -80,7 +81,7 @@ in
   services.xserver.displayManager.lightdm.enable = false;
 
   # Setup waybar
-  programs.waybar.enable = true;
+  #programs.waybar.enable = true;
 
   # Portals are the mechanism for sharing audio and video across applications
   xdg.portal = {
@@ -96,7 +97,7 @@ in
   };
 
   fonts = {
-    fonts = with pkgs; [
+    packages = with pkgs; [
       nerdfonts
       noto-fonts
       noto-fonts-cjk
@@ -135,7 +136,7 @@ in
       RUST_BACKTRACE = "1";
     };
     serviceConfig = {
-      ExecStart = "${config.nix-unstable.swayr}/bin/swayrd";
+      ExecStart = "${pkgs.unstable.swayr}/bin/swayrd";
     };
   };
 
@@ -175,6 +176,40 @@ in
 
       # Sets up ranger (file explorer)
       "ranger" = { source = ./ranger; recursive = true; };
+
+      # Sets up waybar
+      "waybar/config" = { source = ./waybar/config.json; };
+    };
+
+    # This controls the lock screen and power savings modes
+    services.swayidle = {
+      enable = true;
+      extraArgs = ["-d" "idlehint" (builtins.toString (60 * 5))];
+      timeouts = [
+        # Enables the lock screen
+        { timeout = 60 * 5; command = "${pkgs.swaylock}/bin/swaylock --color 000000 -fF";}
+
+        # Turns off monitors
+        {
+          timeout = 60 * 5;
+          command = "${pkgs.sway}/bin/swaymsg \"output * dpms off\"";
+          resumeCommand = "${pkgs.sway}/bin/swaymsg \"output * dpms on\"";
+        }
+
+        # Suspends the system
+        { timeout = 60 * 15; command = "${pkgs.systemd}/bin/systemctl suspend"; }
+      ];
+      events = [
+        { event = "before-sleep";  command = "${pkgs.sway}/bin/swaymsg \"output * dpms off\""; }
+        { event = "after-resume";  command = "${pkgs.sway}/bin/swaymsg \"output * dpms on\""; }
+
+        # For some reason, when resuming, sway does not properly swap to an "idle" state
+        # until the user has provided some sort of input after resume. This is troublesome
+        # b/c sometimes the system will resume when the user is not physically present and then
+        # will never suspend again. This simulates a noop keypress after swayidle restarts
+        # in roder to begin tracking the idle state properly again
+        { event = "after-resume";  command = "${pkgs.wtype}/bin/wtype -d 1000 -k shift_l"; }
+      ];
     };
 
     wayland.windowManager.sway =
@@ -183,7 +218,9 @@ in
       in
       {
         enable = true;
-        systemdIntegration = false;
+        systemd = {
+         enable = false;
+        };
         config = {
           modifier = swayModifier;
           terminal = "alacritty";
@@ -198,9 +235,16 @@ in
           gaps = {
             inner = 10;
           };
+          window = {
+           border = 5;
+          };
 
           # Handle the keybinds below for more flexibilitiy
           keybindings = { };
+
+          bars = [{
+            command = "${pkgs.waybar}/bin/waybar";
+          }];
         };
 
         extraConfig = ''
@@ -259,6 +303,17 @@ in
           bindsym ${swayModifier}+v splitv
           bindsym ${swayModifier}+w layout tabbed
 
+          # For resizing
+          bindsym ${swayModifier}+Control+1 resize set width 10ppt
+          bindsym ${swayModifier}+Control+2 resize set width 20ppt
+          bindsym ${swayModifier}+Control+3 resize set width 30ppt
+          bindsym ${swayModifier}+Control+4 resize set width 40ppt
+          bindsym ${swayModifier}+Control+5 resize set width 50ppt
+          bindsym ${swayModifier}+Control+6 resize set width 60ppt
+          bindsym ${swayModifier}+Control+7 resize set width 70ppt
+          bindsym ${swayModifier}+Control+8 resize set width 80ppt
+          bindsym ${swayModifier}+Control+9 resize set width 90ppt
+
           # for launching applications
           bindsym ${swayModifier}+d exec wofi -H 800 -W 1800 --show drun
 
@@ -274,6 +329,7 @@ in
           bindsym ${swayModifier}+Alt+l [app_id="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
+          bindsym ${swayModifier}+Alt+j workspace jetbrains
           bindsym ${swayModifier}+Alt+b [title="btop"] focus
           bindsym ${swayModifier}+Alt+f exec sway-switch-and-launch-if-ne browser firefox firefox
           bindsym ${swayModifier}+Alt+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
@@ -304,6 +360,10 @@ in
 
           # for toggling single monitor mode
           bindsym ${swayModifier}+Shift+f exec single-monitor-mode
+
+          # for turning monitors on and off
+          bindsym ${swayModifier}+Shift+o output * dpms off
+          bindsym ${swayModifier}+Control+Shift+o output * dpms on
 
           exec swaymsg "workspace messages; exec slack; exec signal-desktop"
           exec swaymsg "workspace password; exec keepassxc"
