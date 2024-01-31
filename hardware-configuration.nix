@@ -40,6 +40,8 @@
     config.boot.kernelPackages.v4l2loopback.out
   ];
 
+  boot.kernelPackages = pkgs.linuxPackages_6_6;
+
   # Enable thermal monitoring
   environment.etc."sysconfig/lm_sensors".text = ''
     HWMON_MODULES="k10temp nct6775 i2c-piix4 lm92"

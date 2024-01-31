@@ -46,7 +46,7 @@ let
   # filesystems we've delegated permissions to.
   buildZFSAllowCommand = user: zfsAction: permissions: dataset: lib.escapeShellArgs [
     # Here we explicitly use the booted system to guarantee the stable API needed by ZFS
-    "+-/run/booted-system/sw/bin/zfs"
+    "+-${pkgs.zfs}/bin/zfs"
     zfsAction
     user
     (lib.strings.concatStringsSep "," permissions)
@@ -71,6 +71,8 @@ let
       Type = "oneshot";
       User = user;
       Group = user;
+      DynamicUser = true;
+      PrivateUsers = "no"; # Cannot be run in a user namespace
       RuntimeDirectory = user;
       CacheDirectory = user;
       PrivateDevices = "no"; # Need access to the devices for zfs management
@@ -122,11 +124,11 @@ in
       TZ = "UTC";
     };
     serviceConfig = buildServiceConfig "syncoid" {
-      ExecStartPre = (map (buildZFSAllowCommand "syncoid" "allow" [ "send" "hold" ]) sourceDatasets) ++
-        (map (buildZFSAllowCommand "syncoid" "allow" [ "create" "mount" "receive" "hold" "rollback" ]) backupRoots);
+      ExecStartPre = (map (buildZFSAllowCommand "syncoid" "allow" [ "send" "hold" "mount" "snapshot" "destroy" ]) sourceDatasets) ++
+        (map (buildZFSAllowCommand "syncoid" "allow" [ "compression" "mountpoint" "create" "mount" "receive" "hold" "rollback" "destroy" ]) backupRoots);
       ExecStart = map buildSyncoidCommand datasets;
-      ExecStopPost = (map (buildZFSAllowCommand "syncoid" "unallow" [ "send" "hold" ]) sourceDatasets) ++
-        (map (buildZFSAllowCommand "syncoid" "unallow" [ "create" "mount" "receive" "hold" "rollback" ]) backupRoots);
+      ExecStopPost = (map (buildZFSAllowCommand "syncoid" "unallow" [ "send" "hold" "mount" "snapshot" "destroy" ]) sourceDatasets) ++
+        (map (buildZFSAllowCommand "syncoid" "unallow" [ "compression" "mountpoint" "create" "mount" "receive" "hold" "rollback" "destroy" ]) backupRoots);
     };
   };
 }
