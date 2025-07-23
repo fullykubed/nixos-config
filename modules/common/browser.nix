@@ -20,5 +20,20 @@
         "application/x-extension-xht" = [ "firefox.desktop" ];
       };
     };
+
+    xdg.desktopEntries = {
+      firefox = {
+        name = "Firefox";
+        comment = "Firefox";
+        exec = "${pkgs.firefox}/bin/firefox";
+        type = "Application";
+      };
+      chrome = {
+        name = "Chrome";
+        comment = "Chrome";
+        exec = "${pkgs.chromium}/bin/chromium";
+        type = "Application";
+      };
+    };
   };
 }

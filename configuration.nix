@@ -48,6 +48,11 @@
     ./modules/common/security.nix
     ./modules/common/graphics.nix
     ./modules/common/systemd.nix
+    ./modules/common/home.nix
+    ./modules/common/messaging.nix
+    ./modules/common/ide.nix
+    ./modules/common/crypto.nix
+    ./modules/common/claude
 
     # Our segemented modules
     ./backups/default.nix

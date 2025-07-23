@@ -8,11 +8,6 @@
     wget # TODO: Remove from scripts
 
     ################################
-    ##  AI
-    ################################
-    unstable.claude-code
-
-    ################################
     ##  Nix Debugging Utilities
     ################################
     cntr
@@ -40,22 +35,6 @@
     ################################
     libreoffice
     unstable.drawio # TODO: Need to edit desktop config to start with --disable-gpu
-
-    ################################
-    ##  IDEs
-    ################################
-    # unstable.jetbrains.webstorm
-    # unstable.jetbrains.goland
-    unstable.code-cursor
-    unstable.neovim-unwrapped
-
-    ################################
-    ##  Cryptocurrency
-    ################################
-    electrum # BTC
-    unstable.wasabiwallet # BTC (privacy focused with coinjoin)
-    monero-gui # Monero w/ GUI
-    mycrypto # Ethereum
 
     ################################
     ##  Parsers
@@ -180,14 +159,6 @@
     ##  Video Editing
     ################################
     ffmpeg # Video swiss army knife
-
-    ################################
-    ##  Messaging
-    ################################
-    discord
-    unstable.signal-desktop # TODO: this does not have wayland enabled
-    slack
-    signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
 
     ################################
     ##  Finance

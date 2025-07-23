@@ -33,10 +33,6 @@ in
       stylua
 
       ################################
-      ##  Containers and Kubernetes
-      ################################
-
-      ################################
       ##  Scanners and Printers
       ################################
       gscan2pdf # Scanning GUI

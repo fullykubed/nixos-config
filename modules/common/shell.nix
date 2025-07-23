@@ -129,11 +129,6 @@
     ####################################
     programs.bash = {
       enable = true;
-
-      # Make sure the desktop entries show up
-      profileExtra = ''
-        export XDG_DATA_DIRS=\"$HOME/.nix-profile/share:$XDG_DATA_DIRS\"
-      '';
     };
   };
 }

@@ -35,15 +35,15 @@ in
     # Set up desktop applications
     xdg.desktopEntries = {
       mpv = {
-        name = "mpv";
-        comment = "Video player (Wayland native)";
+        name = "Video Player";
+        comment = "mpv Video player (Wayland native)";
         exec = "${pkgs.mpv}/bin/mpv %U";
         type = "Application";
         mimeType = mimetypes;
       };
       vlc = {
-        name = "vlc";
-        comment = "Video player";
+        name = "VLC";
+        comment = "Video player (fallback)";
         exec = "${pkgs.vlc}/bin/vlc %U";
         type = "Application";
         mimeType = mimetypes;

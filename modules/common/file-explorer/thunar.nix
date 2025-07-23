@@ -29,9 +29,9 @@
   home-manager.users.${config.username} = {
     # Set up desktop applications
     xdg.desktopEntries = {
-      "thunar" = {
-        name = "thunar";
-        comment = "File explorer";
+      thunar = {
+        name = "File Explorer";
+        comment = "The Thunar file explorer";
         exec = "thunar";
         type = "Application";
       };
