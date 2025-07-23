@@ -1,0 +1,7 @@
+#       Serial: 15600965, Slot: 1
+#         Name: nixos
+#      Created: Tue, 22 Jul 2025 22:41:05 +0000
+#   PIN policy: Always (A PIN is required for every decryption, if set)
+# Touch policy: Cached (A physical touch is required for decryption, and is cached for 15 seconds)
+#    Recipient: age1yubikey1qw36z5uy055l3n4l9qzy85vxx6cm6m6yyn4pcpgagdd0gmh35ng4gjue23q
+AGE-PLUGIN-YUBIKEY-1G5X7UQYZRAE6YNQT0GHWN

@@ -1,45 +1,163 @@
 {
   inputs = {
-    nixpkgs.url = github:NixOS/nixpkgs/nixos-23.11;
-    nixpkgs-unstable.url = github:NixOS/nixpkgs/nixos-unstable;
-    lanzaboote.url = "github:nix-community/lanzaboote";
+    # Flake utilities
+    flake-utils.url = "github:numtide/flake-utils";
+
+    # Secrets management
+    agenix.url = "https://flakehub.com/f/ryantm/agenix/0.15.0";
+    agenix-rekey = {
+      url = "github:oddlama/agenix-rekey?ref=395cdb1631e9715e37d0e859a2b1da63f0ae333b";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    # Determinate Nix to replace base nix
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3.8";
+
+    # Nixpkg repositories (stable and unstable)
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2505";
+    nixpkgs-unstable.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
+
+    # Secure boot integrations
+    lanzaboote = {
+      url = "https://flakehub.com/f/nix-community/lanzaboote/0.4.2";
+      inputs.nixpkgs.follows = "nixpkgs-unstable";
+    };
+
+    # Home manager
     home-manager = {
-      url = github:nix-community/home-manager/release-23.11;
+      url = "https://flakehub.com/f/nix-community/home-manager/0.2505";
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
     };
   };
 
-  outputs = inputs@{ self, nixpkgs, home-manager, nixpkgs-unstable, lanzaboote}:
-  let
-    system = "x86_64-linux";
-    overlay-unstable = final: prev: {
-      unstable = import nixpkgs-unstable {
-        inherit system;
-        config.allowUnfree = true;
+  outputs =
+    inputs@{
+      self,
+      determinate,
+      nixpkgs,
+      home-manager,
+      nixpkgs-unstable,
+      lanzaboote,
+      agenix,
+      agenix-rekey,
+      flake-utils,
+    }:
+    let
+
+      # Overlays module
+      overlays =
+        system:
+        (
+          { config, pkgs, ... }:
+          {
+            nixpkgs.overlays = [
+              (final: prev: {
+                # Makes "unstable" available in configuration.nix
+                unstable = import nixpkgs-unstable {
+                  inherit system;
+                  config.allowUnfree = true;
+                };
+              })
+
+              agenix-rekey.overlays.default
+            ];
+          }
+        );
+
+      mkNixosSystem =
+        { system, device-module }:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          modules = [
+
+            # Load the Determinate module
+            determinate.nixosModules.default
+
+            # Load the overlays
+            (overlays system)
+
+            # Load the device-specific module
+            device-module
+
+            # Used for setting up secureboot (not yet upstreamed into NixOS)
+            lanzaboote.nixosModules.lanzaboote
+
+            # NixOS Configuration
+            ./configuration.nix
+
+            # Home Manager Configuration
+            home-manager.nixosModules.home-manager
+            (
+              {
+                config,
+                pkgs,
+                lib,
+                ...
+              }:
+              {
+                home-manager.useGlobalPkgs = true;
+                home-manager.useUserPackages = true;
+
+                home-manager.users.jack = import ./home-manager/default.nix { inherit pkgs lib config; };
+              }
+            )
+
+            # Secrets integrations
+            agenix.nixosModules.default
+            agenix-rekey.nixosModules.default
+
+            # Options
+            (
+              { config, ... }:
+              {
+                username = "jack";
+              }
+            )
+          ];
+        };
+
+    in
+    {
+      nixosConfigurations = {
+        jack-desktop = mkNixosSystem {
+          system = "x86_64-linux";
+          device-module = ./devices/workstation-tower.nix;
+        };
       };
-    };
-  in {
-    nixosConfigurations.jack-desktop = nixpkgs.lib.nixosSystem {
-      inherit system;
-      modules = [
-        # Overlays-module makes "pkgs.unstable" available in configuration.nix
-        ({ config, pkgs, ... }: { nixpkgs.overlays = [ overlay-unstable ]; })
 
-        # Used for setting up secureboot (not yet upstreamed into NixOS)
-        lanzaboote.nixosModules.lanzaboote
+      agenix-rekey = agenix-rekey.configure {
+        userFlake = self;
+        nixosConfigurations = self.nixosConfigurations;
+      };
+    }
+    // flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+        };
+        nixfmt = pkgs.treefmt.withConfig {
+          runtimeInputs = [ pkgs.nixfmt-rfc-style ];
 
-        # NixOS Configuration
-        ./configuration.nix
+          settings = {
+            # Log level for files treefmt won't format
+            on-unmatched = "info";
 
-        # Home Manager Configuration
-        home-manager.nixosModules.home-manager
-        ({ config, pkgs, lib, ... }: {
-          home-manager.users.jack = import ./home-manager/default.nix { inherit pkgs lib config; };
-        })
-      ];
-
-    };
-  };
+            # Configure nixfmt for .nix files
+            formatter.nixfmt = {
+              command = "nixfmt";
+              includes = [ "*.nix" ];
+            };
+          };
+        };
+      in
+      {
+        formatter = nixfmt;
+        devShell = pkgs.mkShell {
+          packages = [ nixfmt ];
+        };
+      }
+    );
 }

@@ -1,11 +1,16 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 let
   systemdUtil = import ../util/systemd.nix;
 
   # Main backup directives
   datasets = [
-    { source = "primary/nixos/home"; backup = "secondary/encrypted/backups/home"; }
-    { source = "primary/nixos/root"; backup = "secondary/encrypted/backups/root"; }
+    #    { source = "primary/nixos/home"; backup = "secondary/encrypted/backups/home"; }
+    #    { source = "primary/nixos/root"; backup = "secondary/encrypted/backups/root"; }
   ];
 
   # Backup configuration
@@ -39,35 +44,43 @@ let
   # Computed dataset properties
   sourceDatasets = map (ds: ds.source) datasets;
   backupDatasets = map (ds: ds.backup) datasets;
-  backupRoots = with lib; map (str: strings.concatStringsSep "/" (lists.init (strings.splitString "/" str))) backupDatasets;
+  backupRoots =
+    with lib;
+    map (str: strings.concatStringsSep "/" (lists.init (strings.splitString "/" str))) backupDatasets;
   datasetList = sourceDatasets ++ backupDatasets;
 
   # Function to build "zfs allow" and "zfs unallow" commands for the
   # filesystems we've delegated permissions to.
-  buildZFSAllowCommand = user: zfsAction: permissions: dataset: lib.escapeShellArgs [
-    # Here we explicitly use the booted system to guarantee the stable API needed by ZFS
-    "+-${pkgs.zfs}/bin/zfs"
-    zfsAction
-    user
-    (lib.strings.concatStringsSep "," permissions)
-    dataset
-  ];
+  buildZFSAllowCommand =
+    user: zfsAction: permissions: dataset:
+    lib.escapeShellArgs [
+      # Here we explicitly use the booted system to guarantee the stable API needed by ZFS
+      "+-${pkgs.zfs}/bin/zfs"
+      zfsAction
+      user
+      (lib.strings.concatStringsSep "," permissions)
+      dataset
+    ];
 
-  buildSyncoidCommand = { source, backup }: lib.escapeShellArgs ([
-    "${pkgs.sanoid}/bin/syncoid"
-    "--sendoptions=\"Rw\"" # send raw and recursive
-    "--recvoptions=\"u\"" # do not mount
-    "--no-resume"
-    "--no-privilege-elevation"
-    "--no-sync-snap"
-    "--quiet"
-    source
-    backup
-  ]);
+  buildSyncoidCommand =
+    { source, backup }:
+    lib.escapeShellArgs ([
+      "${pkgs.sanoid}/bin/syncoid"
+      ''--sendoptions="Rw"'' # send raw and recursive
+      ''--recvoptions="u"'' # do not mount
+      "--no-resume"
+      "--no-privilege-elevation"
+      "--no-sync-snap"
+      "--quiet"
+      source
+      backup
+    ]);
 
   # Common configuration between sanoid and syncoid
-  buildServiceConfig = user: overrides@{ ... }: systemdUtil.buildSecureServiceConfig
-    {
+  buildServiceConfig =
+    user:
+    overrides@{ ... }:
+    systemdUtil.buildSecureServiceConfig {
       Type = "oneshot";
       User = user;
       Group = user;
@@ -83,7 +96,8 @@ let
       ProtectClock = "no"; # Needed by zfs
       KillMode = "process";
       KillSignal = "SIGINT";
-    } // overrides;
+    }
+    // overrides;
 in
 {
   # Make this globally available
@@ -101,14 +115,26 @@ in
       TZ = "UTC";
     };
     serviceConfig = buildServiceConfig "sanoid" {
-      ExecStartPre = (map (buildZFSAllowCommand "sanoid" "allow" [ "snapshot" "mount" "destroy" ]) datasetList);
+      ExecStartPre = (
+        map (buildZFSAllowCommand "sanoid" "allow" [
+          "snapshot"
+          "mount"
+          "destroy"
+        ]) datasetList
+      );
       ExecStart = lib.escapeShellArgs ([
         "${pkgs.sanoid}/bin/sanoid"
         "--cron"
         "--configdir"
         (pkgs.writeTextDir "sanoid.conf" sanoidCfg)
       ]);
-      ExecStopPost = (map (buildZFSAllowCommand "sanoid" "unallow" [ "snapshot" "mount" "destroy" ]) datasetList);
+      ExecStopPost = (
+        map (buildZFSAllowCommand "sanoid" "unallow" [
+          "snapshot"
+          "mount"
+          "destroy"
+        ]) datasetList
+      );
     };
   };
 
@@ -124,12 +150,43 @@ in
       TZ = "UTC";
     };
     serviceConfig = buildServiceConfig "syncoid" {
-      ExecStartPre = (map (buildZFSAllowCommand "syncoid" "allow" [ "send" "hold" "mount" "snapshot" "destroy" ]) sourceDatasets) ++
-        (map (buildZFSAllowCommand "syncoid" "allow" [ "compression" "mountpoint" "create" "mount" "receive" "hold" "rollback" "destroy" ]) backupRoots);
+      ExecStartPre =
+        (map (buildZFSAllowCommand "syncoid" "allow" [
+          "send"
+          "hold"
+          "mount"
+          "snapshot"
+          "destroy"
+        ]) sourceDatasets)
+        ++ (map (buildZFSAllowCommand "syncoid" "allow" [
+          "compression"
+          "mountpoint"
+          "create"
+          "mount"
+          "receive"
+          "hold"
+          "rollback"
+          "destroy"
+        ]) backupRoots);
       ExecStart = map buildSyncoidCommand datasets;
-      ExecStopPost = (map (buildZFSAllowCommand "syncoid" "unallow" [ "send" "hold" "mount" "snapshot" "destroy" ]) sourceDatasets) ++
-        (map (buildZFSAllowCommand "syncoid" "unallow" [ "compression" "mountpoint" "create" "mount" "receive" "hold" "rollback" "destroy" ]) backupRoots);
+      ExecStopPost =
+        (map (buildZFSAllowCommand "syncoid" "unallow" [
+          "send"
+          "hold"
+          "mount"
+          "snapshot"
+          "destroy"
+        ]) sourceDatasets)
+        ++ (map (buildZFSAllowCommand "syncoid" "unallow" [
+          "compression"
+          "mountpoint"
+          "create"
+          "mount"
+          "receive"
+          "hold"
+          "rollback"
+          "destroy"
+        ]) backupRoots);
     };
   };
 }
-

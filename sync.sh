@@ -8,6 +8,7 @@ sudo rsync \
   --usermap=jack:root \
   --exclude=.idea \
   --exclude=.git \
+  --exclude=.direnv \
   "$(realpath "$(dirname "$0")")/" /etc/nixos
 
 if [[ $1 == "boot" ]]; then
