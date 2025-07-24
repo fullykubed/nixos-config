@@ -34,7 +34,6 @@
     ##  Doc Editors
     ################################
     libreoffice
-    unstable.drawio # TODO: Need to edit desktop config to start with --disable-gpu
 
     ################################
     ##  Parsers
@@ -132,7 +131,6 @@
     ################################
     ##  Password and secrets management
     ################################
-    keepassxc # Wayland (thank god)
     gnupg # GPL OpenPGP implementation
     rage # age implementation in rust
 
@@ -142,11 +140,6 @@
     kubectl # Kubernetes cli
     kubectx # Kubernetes context switcher
     k9s # TUI for k8s
-
-    ################################
-    ##  Recording and Streaming
-    ################################
-    obs-studio # Recording + streaming; unstable for wayland supported version
 
     ################################
     ##  Image Editing
@@ -161,20 +154,9 @@
     ffmpeg # Video swiss army knife
 
     ################################
-    ##  Finance
+    ##  File sharing
     ################################
-    homebank
-
-    ################################
-    ##  Fileharing
-    ################################
-    qbittorrent # Bittorrent client
     croc # CLI for secure p2p file sharing
-
-    ################################
-    ##  Media Players
-    ################################
-    spotify # X11 (electron)
 
     ################################
     ##  Gaming

@@ -10,7 +10,6 @@
     xdg.desktopEntries = {
       cursor = {
         name = "Cursor";
-        comment = "Cursor IDE";
         exec = "${pkgs.unstable.code-cursor}/bin/cursor";
         type = "Application";
       };

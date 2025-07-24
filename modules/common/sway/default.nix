@@ -122,6 +122,14 @@ in
       "waybar/config" = {
         source = ./waybar/config.json;
       };
+
+      # Sets up wofi
+      "wofi/config" = {
+        text = ''
+          show=drun
+          drun-display_generic=true
+        '';
+      };
     };
 
     programs.bash = {
@@ -278,7 +286,7 @@ in
           bindsym ${swayModifier}+Control+9 resize set width 90ppt
 
           # for launching applications
-          bindsym ${swayModifier}+d exec wofi -H 800 -W 1800 --show drun
+          bindsym ${swayModifier}+d exec wofi
 
           # for moving the workspaces between monitors
           bindsym ${swayModifier}+Control+Shift+Up move workspace to output up
