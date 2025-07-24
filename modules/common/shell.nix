@@ -108,6 +108,9 @@
       enable = true;
       daemon.enable = true;
       enableBashIntegration = true;
+      flags = [
+        "--disable-up-arrow"
+      ];
       settings = {
         enter_accept = true;
         workspaces = true;
