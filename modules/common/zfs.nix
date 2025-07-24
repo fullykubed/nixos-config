@@ -7,6 +7,53 @@
   modulesPath,
   ...
 }:
+let
+  pushover-user = "ubeszsjqr12emacca1wgqgca5g3yau";
+  zed-test = pkgs.writeScriptBin "zed-test" ''
+    #!/usr/bin/env bash
+    # Test ZED Pushover notification
+
+    # Set up ZED environment
+    export ZED_ZEDLET_DIR="/etc/zfs/zed.d"
+
+    # Source the ZED functions (which should load our Pushover credentials)
+    . /etc/zfs/zed.d/zed-functions.sh
+
+    # Check if credentials are loaded
+    if [ -z "$ZED_PUSHOVER_TOKEN" ] || [ -z "$ZED_PUSHOVER_USER" ]; then
+        echo "ERROR: Pushover credentials not loaded!"
+        echo "Token: ''${ZED_PUSHOVER_TOKEN:-not set}"
+        echo "User: ''${ZED_PUSHOVER_USER:-not set}"
+        exit 1
+    fi
+
+    echo "Pushover credentials loaded successfully"
+    echo "Sending test notification..."
+
+    # Create a test message
+    subject="ZED Test Notification"
+    message="This is a test notification from ZED on $(hostname) at $(date)"
+
+    # Create temporary file for message
+    tmpfile=$(mktemp)
+    echo "$message" > "$tmpfile"
+
+    # Send the notification using ZED's pushover function
+    zed_notify_pushover "$subject" "$tmpfile"
+    result=$?
+
+    # Clean up
+    rm -f "$tmpfile"
+
+    if [ $result -eq 0 ]; then
+        echo "✓ Notification sent successfully!"
+    else
+        echo "✗ Failed to send notification (exit code: $result)"
+    fi
+
+    exit $result
+  '';
+in
 {
 
   # ZFS support for podman
@@ -33,6 +80,9 @@
     secrets = {
       pushover-token = {
         rekeyFile = ../../secrets/pushover-token.age;
+        owner = "root";
+        group = "root";
+        mode = "0400";
       };
     };
   };
@@ -40,11 +90,28 @@
   # Disk notifications
   services.zfs.zed = {
     settings = {
-      # TODO: Figure out how to move this to a secrets file
-      ZED_PUSHOVER_TOKEN = "REDACTED_PUSHOVER_TOKEN"; # builtins.readFile config.age.screts./nix/store/92qgxh12m6xvz0w4yx41zmzzc6bv5dmc-zfs-user-2.3.3/etc/default/zfs;
-      ZED_PUSHOVER_USER = "ubeszsjqr12emacca1wgqgca5g3yau";
+      ZED_PUSHOVER_USER = pushover-user;
     };
   };
+
+  # Override the zed-functions.sh to source our secret
+  environment.etc."zfs/zed.d/zed-functions.sh" = {
+    source = lib.mkForce (pkgs.runCommand "zed-functions-with-secret.sh" {} ''
+      # Copy the original zed-functions.sh
+      cp ${pkgs.zfs}/etc/zfs/zed.d/zed-functions.sh $out
+      
+      # Add a line after the shebang to source our secret token
+      sed -i '2i\
+      # Source Pushover token from agenix\
+      if [ -f "${config.age.secrets.pushover-token.path}" ]; then\
+        export ZED_PUSHOVER_TOKEN="$(cat ${config.age.secrets.pushover-token.path})"\
+        export ZED_PUSHOVER_USER="${pushover-user}"\
+      fi' $out
+    '');
+  };
+
+  # Create a test script for ZED notifications
+  environment.systemPackages = [ zed-test ];
 
   home-manager.users.${config.username} = {
     # Custom scripts for debugging zfs issues
