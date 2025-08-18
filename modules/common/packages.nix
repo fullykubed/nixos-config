@@ -108,6 +108,7 @@
     mission-center # For displaying hardware sensors graphically
     sysstat # Performance monitoring tools (e.g., iostat, pidstat)
     fio # Testing file system speed
+    pciutils # debugging PCI components
 
     ################################
     ##  Network Tooling

@@ -27,11 +27,13 @@ let
     '';
   };
 
-  monitors = {
-    middle = "DP-6";
-    left = "DP-5";
-    right = "DP-4";
-  };
+  # Helper function to get monitor name by number
+  getMonitorByNum = num:
+    let
+      monitorList = lib.attrValues (lib.mapAttrs (name: value: { inherit name; } // value) config.monitors);
+      monitor = lib.findFirst (m: m.num == num) null monitorList;
+    in
+      if monitor != null then monitor.name else "";
 in
 {
   # enable sway window manager
@@ -64,7 +66,7 @@ in
 
   environment.sessionVariables = {
     # Used for the notifications daemon settings
-    SWAY_NOTIFICATION_OUTPUT = monitors.middle;
+    SWAY_NOTIFICATION_OUTPUT = getMonitorByNum 2;  # Middle monitor
   };
 
   # Disable the login manager
@@ -212,6 +214,12 @@ in
             border = 5;
           };
 
+          # Configure outputs from the monitors option
+          output = lib.mapAttrs (name: value: {
+            mode = value.mode;
+            pos = value.pos;
+          }) config.monitors;
+
           # Handle the keybinds below for more flexibilitiy
           keybindings = { };
 
@@ -289,10 +297,10 @@ in
           bindsym ${swayModifier}+d exec wofi
 
           # for moving the workspaces between monitors
-          bindsym ${swayModifier}+Control+Shift+Up move workspace to output up
-          bindsym ${swayModifier}+Control+Shift+Down move workspace to output down
-          bindsym ${swayModifier}+Control+Shift+Left move workspace to output left
-          bindsym ${swayModifier}+Control+Shift+Right move workspace to output right
+          bindsym ${swayModifier}+Alt+Up move workspace to output up
+          bindsym ${swayModifier}+Alt+Down move workspace to output down
+          bindsym ${swayModifier}+Alt+Left move workspace to output left
+          bindsym ${swayModifier}+Alt+Right move workspace to output right
 
           # for moving between workspaces quickly
           bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
@@ -310,9 +318,9 @@ in
           bindsym ${swayModifier}+Alt+a workspace spotify
 
           # for moving workspaces to  monitors quickly
-          bindsym ${swayModifier}+Alt+1 move workspace to output "${monitors.left}"
-          bindsym ${swayModifier}+Alt+2 move workspace to output "${monitors.middle}"
-          bindsym ${swayModifier}+Alt+3 move workspace to output "${monitors.right}"
+          bindsym ${swayModifier}+Alt+1 move workspace to output "${getMonitorByNum 1}"
+          bindsym ${swayModifier}+Alt+2 move workspace to output "${getMonitorByNum 2}"
+          bindsym ${swayModifier}+Alt+3 move workspace to output "${getMonitorByNum 3}"
 
 
           # for swapping between workspaces
@@ -329,7 +337,7 @@ in
           # for locking the screen
           bindsym ${swayModifier}+grave exec swaylock
 
-          # for toggling single monitor mode
+          # for toggling single monitor mode 
           bindsym ${swayModifier}+Shift+f exec single-monitor-mode
 
           # for turning monitors on and off

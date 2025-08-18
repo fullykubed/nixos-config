@@ -8,5 +8,6 @@ let
   '';
 in
 {
-  services.udev.extraRules = ergodox_ez;
+  #services.udev.extraRules = ergodox_ez;
+  hardware.keyboard.zsa.enable = true;
 }

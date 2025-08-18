@@ -21,6 +21,10 @@
       source-han-sans
       source-han-sans-japanese
       source-han-serif-japanese
+      nerd-fonts.jetbrains-mono
+      nerd-fonts.fira-code
+      nerd-fonts.droid-sans-mono
+      nerd-fonts.hack
     ];
     fontconfig.defaultFonts = {
       serif = [

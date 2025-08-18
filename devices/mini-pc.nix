@@ -9,9 +9,7 @@
 {
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
-    ../modules/utility/disable-wakeup-triggers.nix
-    ../modules/utility/amd-cpu.nix
-    ../modules/utility/amd-gpu.nix
+    ../modules/utility/intel-cpu.nix
   ];
 
   # Enable thermal monitoring
@@ -22,31 +20,28 @@
   ######################################
   ## Networking
   ######################################
-  networking.hostName = "jack-desktop"; # Define your hostname.
-  networking.hostId = "925bf176";
-  networking.interfaces.enp75s0.useDHCP = true;
+  networking.hostName = "fullykubed-mini-pc"; # Define your hostname.
+  networking.hostId = "925bf177";
+  networking.interfaces.enp87s0.useDHCP = true;
 
   ######################################
   ## Monitors
   ######################################
-  home-manager.users.${config.username} = {
-    wayland.windowManager.sway = {
-      config = {
-        output = {
-          "DP-4" = {
-            mode = "3840x2160";
-            pos = "7680 0";
-          };
-          "DP-6" = {
-            mode = "3840x2160";
-            pos = "3840 0";
-          };
-          "DP-5" = {
-            mode = "3840x2160";
-            pos = "0 0";
-          };
-        };
-      };
+  monitors = {
+    "HDMI-A-2" = {
+      mode = "3840x2160";
+      pos = "0 0";
+      num = 1;  # Left monitor
+    };
+    "DP-1" = {
+      mode = "3840x2160";
+      pos = "3840 0";
+      num = 2;  # Middle monitor
+    };
+    "HDMI-A-1" = {
+      mode = "3840x2160";
+      pos = "7680 0";
+      num = 3;  # Right monitor
     };
   };
 
@@ -67,7 +62,7 @@
   ## Boot Settings
   ######################################
   boot.zfs.requestEncryptionCredentials = [
-    "primary/nixos"
+    "rpool"
   ];
   # TODO: Re-evaluate this
   boot.zfs.forceImportAll = false;
@@ -76,69 +71,43 @@
   ## Filesystem
   ######################################
   fileSystems."/" = {
-    device = "primary/nixos/root";
+    device = "rpool/root";
     fsType = "zfs";
   };
 
   fileSystems."/home" = {
-    device = "primary/nixos/home";
+    device = "rpool/home";
     fsType = "zfs";
   };
 
-  fileSystems."/nix/store" = {
-    device = "primary/nixos/nix-store";
+  fileSystems."/nix" = {
+    device = "rpool/nix";
     fsType = "zfs";
   };
 
-  fileSystems."/nix/var/nix/db" = {
-    device = "primary/nixos/nix-db";
+  fileSystems."/var/log" = {
+    device = "rpool/var/log";
     fsType = "zfs";
   };
 
   fileSystems."/tmp" = {
-    device = "primary/nixos/tmp";
+    device = "rpool/tmp";
     fsType = "zfs";
   };
 
-  #  fileSystems."/home/jack/media" =
-  #    {
-  #      device = "secondary/encrypted/media";
-  #      fsType = "zfs";
-  #    };
-
-  #  fileSystems."/nix/var/log" =
-  #    {
-  #      device = "secondary/encrypted/logs/nix";
-  #      fsType = "zfs";
-  #    };
-
   # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
   # us from booting.
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/3103-B6F3";
-    fsType = "vfat";
-    options = [ "nofail" ];
-  };
-
   fileSystems."/boot1" = {
-    device = "/dev/disk/by-uuid/3182-4B71";
+    device = "/dev/disk/by-label/EFI_A";
     fsType = "vfat";
     options = [ "nofail" ];
   };
 
-  # Again, "nofail" as these are not critical
-  swapDevices = [
-    {
-      device = "/dev/disk/by-partuuid/5c7ca6b5-ddd8-9442-b94e-e3eb55d8ca20";
-      randomEncryption = true;
-      options = [ "nofail" ];
-    }
-    {
-      device = "/dev/disk/by-partuuid/5ad84ba3-013c-084b-9685-02f979ac5dd0";
-      randomEncryption = true;
-      options = [ "nofail" ];
-    }
-  ];
+  fileSystems."/boot2" = {
+    device = "/dev/disk/by-label/EFI_B";
+    fsType = "vfat";
+    options = [ "nofail" ];
+  };
 
   ######################################
   ## Misc Hardware Settings

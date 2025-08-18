@@ -42,7 +42,7 @@
   boot.loader = {
     systemd-boot.enable = lib.mkForce false;
     efi = {
-      efiSysMountPoint = "/boot";
+      efiSysMountPoint = "/boot1";
       canTouchEfiVariables = true;
     };
   };
@@ -54,12 +54,13 @@
   # Copies the EFI partition to a backup partition. This allows us to boot even if the first
   # drive becomes corrupted.
   system.activationScripts = {
-    boot-sync.text = "${pkgs.rsync}/bin/rsync -avq --delete /boot/ /boot1/";
+    boot-sync.text = "${pkgs.rsync}/bin/rsync -avq --delete /boot1/ /boot2/";
   };
 
   boot.kernelParams = [
     "amdgpu.ras_enable=0" # disable RAS which was causing hw errors with the W6800 gpu
     "acpi_enforce_resources=lax" # allows for hardware sensors from the motherboard to appear
+    "i915.enable_psr=0" # fixes stuttering on intel iGPUs
   ];
 
   environment.systemPackages = with pkgs; [

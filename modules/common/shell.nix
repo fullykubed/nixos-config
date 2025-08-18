@@ -60,8 +60,6 @@
     ## Aliases
     ####################################
     home.shellAliases = {
-      # For syncing the config
-      s = "/home/jack/repos/nixos/sync.sh";
 
       # For replacing grep with rg
       grep = "rg -uu";

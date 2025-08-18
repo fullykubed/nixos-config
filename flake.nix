@@ -121,9 +121,13 @@
     in
     {
       nixosConfigurations = {
-        jack-desktop = mkNixosSystem {
+        fullykubed-tower = mkNixosSystem {
           system = "x86_64-linux";
-          device-module = ./devices/workstation-tower.nix;
+          device-module = ./devices/tower.nix;
+        };
+        fullykubed-mini-pc = mkNixosSystem {
+          system = "x86_64-linux";
+          device-module = ./devices/mini-pc.nix;
         };
       };
 
@@ -137,6 +141,7 @@
       let
         pkgs = import nixpkgs {
           inherit system;
+          overlays = [ agenix-rekey.overlays.default ];
         };
         nixfmt = pkgs.treefmt.withConfig {
           runtimeInputs = [ pkgs.nixfmt-rfc-style ];
@@ -156,7 +161,15 @@
       {
         formatter = nixfmt;
         devShell = pkgs.mkShell {
-          packages = [ nixfmt ];
+          packages = [ 
+            nixfmt 
+            pkgs.agenix-rekey
+            (pkgs.writeShellScriptBin "un" (
+              # Remove the shebang line since writeShellScriptBin adds its own
+              builtins.replaceStrings ["#!/usr/bin/env bash\n"] [""] 
+                (builtins.readFile ./modules/common/scripts/scripts/un.sh)
+            ))
+          ];
         };
       }
     );
