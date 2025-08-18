@@ -344,6 +344,19 @@ in
           bindsym ${swayModifier}+Shift+o output * dpms off
           bindsym ${swayModifier}+Control+Shift+o output * dpms on
 
+          # Volume control keybindings
+          bindsym XF86AudioRaiseVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+
+          bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+          bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+          bindsym XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+          
+          # Media playback control keybindings
+          bindsym XF86AudioPlay exec playerctl play-pause
+          bindsym XF86AudioPause exec playerctl play-pause
+          bindsym XF86AudioNext exec playerctl next
+          bindsym XF86AudioPrev exec playerctl previous
+          bindsym XF86AudioStop exec playerctl stop
+
           exec swaymsg "workspace messages; exec slack;"
           exec swaymsf "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"

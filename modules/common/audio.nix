@@ -13,5 +13,6 @@
   environment.systemPackages = with pkgs; [
     pavucontrol # For controlling audio sinks
     helvum # Controlling pipewire
+    playerctl # For media player controls
   ];
 }
