@@ -31,17 +31,17 @@
     "HDMI-A-2" = {
       mode = "3840x2160";
       pos = "0 0";
-      num = 1;  # Left monitor
+      num = 1; # Left monitor
     };
     "DP-1" = {
       mode = "3840x2160";
       pos = "3840 0";
-      num = 2;  # Middle monitor
+      num = 2; # Middle monitor
     };
     "HDMI-A-1" = {
       mode = "3840x2160";
       pos = "7680 0";
-      num = 3;  # Right monitor
+      num = 3; # Right monitor
     };
   };
 

@@ -109,6 +109,7 @@
     sysstat # Performance monitoring tools (e.g., iostat, pidstat)
     fio # Testing file system speed
     pciutils # debugging PCI components
+    usbutils # debugging usb devices
 
     ################################
     ##  Network Tooling

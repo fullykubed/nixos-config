@@ -96,18 +96,20 @@ in
 
   # Override the zed-functions.sh to source our secret
   environment.etc."zfs/zed.d/zed-functions.sh" = {
-    source = lib.mkForce (pkgs.runCommand "zed-functions-with-secret.sh" {} ''
-      # Copy the original zed-functions.sh
-      cp ${pkgs.zfs}/etc/zfs/zed.d/zed-functions.sh $out
-      
-      # Add a line after the shebang to source our secret token
-      sed -i '2i\
-      # Source Pushover token from agenix\
-      if [ -f "${config.age.secrets.pushover-token.path}" ]; then\
-        export ZED_PUSHOVER_TOKEN="$(cat ${config.age.secrets.pushover-token.path})"\
-        export ZED_PUSHOVER_USER="${pushover-user}"\
-      fi' $out
-    '');
+    source = lib.mkForce (
+      pkgs.runCommand "zed-functions-with-secret.sh" { } ''
+        # Copy the original zed-functions.sh
+        cp ${pkgs.zfs}/etc/zfs/zed.d/zed-functions.sh $out
+
+        # Add a line after the shebang to source our secret token
+        sed -i '2i\
+        # Source Pushover token from agenix\
+        if [ -f "${config.age.secrets.pushover-token.path}" ]; then\
+          export ZED_PUSHOVER_TOKEN="$(cat ${config.age.secrets.pushover-token.path})"\
+          export ZED_PUSHOVER_USER="${pushover-user}"\
+        fi' $out
+      ''
+    );
   };
 
   # Create a test script for ZED notifications

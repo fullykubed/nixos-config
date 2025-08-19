@@ -161,13 +161,14 @@
       {
         formatter = nixfmt;
         devShell = pkgs.mkShell {
-          packages = [ 
-            nixfmt 
+          packages = [
+            nixfmt
             pkgs.agenix-rekey
             (pkgs.writeShellScriptBin "un" (
               # Remove the shebang line since writeShellScriptBin adds its own
-              builtins.replaceStrings ["#!/usr/bin/env bash\n"] [""] 
-                (builtins.readFile ./modules/common/scripts/scripts/un.sh)
+              builtins.replaceStrings [ "#!/usr/bin/env bash\n" ] [ "" ] (
+                builtins.readFile ./modules/common/scripts/scripts/un.sh
+              )
             ))
           ];
         };

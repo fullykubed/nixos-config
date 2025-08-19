@@ -28,12 +28,15 @@ let
   };
 
   # Helper function to get monitor name by number
-  getMonitorByNum = num:
+  getMonitorByNum =
+    num:
     let
-      monitorList = lib.attrValues (lib.mapAttrs (name: value: { inherit name; } // value) config.monitors);
+      monitorList = lib.attrValues (
+        lib.mapAttrs (name: value: { inherit name; } // value) config.monitors
+      );
       monitor = lib.findFirst (m: m.num == num) null monitorList;
     in
-      if monitor != null then monitor.name else "";
+    if monitor != null then monitor.name else "";
 in
 {
   # enable sway window manager
@@ -66,7 +69,7 @@ in
 
   environment.sessionVariables = {
     # Used for the notifications daemon settings
-    SWAY_NOTIFICATION_OUTPUT = getMonitorByNum 2;  # Middle monitor
+    SWAY_NOTIFICATION_OUTPUT = getMonitorByNum 2; # Middle monitor
   };
 
   # Disable the login manager
@@ -349,7 +352,7 @@ in
           bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
           bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
           bindsym XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
-          
+
           # Media playback control keybindings
           bindsym XF86AudioPlay exec playerctl play-pause
           bindsym XF86AudioPause exec playerctl play-pause
