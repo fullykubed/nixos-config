@@ -41,31 +41,34 @@
     enable = true;
     settings = {
       listen_addresses = [ "127.0.0.1:53" ];
-      
+
       # Use servers that support DNSSEC and don't log queries
-      server_names = [ "mullvad-base-doh" "quad9-doh-ip4-port443-filter-pri" ];
-      
+      server_names = [
+        "mullvad-base-doh"
+        "quad9-doh-ip4-port443-filter-pri"
+      ];
+
       # Load balancing strategy
       lb_strategy = "random";
-      
+
       # Enable DNSSEC validation
       require_dnssec = true;
-      
+
       # Use DNS-over-HTTPS
       doh_servers = true;
-      
+
       # Enable HTTP/3 (QUIC) support for faster connections
       http3 = true;
-      
+
       # Require servers that don't log
       require_nolog = true;
-      
+
       # Require servers that don't filter
       require_nofilter = false;
-      
+
       # Use system trust store for certificate validation
       tls_disable_session_tickets = true;
-      
+
       # Cache settings
       cache = true;
       cache_size = 4096;
@@ -73,20 +76,26 @@
       cache_max_ttl = 86400;
       cache_neg_min_ttl = 30;
       cache_neg_max_ttl = 30;
-      
+
       # Bootstrap resolvers for initial connection
-      bootstrap_resolvers = [ "9.9.9.9:53" "194.242.2.2:53" ];
-      
+      bootstrap_resolvers = [
+        "9.9.9.9:53"
+        "194.242.2.2:53"
+      ];
+
       # Fallback resolvers
-      fallback_resolvers = [ "9.9.9.9:53" "194.242.2.2:53" ];
+      fallback_resolvers = [
+        "9.9.9.9:53"
+        "194.242.2.2:53"
+      ];
       ignore_system_dns = true;
-      
+
       # Enable query logging
       query_log = {
         file = "/var/log/dnscrypt-proxy/query.log";
         format = "tsv";
       };
-      
+
       # TODO: Enable monitoring UI in next NixOS release
       # The monitoring_ui option is not yet available in NixOS stable
       # Uncomment after upgrading to a newer release
@@ -94,12 +103,12 @@
       #   enabled = true;
       #   username = "";
       #   tls_certificate = "";
-      #   tls_key = "";  
+      #   tls_key = "";
       #   privacy_level = 1;
       #   listen_address = "127.0.0.1:8053";
       #   enable_query_log = true;
       # };
-      
+
       # Sources for server lists
       sources = {
         public-resolvers = {

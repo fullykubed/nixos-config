@@ -3,4 +3,5 @@
 
 return {
   require('custom.plugins.autosave'),
+  require('custom.plugins.vim-tmux-navigator'),
 }

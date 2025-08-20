@@ -56,9 +56,11 @@
     "spacing": 10
   },
   "clock": {
-    // "timezone": "America/New_York",
+    "timezone": "America/Indiana/Indianapolis",
+    "format": "{:%I:%M %p}",
+    "format-alt": "{:%Y-%m-%d %I:%M %p}",
     "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
-    "format-alt": "{:%Y-%m-%d}"
+    "locale": "C"
   },
   "cpu": {
     "format": "{usage}% ",

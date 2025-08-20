@@ -36,6 +36,7 @@
     ./modules/common/git.nix
     ./modules/common/printer.nix
     ./modules/common/shell.nix
+    ./modules/common/tmux.nix
     ./modules/common/sqlite.nix
     ./modules/common/file-explorer
     ./modules/common/video-player.nix
@@ -51,6 +52,7 @@
     ./modules/common/home.nix
     ./modules/common/messaging.nix
     ./modules/common/ide.nix
+    ./modules/common/nvim
     ./modules/common/crypto.nix
     ./modules/common/recording.nix
     ./modules/common/finance.nix

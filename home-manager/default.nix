@@ -11,16 +11,6 @@ in
   home.stateVersion = "22.11";
 
   ################################
-  ##  Config Files
-  ################################
-  xdg.configFile = {
-    "nvim" = {
-      source = ./nvim;
-      recursive = true;
-    };
-  };
-
-  ################################
   ##  Sway
   ################################
 
@@ -28,9 +18,6 @@ in
     with pkgs;
     [
       # Need to sort
-      unstable.lazygit
-      tree-sitter
-      stylua
 
       ################################
       ##  Scanners and Printers

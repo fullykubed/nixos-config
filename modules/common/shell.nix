@@ -2,7 +2,6 @@
 {
 
   environment.systemPackages = with pkgs; [
-    alacritty # terminal
     kitty # terminal
 
     bat # "Better" cat
@@ -16,6 +15,24 @@
   ];
 
   home-manager.users.${config.username} = {
+
+    ################################
+    ##  Alacritty Terminal Configuration
+    ################################
+    programs.alacritty = {
+      enable = true;
+      settings = {
+        env = {
+          TERM = "alacritty-direct";
+        };
+        window = {
+          padding = {
+            x = 10;
+            y = 10;
+          };
+        };
+      };
+    };
 
     ################################
     ##  Startup - Terminal Formatting
