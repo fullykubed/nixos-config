@@ -47,7 +47,7 @@ send_notification() {
             "$body")
         
         # Set a tmux hook to dismiss notification when this pane gains focus
-        tmux set-hook -t "$TMUX_PANE" pane-focus-in "run-shell 'gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.CloseNotification $notification_id 2>/dev/null || true; tmux select-pane -t $TMUX_PANE; tmux set-hook -ut $TMUX_PANE pane-focus-in'"
+        tmux set-hook -t "$TMUX_PANE" pane-focus-in "run-shell 'gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.CloseNotification $notification_id 2>/dev/null || true; tmux set-hook -ut $TMUX_PANE pane-focus-in'"
         
         # Now replace the notification with one that has an action and wait for response
         (
@@ -68,7 +68,6 @@ send_notification() {
                 swaymsg "[con_mark=\"$CLAUDE_MARK\"] focus"
 		tmux set-hook -ut $TMUX_PANE pane-focus-in
                 tmux select-window -t "$TMUX_PANE"
-                tmux select-pane -t "$TMUX_PANE"
             fi
         ) &
     else
@@ -84,20 +83,11 @@ send_notification() {
     fi
 }
 
-# Function to set tmux window alert and background
-set_tmux_alert_background() {
+# Function to set tmux window alert
+set_tmux_alert() {
     if [ -n "$TMUX" ]; then
         # Get the pane ID where this script is running (Claude's pane)
         local pane_id="$TMUX_PANE"
-        
-        # Check if Claude's pane is currently active
-        local active_pane=$(tmux display-message -p '#{pane_id}')
-        if [ "$pane_id" != "$active_pane" ]; then
-            # Set light orange background for Claude's pane only if not focused
-            # The tmux config's pane-focus-in hook will automatically reset this
-            # Use set-option to set pane-specific style without selecting it
-            tmux set-option -t "$pane_id" -p window-style 'bg=#2a1f1a'
-        fi
         
         # Get Claude's window ID
         local window_id=$(tmux display-message -t "$pane_id" -p '#{window_id}')
@@ -105,9 +95,6 @@ set_tmux_alert_background() {
         
         # Only change window name if Claude's window is not currently focused
         if [ "$window_id" != "$active_window" ]; then
-            # Set activity flag on Claude's window to trigger visual indicator
-            tmux set-window-option -t "$pane_id" monitor-activity on
-            tmux send-keys -t "$pane_id" "" # Trigger activity by sending empty input
             
             # Rename the window temporarily to show alert
             local window_name=$(tmux display-message -t "$pane_id" -p '#{window_name}')
@@ -135,7 +122,7 @@ case "$HOOK_TYPE" in
         # Extract message from the JSON payload for notifications
         message=$(echo "$input" | @jq@ -r '.message // "Needs your input"')
         send_notification "Claude Needs Input" "$message" "critical"
-        set_tmux_alert_background
+        set_tmux_alert
         ;;
     "UserPromptSubmit")
         # Mark the Sway container containing this tmux session (only on first prompt)
@@ -189,7 +176,7 @@ case "$HOOK_TYPE" in
         else
             send_notification "Claude Finished" "Session complete" "normal"
         fi
-        set_tmux_alert_background
+        set_tmux_alert
         ;;
     "SubagentStop")
         send_notification "Claude Code" "Subagent task completed" "normal" "transient"

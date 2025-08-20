@@ -103,6 +103,7 @@ in
         @define-color hover-color rgba(135, 206, 235, 0.15);
         @define-color urgent-color rgb(255, 92, 87);
         @define-color blue rgb(135, 206, 235);
+        @define-color pastel-red rgba(180, 60, 70, 0.9);
 
         * {
           font-family: "JetBrainsMono Nerd Font";
@@ -426,6 +427,15 @@ in
 
         .widget-inhibitors > button:hover {
           background: @urgent-color;
+        }
+
+        /* Critical notification styling */
+        .notification.critical .notification-content {
+          background: @pastel-red;
+        }
+
+        .notification.critical .notification-default-action {
+          background: @pastel-red;
         }
       '';
     };
