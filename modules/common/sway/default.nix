@@ -39,6 +39,10 @@ let
     if monitor != null then monitor.name else "";
 in
 {
+  imports = [
+    ./swaync.nix
+  ];
+
   # enable sway window manager
   programs.sway = {
     enable = true;
@@ -51,7 +55,7 @@ in
       unstable.swayr # window switcher
       wl-clipboard
       wf-recorder
-      mako # notification daemon
+      swaynotificationcenter # notification daemon with control center
       libnotify # for scripting notifications
       sway-contrib.grimshot # screenshot tool
       slurp
@@ -122,12 +126,6 @@ in
     };
 
     xdg.configFile = {
-      # Sets up mako config (notifications)
-      "mako/config" = {
-        text = ''
-          default-timeout=15000
-        '';
-      };
 
       # Sets up waybar
       "waybar/config" = {
@@ -494,6 +492,11 @@ in
           bindsym ${swayModifier}+Control+8 resize set width 80ppt
           bindsym ${swayModifier}+Control+9 resize set width 90ppt
 
+          # SwayNC notification center keybindings
+          bindsym ${swayModifier}+n exec swaync-client -t -sw
+          bindsym ${swayModifier}+Shift+Ctrl+Alt+d exec swaync-client -d -sw
+          bindsym ${swayModifier}+Shift+Ctrl+Alt+c exec swaync-client -C -sw
+
           # for launching applications
           bindsym ${swayModifier}+d exec wofi
           bindsym ${swayModifier}+c exec ${pkgs.copyq}/bin/copyq toggle
@@ -575,8 +578,8 @@ in
           # make sway and gtk play nicely together (icons and themes)
           exec_always configure-gtk
 
-          # start mako (notifications)
-          exec_always mako-start
+          # start swaync (notification center)
+          exec_always swaync
         '';
       };
   };

@@ -36,8 +36,8 @@ Personal NixOS configuration for multiple machines using Nix flakes, Home Manage
 ./modules/common/scripts/scripts/un.sh -o
 
 # Manual rebuild for specific systems
-sudo nixos-rebuild switch --fast --flake /etc/nixos#jack-desktop
-sudo nixos-rebuild switch --fast --flake /etc/nixos#jack-desktop2
+sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-tower
+sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-mini-pc
 ```
 
 ### Development

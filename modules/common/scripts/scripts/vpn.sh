@@ -7,6 +7,6 @@ set -o pipefail
 
 COMMAND=${1:-'up'}
 
-CONF_DIR=/home/jack/wireguard
+CONF_DIR=$HOME/wireguard
 CONF_FILE="$(find "$CONF_DIR" -name "*.conf" -printf "%f\n" | fzf)"
 wg-quick "$COMMAND" "$CONF_DIR/$CONF_FILE"

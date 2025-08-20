@@ -72,7 +72,7 @@ find_repo_root() {
   fi
   
   # Method 4: Default fallback - check common locations
-  for dir in "$HOME/repos/nixos-config" "$HOME/nixos-config" "/home/jack/repos/nixos-config"; do
+  for dir in "$HOME/repos/nixos-config" "$HOME/nixos-config"; do
     if [[ -f "$dir/flake.nix" ]] && [[ -f "$dir/configuration.nix" ]]; then
       echo "$dir"
       return 0
@@ -96,7 +96,7 @@ echo "Using repository root: $REPO_ROOT"
 sudo rsync \
   -r \
   -p \
-  --usermap=jack:root \
+  --usermap=$USER:root \
   --exclude=.idea \
   --exclude=.direnv \
   "$REPO_ROOT/" /etc/nixos

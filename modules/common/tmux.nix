@@ -5,7 +5,11 @@
   ...
 }:
 {
-  home-manager.users.jack = {
+  home-manager.users.${config.username} = {
+    home.packages = with pkgs; [
+      libnotify # Required for tmux-notify desktop notifications
+    ];
+
     programs.tmux = {
       enable = true;
       terminal = "alacritty";
@@ -66,6 +70,26 @@
           extraConfig = ''
             set -g @tmux-autoreload-configs '$HOME/.config/tmux/tmux.conf'
             set -g @tmux-autoreload-quiet 0
+          '';
+        }
+        {
+          plugin = mkTmuxPlugin {
+            pluginName = "tmux-notify";
+            version = "unstable-2024-11-18";
+            rtpFilePath = "tnotify.tmux";
+            src = pkgs.fetchFromGitHub {
+              owner = "rickstaa";
+              repo = "tmux-notify";
+              rev = "b713320af05837c3b44e4d51167ff3062dbeae4b";
+              sha256 = "sha256-wOmq2stWXAFmYrRuIqf9IPATYXJ+OFoYXnJdHUnJQxY=";
+            };
+          };
+          extraConfig = ''
+            # Tmux-notify configuration
+            set -g @tnotify-verbose 'on'
+            set -g @tnotify-verbose-msg 'Command completed: #W'
+            set -g @tnotify-threshold '10'
+            set -g @tnotify-sleep-duration '2'
           '';
         }
       ];
@@ -182,10 +206,15 @@
         set -g pane-border-status off
         set -g pane-border-indicators off
 
-        # Set pane background colors
+        # Set pane background colors using hooks
         # Active pane: pure black background, Inactive panes: lighter gray background
-        set -g window-style '''bg=#2a2a2a'''
-        set -g window-active-style '''bg=#000000'''
+        # Use hooks to change pane style on focus events
+        set-hook -g pane-focus-in 'select-pane -P "bg=#000000"'
+        set-hook -g pane-focus-out 'select-pane -P "bg=#2a2a2a"'
+        
+        # Initialize all panes with inactive style
+        set-hook -g after-new-window 'select-pane -P "bg=#2a2a2a"'
+        set-hook -g after-split-window 'select-pane -P "bg=#2a2a2a"'
       '';
     };
   };

@@ -39,6 +39,7 @@
       mode = "3840x2160";
       pos = "3840 0";
       num = 2; # Middle monitor
+      notifications = true;
     };
     "DP-4" = {
       mode = "3840x2160";
@@ -97,7 +98,7 @@
     fsType = "zfs";
   };
 
-  #  fileSystems."/home/jack/media" =
+  #  fileSystems."${config.homeDir}/media" =
   #    {
   #      device = "secondary/encrypted/media";
   #      fsType = "zfs";

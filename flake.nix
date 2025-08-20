@@ -100,7 +100,9 @@
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
 
-                home-manager.users.jack = import ./home-manager/default.nix { inherit pkgs lib config; };
+                home-manager.users.${config.username} = import ./home-manager/default.nix {
+                  inherit pkgs lib config;
+                };
               }
             )
 

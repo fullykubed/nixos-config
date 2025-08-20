@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository Overview
 
 This is a NixOS configuration repository that manages system configurations for multiple machines using Nix flakes. The repository contains:
-- NixOS system configurations for workstations (`jack-desktop`, `mini-pc`)
+- NixOS system configurations for workstations (`fullykubed-tower`, `fullykubed-mini-pc`)
 - Home Manager configurations for user environment
 - Modular configuration structure with reusable components
 - Secret management using agenix and agenix-rekey
@@ -39,8 +39,8 @@ This is a NixOS configuration repository that manages system configurations for 
 ./modules/common/scripts/scripts/un.sh --help
 
 # Manual rebuild for specific systems
-sudo nixos-rebuild switch --fast --flake /etc/nixos#jack-desktop
-sudo nixos-rebuild switch --fast --flake /etc/nixos#mini-pc
+sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-tower
+sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-mini-pc
 ```
 
 ### Development Commands

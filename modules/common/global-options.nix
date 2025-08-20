@@ -39,6 +39,11 @@
               type = types.int;
               description = "Monitor number (1=left, 2=middle, 3=right)";
             };
+            notifications = mkOption {
+              type = types.bool;
+              default = false;
+              description = "Whether this monitor should display notifications";
+            };
           };
         }
       );

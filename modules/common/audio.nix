@@ -15,6 +15,21 @@
           {
             matches = [
               {
+                # Configure BRIO webcam microphone with normal priority
+                node.name = "~alsa_input.usb-046d_Logitech_BRIO.*"
+              }
+            ]
+            actions = {
+              update-props = {
+                priority.driver = 1000
+                priority.session = 1000
+                node.description = "BRIO Webcam Microphone"
+              }
+            }
+          }
+          {
+            matches = [
+              {
                 # Disable Scarlett Solo as output sink
                 node.name = "~alsa_output.usb-Focusrite_Scarlett_Solo.*"
               }
@@ -75,7 +90,40 @@
     pavucontrol # For controlling audio sinks
     helvum # Controlling pipewire
     playerctl # For media player controls
+    alsa-utils # For amixer and alsamixer
   ];
+
+  # Set Scarlett Solo input gain
+  systemd.services.scarlett-solo-gain = {
+    description = "Set Scarlett Solo input gain";
+    after = [ "multi-user.target" "sound.target" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      ExecStart = pkgs.writeShellScript "scarlett-gain" ''
+        # Wait for device to be available
+        ${pkgs.coreutils}/bin/sleep 2
+        
+        # Find Scarlett Solo card number
+        for card in /proc/asound/card*; do
+          if [ -f "$card/id" ] && grep -q "Gen" "$card/id" 2>/dev/null; then
+            CARD_NUM=$(basename "$card" | sed 's/card//')
+            echo "Found Scarlett Solo on card $CARD_NUM"
+            
+            # Set PCM capture volume to maximum (if control exists)
+            ${pkgs.alsa-utils}/bin/amixer -c "$CARD_NUM" set 'PCM Capture' 100% unmute 2>/dev/null || true
+            ${pkgs.alsa-utils}/bin/amixer -c "$CARD_NUM" set 'Mic' 100% unmute 2>/dev/null || true
+            ${pkgs.alsa-utils}/bin/amixer -c "$CARD_NUM" set 'Capture' 100% unmute 2>/dev/null || true
+            
+            # List all controls for debugging
+            echo "Available controls:"
+            ${pkgs.alsa-utils}/bin/amixer -c "$CARD_NUM" controls
+          fi
+        done
+      '';
+    };
+  };
 
   # Fix USB audio devices after suspend/resume
   systemd.services.usb-audio-reset = {

@@ -37,6 +37,7 @@
       mode = "3840x2160";
       pos = "3840 0";
       num = 2; # Middle monitor
+      notifications = true;
     };
     "HDMI-A-1" = {
       mode = "3840x2160";

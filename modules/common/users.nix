@@ -11,5 +11,5 @@
       "plugdev"
     ];
   };
-  users.groups.jack.members = [ "jack" ];
+  users.groups.${config.username}.members = [ config.username ];
 }

@@ -53,6 +53,7 @@
     ./modules/common/messaging.nix
     ./modules/common/ide.nix
     ./modules/common/nvim
+    ./modules/common/claude
     ./modules/common/crypto.nix
     ./modules/common/recording.nix
     ./modules/common/finance.nix
@@ -60,7 +61,6 @@
     ./modules/common/torrent.nix
     ./modules/common/passwords.nix
     ./modules/common/image-editor.nix
-    ./modules/common/claude
 
     # Our segemented modules
     ./backups/default.nix

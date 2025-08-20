@@ -5,7 +5,7 @@
   ...
 }:
 {
-  home-manager.users.jack =
+  home-manager.users.${config.username} =
     { config, pkgs, ... }:
     {
       xdg.configFile = {
