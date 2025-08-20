@@ -24,6 +24,36 @@ return {
           ["\\"] = "close_window",
         },
       },
+      -- Auto refresh when files change
+      use_libuv_file_watcher = true,
+      scan_mode = "deep",
+    },
+    git_status = {
+      window = {
+        mappings = {
+          ["\\"] = "close_window",
+        },
+      },
+    },
+    -- Enable git status tracking
+    enable_git_status = true,
+    enable_diagnostics = true,
+    -- Refresh neo-tree when git status changes
+    event_handlers = {
+      {
+        event = "file_opened",
+        handler = function()
+          require("neo-tree.sources.filesystem").reset_search()
+        end,
+      },
+      {
+        event = "git_event",
+        handler = function(args)
+          if args.refresh then
+            require("neo-tree.sources.manager").refresh("filesystem")
+          end
+        end,
+      },
     },
   },
 }
