@@ -55,7 +55,7 @@ return {
               end
             end
           end
-          
+
           -- If we have files loaded, show Neo-tree
           if has_file then
             vim.cmd("Neotree filesystem reveal left")
@@ -71,4 +71,3 @@ return {
     vim.keymap.set("n", "<leader>sd", "<cmd>SessionManager delete_session<cr>", { desc = "[S]ession [D]elete" })
   end,
 }
-

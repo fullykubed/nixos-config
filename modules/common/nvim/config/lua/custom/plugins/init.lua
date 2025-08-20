@@ -2,6 +2,6 @@
 -- It returns all the plugin configurations from this directory
 
 return {
-  require('custom.plugins.autosave'),
-  require('custom.plugins.vim-tmux-navigator'),
+  require("custom.plugins.autosave"),
+  require("custom.plugins.vim-tmux-navigator"),
 }
