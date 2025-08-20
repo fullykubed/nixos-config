@@ -35,8 +35,6 @@ send_notification() {
     
     # If we're in tmux, send notification with dismissal on focus
     if [ -n "$TMUX_PANE" ] && [ "$4" != "transient" ]; then
-        echo "[DEBUG] Sending notification, mark=$CLAUDE_MARK, pane=$TMUX_PANE" >> /tmp/claude-notify.log
-        
         # Send notification and get ID for dismissal
         local notification_id=$(@notify-send@ \
             --urgency="$urgency" \
@@ -48,17 +46,11 @@ send_notification() {
             "$title" \
             "$body")
         
-        echo "[DEBUG] Notification sent, id=$notification_id" >> /tmp/claude-notify.log
-        
         # Set a tmux hook to dismiss notification when this pane gains focus
-        
-            tmux set-hook -t "$TMUX_PANE" pane-focus-in "run-shell 'gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.CloseNotification $notification_id 2>/dev/null || true; tmux select-pane -t $TMUX_PANE; tmux set-hook -ut $TMUX_PANE pane-focus-in'"
-        
+        tmux set-hook -t "$TMUX_PANE" pane-focus-in "run-shell 'gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.CloseNotification $notification_id 2>/dev/null || true; tmux select-pane -t $TMUX_PANE; tmux set-hook -ut $TMUX_PANE pane-focus-in'"
         
         # Now replace the notification with one that has an action and wait for response
         (
-            echo "[DEBUG] Replacing notification with action version" >> /tmp/claude-notify.log
-            
             # Replace notification with action version and wait for response
             action=$(@notify-send@ \
                 --urgency="$urgency" \
@@ -71,16 +63,12 @@ send_notification() {
                 "$title" \
                 "$body")
             
-            echo "[DEBUG] Action response: '$action'" >> /tmp/claude-notify.log
-            
             # If user clicked the focus action
             if [ "$action" = "focus" ]; then
-                echo "[DEBUG] Focusing container with mark: $CLAUDE_MARK" >> /tmp/claude-notify.log
                 swaymsg "[con_mark=\"$CLAUDE_MARK\"] focus"
 		tmux set-hook -ut $TMUX_PANE pane-focus-in
                 tmux select-window -t "$TMUX_PANE"
                 tmux select-pane -t "$TMUX_PANE"
-                echo "[DEBUG] Focus completed" >> /tmp/claude-notify.log
             fi
         ) &
     else
@@ -162,18 +150,13 @@ case "$HOOK_TYPE" in
                     # Find the terminal emulator process (parent of the tmux client)
                     term_pid=$(ps -o ppid= -p "$client_pid" | tr -d ' ')
                     
-                    echo "[DEBUG] Marking container: client_pid=$client_pid, term_pid=$term_pid, mark=$CLAUDE_MARK" >> /tmp/claude-notify.log
-                    
                     if [ -n "$term_pid" ]; then
                         # Mark the Sway container with this PID
                         mark_result=$(swaymsg "[pid=$term_pid] mark --add $CLAUDE_MARK" 2>&1)
-                        echo "[DEBUG] Mark result: $mark_result" >> /tmp/claude-notify.log
                         
                         # If that didn't work, try marking the focused container
                         if echo "$mark_result" | grep -q "No matching node"; then
-                            echo "[DEBUG] PID not found, marking focused container instead" >> /tmp/claude-notify.log
-                            mark_result=$(swaymsg "mark --add $CLAUDE_MARK" 2>&1)
-                            echo "[DEBUG] Focused mark result: $mark_result" >> /tmp/claude-notify.log
+                            swaymsg "mark --add $CLAUDE_MARK" 2>&1
                         fi
                     fi
                 fi
