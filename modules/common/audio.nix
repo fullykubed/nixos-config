@@ -94,21 +94,30 @@
       Type = "oneshot";
       ExecStart = pkgs.writeShellScript "usb-audio-reset" ''
         echo "Starting USB audio device reset after resume..."
-        ${pkgs.coreutils}/bin/sleep 2
+        ${pkgs.coreutils}/bin/sleep 3
 
-        for auth_file in /sys/bus/usb/devices/*/authorized; do
-          device_dir="''${auth_file%/*}"
+        # Find all USB devices (including sub-devices like 3-7)
+        for device_dir in /sys/bus/usb/devices/[0-9]*; do
+          # Skip if not a directory or no authorized file
+          if [ ! -d "$device_dir" ] || [ ! -f "$device_dir/authorized" ]; then
+            continue
+          fi
           
           # Check if this is a FiiO device
           is_fiio=0
-          if [ -f "$device_dir/product" ]; then
-            if ${pkgs.ripgrep}/bin/rg -qi "fiio|k3" "$device_dir/product" 2>/dev/null; then
+          
+          # Check by vendor/product ID (more reliable)
+          if [ -f "$device_dir/idVendor" ] && [ -f "$device_dir/idProduct" ]; then
+            vendor=$(cat "$device_dir/idVendor" 2>/dev/null)
+            product=$(cat "$device_dir/idProduct" 2>/dev/null)
+            if [ "$vendor" = "2972" ] && [ "$product" = "0047" ]; then
               is_fiio=1
             fi
           fi
           
-          if [ -f "$device_dir/manufacturer" ]; then
-            if ${pkgs.ripgrep}/bin/rg -qi "fiio|guangzhou" "$device_dir/manufacturer" 2>/dev/null; then
+          # Also check by manufacturer/product strings as fallback
+          if [ "$is_fiio" -eq 0 ] && [ -f "$device_dir/manufacturer" ]; then
+            if grep -qi "fiio" "$device_dir/manufacturer" 2>/dev/null; then
               is_fiio=1
             fi
           fi
@@ -122,11 +131,16 @@
               echo "  Manufacturer: $(cat "$device_dir/manufacturer")"
             fi
             
-            echo "Resetting device..."
-            echo 0 > "$auth_file"
-            ${pkgs.coreutils}/bin/sleep 0.5
-            echo 1 > "$auth_file"
-            echo "Device reset complete"
+            echo "Resetting FiiO device..."
+            echo 0 > "$device_dir/authorized"
+            ${pkgs.coreutils}/bin/sleep 1
+            echo 1 > "$device_dir/authorized"
+            echo "FiiO device reset complete"
+            
+            # Restart audio services to ensure device is recognized
+            ${pkgs.coreutils}/bin/sleep 1
+            ${pkgs.systemd}/bin/systemctl --user restart wireplumber || true
+            echo "Audio services restarted"
           fi
         done
 
