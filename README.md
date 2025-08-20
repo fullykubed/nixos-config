@@ -74,8 +74,8 @@ nix run .#agenix-rekey
 
 ## Configured Machines
 
-* `mini-pc`: System76 Meerkat in the home office
-* `tower`: Custom server tower in the home office
+* `fullykubed-mini-pc`: Intel-based mini PC workstation
+* `fullykubed-tower`: AMD-based desktop workstation
 
 ## Key Components
 
@@ -84,7 +84,7 @@ nix run .#agenix-rekey
 - **Status Bar**: Waybar
 - **Application Launcher**: Rofi (Wayland fork)
 - **Terminal**: Alacritty
-- **Notifications**: Mako
+- **Notifications**: SwayNC (Sway Notification Center)
 
 ### Development Tools
 - **Editor**: Neovim (Kickstart-based configuration)
