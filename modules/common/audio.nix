@@ -136,11 +136,6 @@
             ${pkgs.coreutils}/bin/sleep 1
             echo 1 > "$device_dir/authorized"
             echo "FiiO device reset complete"
-            
-            # Restart audio services to ensure device is recognized
-            ${pkgs.coreutils}/bin/sleep 1
-            ${pkgs.systemd}/bin/systemctl --user restart wireplumber || true
-            echo "Audio services restarted"
           fi
         done
 
