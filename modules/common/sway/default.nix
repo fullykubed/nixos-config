@@ -41,6 +41,7 @@ in
 {
   imports = [
     ./swaync.nix
+    ./swayidle.nix
   ];
 
   # enable sway window manager
@@ -52,7 +53,8 @@ in
       swaylock # sway lock screen
       swayidle # sway idle timer
       waybar # status bar
-      unstable.swayr # window switcher
+      wlprop # window property displayer 
+			unstable.swayr # window switcher
       wl-clipboard
       wf-recorder
       swaynotificationcenter # notification daemon with control center
@@ -343,55 +345,6 @@ in
       '';
     };
 
-    # This controls the lock screen and power savings modes
-    services.swayidle = {
-      enable = true;
-      extraArgs = [
-        "-d"
-        "idlehint"
-        (builtins.toString (60 * 5))
-      ];
-      timeouts = [
-        # Enables the lock screen
-        {
-          timeout = 60 * 5;
-          command = "${pkgs.swaylock}/bin/swaylock --color 000000 -fF";
-        }
-
-        # Turns off monitors
-        {
-          timeout = 60 * 5;
-          command = ''${pkgs.sway}/bin/swaymsg "output * dpms off"'';
-          resumeCommand = ''${pkgs.sway}/bin/swaymsg "output * dpms on"'';
-        }
-
-        # Suspends the system
-        {
-          timeout = 60 * 15;
-          command = "${pkgs.systemd}/bin/systemctl suspend";
-        }
-      ];
-      events = [
-        {
-          event = "before-sleep";
-          command = ''${pkgs.sway}/bin/swaymsg "output * dpms off"'';
-        }
-        {
-          event = "after-resume";
-          command = ''${pkgs.sway}/bin/swaymsg "output * dpms on"'';
-        }
-
-        # For some reason, when resuming, sway does not properly swap to an "idle" state
-        # until the user has provided some sort of input after resume. This is troublesome
-        # b/c sometimes the system will resume when the user is not physically present and then
-        # will never suspend again. This simulates a noop keypress after swayidle restarts
-        # in roder to begin tracking the idle state properly again
-        {
-          event = "after-resume";
-          command = "${pkgs.wtype}/bin/wtype -d 1000 -k shift_l";
-        }
-      ];
-    };
 
     wayland.windowManager.sway =
       let
