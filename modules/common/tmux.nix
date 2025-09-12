@@ -8,6 +8,7 @@
   home-manager.users.${config.username} = {
     home.packages = with pkgs; [
       libnotify # Required for tmux-notify desktop notifications
+      sesh # Session manager for tmux
     ];
 
     programs.tmux = {
@@ -215,6 +216,24 @@
         # Initialize all panes with inactive style
         set-hook -g after-new-window 'select-pane -P "bg=#2a2a2a"'
         set-hook -g after-split-window 'select-pane -P "bg=#2a2a2a"'
+
+	# sesh settings
+	bind-key x kill-pane # skip "kill-pane 1? (y/n)" prompt
+	set -g detach-on-destroy off  # don't exit from tmux when closing a session
+	bind -n M-s run-shell "sesh connect \"$(
+		sesh list --icons | fzf-tmux -p 80%,70% \
+		    --no-sort --ansi --border-label ' sesh ' --prompt '⚡  ' \
+		    --header '  ^a all ^t tmux ^g configs ^x zoxide ^d tmux kill ^f find' \
+		    --bind 'tab:down,btab:up' \
+		    --bind 'ctrl-a:change-prompt(⚡  )+reload(sesh list --icons)' \
+		    --bind 'ctrl-t:change-prompt(🪟  )+reload(sesh list -t --icons)' \
+		    --bind 'ctrl-g:change-prompt(⚙️  )+reload(sesh list -c --icons)' \
+		    --bind 'ctrl-x:change-prompt(📁  )+reload(sesh list -z --icons)' \
+		    --bind 'ctrl-f:change-prompt(🔎  )+reload(fd -H -d 2 -t d -E .Trash . ~)' \
+		    --bind 'ctrl-d:execute(tmux kill-session -t {2..})+change-prompt(⚡  )+reload(sesh list --icons)' \
+		    --preview-window 'right:55%' \
+		    --preview 'sesh preview {}'
+	)\""
       '';
     };
   };
