@@ -1,7 +1,15 @@
 { config, pkgs, ... }:
+let
+  # Create an FHS environment for Firefox to bypass system allocator
+  firefox-fhs = pkgs.buildFHSEnv {
+    name = "firefox";
+    targetPkgs = pkgs: [ pkgs.firefox ];
+    runScript = "firefox";
+  };
+in
 {
   environment.systemPackages = with pkgs; [
-    firefox
+    firefox-fhs # Firefox in isolated FHS environment
     chromium
   ];
 
@@ -25,7 +33,7 @@
       firefox = {
         name = "Firefox";
         comment = "Firefox";
-        exec = "${pkgs.firefox}/bin/firefox";
+        exec = "${firefox-fhs}/bin/firefox";
         type = "Application";
       };
       chrome = {

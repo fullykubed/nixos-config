@@ -96,7 +96,10 @@
   # Set Scarlett Solo input gain
   systemd.services.scarlett-solo-gain = {
     description = "Set Scarlett Solo input gain";
-    after = [ "multi-user.target" "sound.target" ];
+    after = [
+      "multi-user.target"
+      "sound.target"
+    ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
@@ -104,7 +107,7 @@
       ExecStart = pkgs.writeShellScript "scarlett-gain" ''
         # Wait for device to be available
         ${pkgs.coreutils}/bin/sleep 2
-        
+
         # Find Scarlett Solo card number
         for card in /proc/asound/card*; do
           if [ -f "$card/id" ] && grep -q "Gen" "$card/id" 2>/dev/null; then

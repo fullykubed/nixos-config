@@ -7,36 +7,36 @@ UPDATE_MODE=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    -b|--boot)
-      BOOT_MODE=true
-      shift
-      ;;
-    -o|--offline)
-      OFFLINE_MODE=true
-      shift
-      ;;
-    -u|--update)
-      UPDATE_MODE=true
-      shift
-      ;;
-    -h|--help)
-      echo "Usage: $0 [OPTIONS]"
-      echo ""
-      echo "Options:"
-      echo "  -b, --boot      Rebuild boot configuration only"
-      echo "  -o, --offline   Build without network access (use local store only)"
-      echo "  -u, --update    Update flake inputs before rebuilding"
-      echo "  -h, --help      Show this help message"
-      echo ""
-      echo "Without options, rebuilds and switches to the new configuration"
-      echo "with --fast flag (skips channel updates)"
-      exit 0
-      ;;
-    *)
-      echo "Unknown option: $1"
-      echo "Run '$0 --help' for usage information"
-      exit 1
-      ;;
+  -b | --boot)
+    BOOT_MODE=true
+    shift
+    ;;
+  -o | --offline)
+    OFFLINE_MODE=true
+    shift
+    ;;
+  -u | --update)
+    UPDATE_MODE=true
+    shift
+    ;;
+  -h | --help)
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  -b, --boot      Rebuild boot configuration only"
+    echo "  -o, --offline   Build without network access (use local store only)"
+    echo "  -u, --update    Update flake inputs before rebuilding"
+    echo "  -h, --help      Show this help message"
+    echo ""
+    echo "Without options, rebuilds and switches to the new configuration"
+    echo "with --fast flag (skips channel updates)"
+    exit 0
+    ;;
+  *)
+    echo "Unknown option: $1"
+    echo "Run '$0 --help' for usage information"
+    exit 1
+    ;;
   esac
 done
 
@@ -52,7 +52,7 @@ find_repo_root() {
       return 0
     fi
   fi
-  
+
   # Method 2: Check current directory and parents for flake.nix
   local check_dir="$(pwd)"
   while [[ "$check_dir" != "/" ]]; do
@@ -62,7 +62,7 @@ find_repo_root() {
     fi
     check_dir="$(dirname "$check_dir")"
   done
-  
+
   # Method 3: Check if script is in expected location
   local script_dir="$(dirname "$(realpath "$0")")"
   local potential_root="$(realpath "$script_dir/../../../..")"
@@ -70,7 +70,7 @@ find_repo_root() {
     echo "$potential_root"
     return 0
   fi
-  
+
   # Method 4: Default fallback - check common locations
   for dir in "$HOME/repos/nixos-config" "$HOME/nixos-config"; do
     if [[ -f "$dir/flake.nix" ]] && [[ -f "$dir/configuration.nix" ]]; then
@@ -78,7 +78,7 @@ find_repo_root() {
       return 0
     fi
   done
-  
+
   return 1
 }
 

@@ -53,14 +53,17 @@ in
       swaylock # sway lock screen
       swayidle # sway idle timer
       waybar # status bar
-      wlprop # window property displayer 
-			unstable.swayr # window switcher
+      wlprop # window property displayer
+      unstable.swayr # window switcher
       wl-clipboard
       wf-recorder
       swaynotificationcenter # notification daemon with control center
       libnotify # for scripting notifications
       sway-contrib.grimshot # screenshot tool
-      slurp
+      grim # screenshot utility
+      slurp # region selection utility
+      satty # screenshot annotation tool
+      imagemagick # for image conversion in screenshot script
       xdg-utils # for opening default programs when clicking links
       glib # gsettings
       dracula-theme # gtk theme
@@ -345,7 +348,6 @@ in
       '';
     };
 
-
     wayland.windowManager.sway =
       let
         swayModifier = "Mod4";
@@ -382,6 +384,10 @@ in
           # floating windows
           for_window [title="fzf-switcher"] floating enable
           for_window [title="Firefox — Sharing Indicator"] floating enable
+          for_window [app_id="com.github.hluk.copyq"] floating enable, resize set 50 ppt 50 ppt
+          for_window [class="copyq"] floating enable, resize set 50 ppt 50 ppt
+          for_window [title="CopyQ"] floating enable, resize set 50 ppt 50 ppt
+          for_window [app_id="floating-terminal"] floating enable, resize set 50 ppt 50 ppt
 
           # Focus navigation
           bindsym ${swayModifier}+Alt+Up focus up
@@ -396,7 +402,7 @@ in
           # Quick application/workspace focus
           bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
           bindsym ${swayModifier}+Alt+s [app_id="signal"] focus
-          bindsym ${swayModifier}+Alt+m [app_id="Slack"] focus
+          bindsym ${swayModifier}+Alt+m [class="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
           bindsym ${swayModifier}+Alt+b [title="btop"] focus
@@ -424,6 +430,9 @@ in
           bindsym ${swayModifier}+Alt+8 workspace number 8
           bindsym ${swayModifier}+Alt+9 workspace number 9
 
+          # Rename current workspace
+          bindsym ${swayModifier}+Shift+r exec echo "" | ${pkgs.wofi}/bin/wofi --show dmenu -p "Rename workspace to:" | xargs swaymsg rename workspace to
+
           # Window management
           bindsym ${swayModifier}+q kill
           bindsym ${swayModifier}+Shift+q exec swayr quit-window
@@ -445,6 +454,8 @@ in
 
           # Terminal
           bindsym ${swayModifier}+Return exec alacritty
+          bindsym ${swayModifier}+Shift+Return exec alacritty --class floating-terminal
+          bindsym ${swayModifier}+o exec alacritty -e bash -c "sesh connect \$(sesh list -t | ${pkgs.wofi}/bin/wofi --show dmenu -p 'Select tmux session:')"
 
           # Mode switching
           bindsym ${swayModifier}+r mode resize
@@ -528,6 +539,10 @@ in
           # Application launchers
           bindsym ${swayModifier}+d exec wofi
           bindsym ${swayModifier}+c exec ${pkgs.copyq}/bin/copyq toggle
+          
+          # Screenshot
+          bindsym ${swayModifier}+s exec grimshot copy area
+          bindsym ${swayModifier}+Shift+s exec screenshot-satty
 
           # for locking the screen (Hyper+L = Mod4+Shift+Control+Alt+L)
           bindsym ${swayModifier}+Shift+Control+Alt+l exec swaylock --color 000000 -fF
@@ -556,7 +571,7 @@ in
           bindsym XF86AudioStop exec playerctl stop
 
           exec swaymsg "workspace messages; exec slack;"
-          exec swaymsf "workspace messages; exec signal-desktop;"
+          exec swaymsg "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"
           exec swaymsg "workspace editor; exec alacritty -t nvim"
           exec swaymsg "workspace monitoring; exec alacritty -t btop -e btop"

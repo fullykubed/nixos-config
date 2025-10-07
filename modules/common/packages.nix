@@ -110,6 +110,7 @@
     fio # Testing file system speed
     pciutils # debugging PCI components
     usbutils # debugging usb devices
+    gdb # GNU debugger for debugging crashes and core dumps
 
     ################################
     ##  Network Tooling

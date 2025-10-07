@@ -93,6 +93,10 @@ vim.g.maplocalleader = " "
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
 
+-- Keep cursor centered
+vim.opt.scrolloff = 999
+vim.opt.sidescrolloff = 999
+
 -- Enable true color support
 if vim.fn.has("termguicolors") == 1 then
   vim.opt.termguicolors = true
@@ -107,7 +111,7 @@ end
 vim.o.number = true
 -- You can also add relative line numbers, to help with jumping.
 --  Experiment for yourself to see if you like it!
--- vim.o.relativenumber = true
+vim.o.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
 vim.o.mouse = "a"
@@ -164,7 +168,7 @@ vim.o.inccommand = "split"
 vim.o.cursorline = true
 
 -- Minimal number of screen lines to keep above and below the cursor.
-vim.o.scrolloff = 10
+vim.o.scrolloff = 999
 
 -- if performing an operation that would fail due to unsaved changes in the buffer (like `:q`),
 -- instead raise a dialog asking if you wish to save the current file(s)
@@ -188,6 +192,18 @@ vim.keymap.set("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Open diagn
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
+
+-- Insert mode navigation with Ctrl+h/j/k/l
+vim.keymap.set("i", "<C-h>", "<Left>", { desc = "Move cursor left in insert mode" })
+vim.keymap.set("i", "<C-j>", "<Down>", { desc = "Move cursor down in insert mode" })
+vim.keymap.set("i", "<C-k>", "<Up>", { desc = "Move cursor up in insert mode" })
+vim.keymap.set("i", "<C-l>", "<Right>", { desc = "Move cursor right in insert mode" })
+
+-- Additional useful insert mode mappings
+vim.keymap.set("i", "<C-a>", "<Home>", { desc = "Go to beginning of line in insert mode" })
+vim.keymap.set("i", "<C-e>", "<End>", { desc = "Go to end of line in insert mode" })
+vim.keymap.set("i", "<C-w>", "<C-\\><C-o>dB", { desc = "Delete word backward in insert mode" })
+vim.keymap.set("i", "<C-u>", "<C-\\><C-o>d0", { desc = "Delete to beginning of line in insert mode" })
 
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
@@ -252,7 +268,6 @@ rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require("lazy").setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  "NMAC427/guess-indent.nvim", -- Detect tabstop and shiftwidth automatically
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -309,7 +324,9 @@ require("lazy").setup({
     opts = {
       -- delay between pressing a key and opening which-key (milliseconds)
       -- this setting is independent of vim.o.timeoutlen
-      delay = 0,
+      delay = 50,
+      notify = true, -- Show notifications for errors
+      debug = false, -- Set to true to enable debug logging
       icons = {
         -- set icon mappings to true if you have a Nerd Font
         mappings = vim.g.have_nerd_font,
@@ -412,11 +429,19 @@ require("lazy").setup({
         -- You can put your default mappings / updates / etc. in here
         --  All the info you're looking for is in `:help telescope.setup()`
         --
-        -- defaults = {
-        --   mappings = {
-        --     i = { ['<c-enter>'] = 'to_fuzzy_refine' },
-        --   },
-        -- },
+        defaults = {
+          mappings = {
+            i = {
+              ["<C-j>"] = require("telescope.actions").move_selection_next,
+              ["<C-k>"] = require("telescope.actions").move_selection_previous,
+              ["<C-h>"] = require("telescope.actions").which_key,
+            },
+            n = {
+              ["<C-j>"] = require("telescope.actions").move_selection_next,
+              ["<C-k>"] = require("telescope.actions").move_selection_previous,
+            },
+          },
+        },
         -- pickers = {}
         extensions = {
           ["ui-select"] = {
@@ -685,6 +710,32 @@ require("lazy").setup({
         -- ts_ls = {},
         --
 
+        nil_ls = {
+          cmd = { "nil" },
+          settings = {
+            ["nil"] = {
+              formatting = {
+                command = { "nixfmt" },
+              },
+            },
+          },
+        },
+
+        bashls = {
+          cmd = { "bash-language-server", "start" },
+          filetypes = { "sh", "bash" },
+          settings = {
+            bashIde = {
+              globPattern = "*@(.sh|.inc|.bash|.command)",
+            },
+          },
+        },
+
+        terraformls = {
+          cmd = { "terraform-ls", "serve" },
+          filetypes = { "terraform", "tf", "terraform-vars" },
+        },
+
         lua_ls = {
           cmd = { "lua-language-server" },
           -- filetypes = { ... },
@@ -708,6 +759,19 @@ require("lazy").setup({
       for server_name, server_config in pairs(servers) do
         local server = server_config or {}
         server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
+
+        -- Attach navbuddy to LSP servers
+        local on_attach = server.on_attach
+        server.on_attach = function(client, bufnr)
+          if on_attach then
+            on_attach(client, bufnr)
+          end
+          local navbuddy_ok, navbuddy = pcall(require, "nvim-navbuddy")
+          if navbuddy_ok then
+            navbuddy.attach(client, bufnr)
+          end
+        end
+
         require("lspconfig")[server_name].setup(server)
       end
     end,
@@ -812,7 +876,7 @@ require("lazy").setup({
         -- <c-k>: Toggle signature help
         --
         -- See :h blink-cmp-config-keymap for defining your own keymap
-        preset = "default",
+        preset = "enter",
 
         -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
         --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -846,7 +910,7 @@ require("lazy").setup({
       -- the rust implementation via `'prefer_rust_with_warning'`
       --
       -- See :h blink-cmp-config-fuzzy for more information
-      fuzzy = { implementation = "lua" },
+      fuzzy = { implementation = "prefer_rust" },
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
@@ -893,10 +957,28 @@ require("lazy").setup({
       vim.cmd([[highlight GitSignsUntracked guifg=#808080 guibg=#1a1a1a ctermfg=gray ctermbg=darkgray]])
 
       -- Diagnostic signs colors (errors, warnings, info, hints)
-      vim.cmd([[highlight DiagnosticSignError guifg=#ff0000 guibg=#440000 gui=bold]])
-      vim.cmd([[highlight DiagnosticSignWarn guifg=#ffaa00 guibg=#443300 gui=bold]])
+      vim.cmd([[highlight DiagnosticSignError guifg=#ff9999 guibg=#3d2626 gui=bold]])
+      vim.cmd([[highlight DiagnosticSignWarn guifg=#ffcc99 guibg=#3d3326 gui=bold]])
       vim.cmd([[highlight DiagnosticSignInfo guifg=#87ceeb guibg=#1e3a4a gui=bold]])
       vim.cmd([[highlight DiagnosticSignHint guifg=#add8e6 guibg=#1e3a4a gui=bold]])
+
+      -- Diagnostic text/underline colors
+      vim.cmd([[highlight DiagnosticError guifg=#ff9999]])
+      vim.cmd([[highlight DiagnosticWarn guifg=#ffcc99]])
+      vim.cmd([[highlight DiagnosticInfo guifg=#87ceeb]])
+      vim.cmd([[highlight DiagnosticHint guifg=#add8e6]])
+
+      -- Diagnostic underlines
+      vim.cmd([[highlight DiagnosticUnderlineError gui=undercurl guisp=#ff9999]])
+      vim.cmd([[highlight DiagnosticUnderlineWarn gui=undercurl guisp=#ffcc99]])
+      vim.cmd([[highlight DiagnosticUnderlineInfo gui=undercurl guisp=#87ceeb]])
+      vim.cmd([[highlight DiagnosticUnderlineHint gui=undercurl guisp=#add8e6]])
+
+      -- Diagnostic virtual text
+      vim.cmd([[highlight DiagnosticVirtualTextError guifg=#ff9999 gui=bold]])
+      vim.cmd([[highlight DiagnosticVirtualTextWarn guifg=#ffcc99]])
+      vim.cmd([[highlight DiagnosticVirtualTextInfo guifg=#87ceeb]])
+      vim.cmd([[highlight DiagnosticVirtualTextHint guifg=#add8e6]])
 
       -- Create autocommands for window switching within Neovim
       vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
@@ -992,6 +1074,15 @@ require("lazy").setup({
         additional_vim_regex_highlighting = { "ruby" },
       },
       indent = { enable = true, disable = { "ruby" } },
+      incremental_selection = {
+        enable = true,
+        keymaps = {
+          init_selection = "<C-space>",
+          node_incremental = "<C-space>",
+          scope_incremental = false,
+          node_decremental = "<bs>",
+        },
+      },
     },
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:

@@ -44,7 +44,15 @@ return {
         lualine_c = { "filename" },
         lualine_x = { "encoding", "fileformat", "filetype" },
         lualine_y = { "progress" },
-        lualine_z = { "location" },
+        lualine_z = {
+          "location",
+          {
+            function()
+              return " " .. vim.fn.line("$") .. " lines"
+            end,
+            icon = "󰦨",
+          },
+        },
       },
       inactive_winbar = {
         lualine_a = {},

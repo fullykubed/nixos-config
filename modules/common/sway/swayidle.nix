@@ -1,4 +1,9 @@
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   # Create a systemd service that runs after resume to ensure monitors are turned on
@@ -6,29 +11,29 @@
     description = "Turn on Sway monitors after resume";
     after = [ "suspend.target" ];
     wantedBy = [ "suspend.target" ];
-    
+
     serviceConfig = {
       Type = "oneshot";
       User = config.username;
-      
+
       # Ensure we have the right environment
       Environment = [
         "WAYLAND_DISPLAY=wayland-1"
         "XDG_RUNTIME_DIR=/run/user/1000"
       ];
-      
+
       # Try multiple times with a delay to ensure Sway is ready
       ExecStart = pkgs.writeShellScript "sway-resume-monitors" ''
         #!/bin/sh
         # Wait a moment for the system to stabilize
         sleep 2
-        
+
         # Try to turn on monitors multiple times
         for i in 1 2 3; do
           ${pkgs.sway}/bin/swaymsg "output * dpms on" 2>/dev/null && exit 0
           sleep 1
         done
-        
+
         # If we couldn't connect to sway, try with explicit display
         export SWAYSOCK=$(find /run/user/1000 -name "sway-ipc.*" 2>/dev/null | head -1)
         if [ -n "$SWAYSOCK" ]; then
@@ -37,7 +42,7 @@
       '';
     };
   };
-  
+
   # Also improve the swayidle service restart behavior
   systemd.user.services.swayidle = {
     unitConfig = {
@@ -45,7 +50,7 @@
       StartLimitIntervalSec = 30;
       StartLimitBurst = 10;
     };
-    
+
     serviceConfig = {
       # Add restart delay to give sway time to stabilize
       RestartSec = 2;

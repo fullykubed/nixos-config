@@ -42,6 +42,7 @@
         python312Packages.python-lsp-server
         yaml-language-server
         vscode-langservers-extracted # HTML, CSS, JSON, ESLint
+        terraform-ls
       ];
     };
 }

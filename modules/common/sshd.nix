@@ -9,6 +9,9 @@
         port = 22;
       }
     ];
+    settings = {
+      PermitRootLogin = "no";
+    };
     hostKeys = [
       {
         path = "/etc/ssh/ssh_host_ed25519_key";
