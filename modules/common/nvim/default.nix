@@ -42,7 +42,9 @@
         python312Packages.python-lsp-server
         yaml-language-server
         vscode-langservers-extracted # HTML, CSS, JSON, ESLint
-        terraform-ls
+        unstable.tofu-ls
+        marksman # markdown
+        mdx-language-server # mdx
       ];
     };
 }

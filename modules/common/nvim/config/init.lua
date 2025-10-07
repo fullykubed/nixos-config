@@ -601,10 +601,12 @@ require("lazy").setup({
           ---@param bufnr? integer some lsp support methods only in specific files
           ---@return boolean
           local function client_supports_method(client, method, bufnr)
-            if vim.fn.has("nvim-0.11") == 1 then
+            -- Use the new method syntax for Neovim 0.10+
+            if vim.fn.has("nvim-0.10") == 1 then
               return client:supports_method(method, bufnr)
             else
-              return client.supports_method(method, { bufnr = bufnr })
+              -- Fallback for older versions
+              return client.supports_method and client.supports_method(method, { bufnr = bufnr })
             end
           end
 
@@ -681,11 +683,142 @@ require("lazy").setup({
         },
       })
 
+      -- Define custom servers that aren't in lspconfig by default
+      local lspconfig = require("lspconfig")
+      local configs = require("lspconfig.configs")
+      local util = require("lspconfig.util")
+
+      -- Register custom LSP servers not included in nvim-lspconfig
+      local custom_servers = {
+        tofu_ls = {
+          cmd = { "tofu-ls", "serve" },
+          filetypes = { "terraform", "tf", "tofu", "terraform-vars" },
+          root_dir = function(fname)
+            return util.root_pattern(".terraform", "*.tf", "*.tfvars", ".git")(fname) or vim.fs.dirname(fname)
+          end,
+          init_options = {
+            experimentalFeatures = {
+              validateOnSave = false,
+              prefillRequiredFields = true,
+            },
+            tofu = {
+              timeout = "60s", -- Increased timeout for complex projects
+              logFilePath = "",
+            },
+            indexing = {
+              ignorePaths = {},
+              ignoreDirectoryNames = { ".terragrunt-cache" },
+            },
+          },
+          single_file_support = true,
+          -- Override capabilities to ensure completion and references are enabled
+          capabilities = vim.tbl_deep_extend("force", require("blink.cmp").get_lsp_capabilities(), {
+            textDocument = {
+              completion = {
+                completionItem = {
+                  snippetSupport = true,
+                  resolveSupport = {
+                    properties = { "documentation", "detail", "additionalTextEdits" },
+                  },
+                },
+              },
+              references = {
+                dynamicRegistration = false,
+              },
+            },
+            experimental = {
+              -- Required by terraform-ls/tofu-ls for references to work
+              -- This uses the built-in LSP references handler
+              showReferencesCommandId = "vim.lsp.buf.references",
+            },
+          }),
+          on_attach = function(client, bufnr)
+            -- Get the buffer's filename
+            local bufname = vim.api.nvim_buf_get_name(bufnr)
+            local workspace_dir = vim.fn.fnamemodify(bufname, ":p:h")
+            local terraform_dir = workspace_dir .. "/.terraform"
+
+            -- Check if providers are initialized, if not, offer to initialize
+            if vim.fn.isdirectory(terraform_dir) == 0 then
+              vim.defer_fn(function()
+                vim.notify(
+                  "Tofu providers not initialized. Run :TofuInit to download provider schemas for completions",
+                  vim.log.levels.WARN
+                )
+              end, 100)
+            end
+
+            -- Command to initialize providers
+            vim.api.nvim_buf_create_user_command(bufnr, "TofuInit", function()
+              vim.notify("Initializing Tofu providers in background...", vim.log.levels.INFO)
+
+              -- Run tofu init asynchronously
+              vim.fn.jobstart({ "sh", "-c", "cd " .. vim.fn.shellescape(workspace_dir) .. " && tofu init -upgrade" }, {
+                on_exit = function(_, exit_code)
+                  if exit_code == 0 then
+                    vim.schedule(function()
+                      vim.notify(
+                        "Tofu providers initialized. Please save and reopen files to refresh LSP.",
+                        vim.log.levels.INFO
+                      )
+                      -- Don't try to restart LSP automatically as it causes issues with references
+                      -- Users should save and reopen files manually for best results
+                    end)
+                  else
+                    vim.schedule(function()
+                      vim.notify(
+                        "Failed to initialize providers (exit code: " .. exit_code .. ")",
+                        vim.log.levels.ERROR
+                      )
+                    end)
+                  end
+                end,
+                on_stderr = function(_, data)
+                  if data and #data > 0 and data[1] ~= "" then
+                    vim.schedule(function()
+                      vim.notify("Tofu init: " .. table.concat(data, "\n"), vim.log.levels.WARN)
+                    end)
+                  end
+                end,
+              })
+            end, { desc = "Initialize Tofu providers", force = true })
+
+            -- Also create a TerraformInit alias for muscle memory
+            vim.api.nvim_buf_create_user_command(bufnr, "TerraformInit", function()
+              vim.cmd("TofuInit")
+            end, { desc = "Alias for :TofuInit", force = true })
+
+            -- Add keybinding for TofuInit
+            vim.keymap.set(
+              "n",
+              "<leader>Lt",
+              "<cmd>TofuInit<CR>",
+              { buffer = bufnr, desc = "Initialize Tofu providers" }
+            )
+          end,
+        },
+        mdx = {
+          cmd = { "mdx-language-server", "--stdio" },
+          filetypes = { "mdx", "markdown.mdx" },
+          root_dir = util.root_pattern("package.json", ".git"),
+        },
+      }
+
+      -- Register each custom server
+      for name, config in pairs(custom_servers) do
+        if not configs[name] then
+          configs[name] = { default_config = config }
+        end
+      end
+
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
       --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require("blink.cmp").get_lsp_capabilities()
+
+      -- Debug: Log capabilities to ensure completion is enabled
+      -- vim.notify(vim.inspect(capabilities.textDocument.completion), vim.log.levels.INFO)
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -731,9 +864,63 @@ require("lazy").setup({
           },
         },
 
-        terraformls = {
-          cmd = { "terraform-ls", "serve" },
-          filetypes = { "terraform", "tf", "terraform-vars" },
+        -- Custom servers need entries here to go through the setup process
+        tofu_ls = {},
+        mdx = {},
+
+        marksman = {
+          cmd = { "marksman", "server" },
+          filetypes = { "markdown" },
+        },
+
+        yamlls = {
+          cmd = { "yaml-language-server", "--stdio" },
+          filetypes = { "yaml", "yml", "yaml.docker-compose", "yaml.gitlab" },
+          settings = {
+            yaml = {
+              schemas = {
+                -- Add common schemas
+                ["https://json.schemastore.org/github-workflow.json"] = "/.github/workflows/*",
+                ["https://json.schemastore.org/docker-compose.json"] = "docker-compose*.yml",
+                ["https://json.schemastore.org/kubernetes.json"] = "*.k8s.yml",
+              },
+              format = {
+                enable = true,
+              },
+              validate = true,
+              completion = true,
+              hover = true,
+            },
+          },
+        },
+
+        jsonls = {
+          cmd = { "vscode-json-language-server", "--stdio" },
+          filetypes = { "json", "jsonc" },
+          settings = {
+            json = {
+              schemas = {
+                {
+                  fileMatch = { "package.json" },
+                  url = "https://json.schemastore.org/package.json",
+                },
+                {
+                  fileMatch = { "tsconfig.json", "tsconfig.*.json" },
+                  url = "https://json.schemastore.org/tsconfig.json",
+                },
+                {
+                  fileMatch = { ".eslintrc.json" },
+                  url = "https://json.schemastore.org/eslintrc.json",
+                },
+                {
+                  fileMatch = { ".prettierrc", ".prettierrc.json", "prettier.config.json" },
+                  url = "https://json.schemastore.org/prettierrc.json",
+                },
+              },
+              validate = { enable = true },
+              format = { enable = true },
+            },
+          },
         },
 
         lua_ls = {
@@ -758,14 +945,23 @@ require("lazy").setup({
       -- Setup NixOS-installed LSP servers (only those defined in servers table)
       for server_name, server_config in pairs(servers) do
         local server = server_config or {}
+
+        -- For custom servers, merge with their custom configuration
+        if custom_servers[server_name] then
+          server = vim.tbl_deep_extend("force", custom_servers[server_name], server)
+        end
+
         server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
 
-        -- Attach navbuddy to LSP servers
-        local on_attach = server.on_attach
+        -- Compose on_attach handlers
+        local original_on_attach = server.on_attach
         server.on_attach = function(client, bufnr)
-          if on_attach then
-            on_attach(client, bufnr)
+          -- Call original on_attach if exists (includes custom server on_attach)
+          if original_on_attach then
+            original_on_attach(client, bufnr)
           end
+
+          -- Attach navbuddy to all servers
           local navbuddy_ok, navbuddy = pcall(require, "nvim-navbuddy")
           if navbuddy_ok then
             navbuddy.attach(client, bufnr)
