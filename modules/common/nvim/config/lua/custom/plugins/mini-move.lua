@@ -21,10 +21,9 @@ return {
     })
   end,
   keys = {
-    { "<C-Left>", desc = "Move left", mode = { "n", "v" } },
+    { "<C-Left>", desc = "Move left", mode = { "v" } },
     { "<C-Down>", desc = "Move down", mode = { "n", "v" } },
     { "<C-Up>", desc = "Move up", mode = { "n", "v" } },
-    { "<C-Right>", desc = "Move right", mode = { "n", "v" } },
+    { "<C-Right>", desc = "Move right", mode = { "v" } },
   },
 }
-

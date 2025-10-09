@@ -27,6 +27,13 @@ return {
       -- Auto refresh when files change
       use_libuv_file_watcher = true,
       scan_mode = "deep",
+      -- Always show hidden files
+      filtered_items = {
+        visible = true, -- Show hidden files by default
+        hide_dotfiles = false,
+        hide_gitignored = false,
+        hide_hidden = false, -- for Windows
+      },
     },
     git_status = {
       window = {

@@ -109,3 +109,4 @@ nix run .#agenix-rekey
 - All package overlays make nixpkgs-unstable available as `pkgs.unstable`
 - Secure boot is configured via lanzaboote module
 - The system uses Determinate Nix implementation
+- Do NOT make any file edits unless asked.

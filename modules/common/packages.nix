@@ -1,11 +1,11 @@
 # These are miscellenous pacakges that don't need any configuration
 # beyond the initial installation
 
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
-    wget # TODO: Remove from scripts
+    wget 
 
     ################################
     ##  Nix Debugging Utilities

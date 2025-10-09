@@ -1,7 +1,5 @@
 {
   config,
-  pkgs,
-  lib,
   ...
 }:
 {
@@ -43,6 +41,8 @@
         yaml-language-server
         vscode-langservers-extracted # HTML, CSS, JSON, ESLint
         unstable.tofu-ls
+        unstable.opentofu
+        unstable.terraform-ls
         marksman # markdown
         mdx-language-server # mdx
       ];

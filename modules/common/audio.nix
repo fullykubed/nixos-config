@@ -1,6 +1,6 @@
 # See https://nixos.wiki/wiki/PipeWire
 
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
   services.pulseaudio.enable = false;
   security.rtkit.enable = true;

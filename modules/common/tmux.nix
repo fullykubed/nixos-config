@@ -112,7 +112,7 @@
                 bind R command-prompt -I "#S" "rename-session '%%'"
 
                 # Reload config
-                bind g source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded!"
+                bind -n M-R source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded!"
 
                 # Resize panes with vim keys
                 bind -r h resize-pane -L 5
@@ -217,11 +217,14 @@
                 set-hook -g after-new-window 'select-pane -P "bg=#2a2a2a"'
                 set-hook -g after-split-window 'select-pane -P "bg=#2a2a2a"'
 
+                # Change the working directory of the session to the working directory of the current pane
+                bind -n M-c attach-session -c "#{pane_current_path}"
+
         	# sesh settings
         	bind-key x kill-pane # skip "kill-pane 1? (y/n)" prompt
         	set -g detach-on-destroy off  # don't exit from tmux when closing a session
         	bind -n M-s run-shell "sesh connect \"$(
-        		sesh list --icons | fzf-tmux -p 80%,70% \
+        		sesh list --tmux --icons | fzf-tmux -p 80%,70% \
         		    --no-sort --ansi --border-label ' sesh ' --prompt '⚡  ' \
         		    --header '  ^a all ^t tmux ^g configs ^x zoxide ^d tmux kill ^f find' \
         		    --bind 'tab:down,btab:up' \
@@ -234,6 +237,45 @@
         		    --preview-window 'right:55%' \
         		    --preview 'sesh preview {}'
         	)\""
+          bind -n M-S run-shell "sesh last"
+
+          # Keybinding browser with fzf - shows all tmux keybindings and allows execution
+          bind -n M-? run-shell "tmux list-keys -aN | \
+            awk '{ \
+              gsub(/^[[:space:]]+/, \"\", \$0); \
+              original = \$0; \
+              \
+              if (index(\$1, \"C-a\") == 1) { \
+                table = \"prefix\"; \
+                actual_key = \$2; \
+                pos = index(original, \$2); \
+                if (pos > 0) { \
+                  pos += length(\$2); \
+                  desc_or_cmd = substr(original, pos); \
+                } else { \
+                  desc_or_cmd = \"\"; \
+                } \
+              } else { \
+                table = \"root\"; \
+                actual_key = \$1; \
+                pos = index(original, \$1); \
+                if (pos > 0) { \
+                  pos += length(\$1); \
+                  desc_or_cmd = substr(original, pos); \
+                } else { \
+                  desc_or_cmd = \"\"; \
+                } \
+              } \
+              gsub(/^[[:space:]]+/, \"\", desc_or_cmd); \
+              printf \"%-8s %-15s %s\\n\", table, actual_key, desc_or_cmd \
+            }' | \
+            fzf-tmux -p 90%,75% \
+              --border-label ' tmux keybindings ' \
+              --prompt '🔑  ' \
+              --header 'Table    Key             Description/Command' \
+              --preview 'echo {}' \
+              --preview-window 'up:3:wrap' | \
+            sh -c 'read table key rest; if [ \"\$table\" = \"prefix\" ] || [ \"\$table\" = \"root\" ]; then cmd=\$(tmux list-keys -T \"\$table\" \"\$key\" 2>/dev/null | cut -d\" \" -f5-); eval \"tmux \$cmd\"; fi'"
       '';
     };
   };
