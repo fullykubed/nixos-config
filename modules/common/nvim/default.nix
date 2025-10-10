@@ -3,6 +3,11 @@
   ...
 }:
 {
+  # Set nvim as system editor
+  environment.sessionVariables = {
+    EDITOR = "nvim";
+  };
+
   home-manager.users.${config.username} =
     { config, pkgs, ... }:
     {
@@ -15,7 +20,6 @@
 
       home.packages = with pkgs; [
         # Neovim essentials
-        unstable.lazygit
         tree-sitter
         sqlite
 

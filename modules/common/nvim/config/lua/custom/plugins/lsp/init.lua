@@ -25,9 +25,6 @@ return {
       "SmiteshP/nvim-navbuddy",
     },
     config = function()
-      -- Enable LSP trace logging
-      vim.lsp.set_log_level("TRACE")
-
       -- Diagnostic Config
       vim.diagnostic.config({
         severity_sort = true,

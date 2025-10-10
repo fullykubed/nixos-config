@@ -36,6 +36,47 @@ in
         '';
       };
 
+      lazygitConfig = {
+        enable = true;
+        target = "lazygit/config.yml";
+        text = ''
+          git:
+            commitPrefix: []
+            commit:
+              signOff: true
+              autoWrapCommitMessage: true
+              autoWrapWidth: 72
+            skipHookPrefix: "WIP"
+            parseEmoji: true
+
+          gui:
+            nerdFontsVersion: "3"
+            theme:
+              selectedLineBgColor:
+                - "#2d2d2d"
+              selectedRangeBgColor:
+                - "#2d2d2d"
+
+          update:
+            days: 1
+
+          os:
+            copyToClipboardCmd: "wl-copy {{text}}"
+            readFromClipboardCmd: "wl-paste"
+
+          customCommands:
+            - key: 'C'
+              description: 'commit without hooks'
+              context: 'files'
+              prompts:
+                - type: 'input'
+                  title: 'Commit message'
+                  key: 'CommitMessage'
+              command: 'git -c core.hooksPath=/dev/null commit -m "{{.Form.CommitMessage}}"'
+              loadingText: 'committing without hooks...'
+        '';
+      };
+
     };
 
     home.file = {
@@ -54,6 +95,7 @@ in
     home.packages = with pkgs; [
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
+      unstable.lazygit # Terminal UI for git commands
     ];
 
     programs.git = {
