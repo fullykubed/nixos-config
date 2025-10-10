@@ -2,7 +2,7 @@
 let
   shotcut = pkgs.symlinkJoin {
     name = "shotcut";
-    paths = [ pkgs.unstable.shotcut ];
+    paths = [ pkgs.shotcut ];
     buildInputs = [ pkgs.makeWrapper ];
     postBuild = ''
       wrapProgram $out/bin/shotcut \

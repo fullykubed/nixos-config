@@ -30,6 +30,12 @@
         nixpkgs.follows = "nixpkgs";
       };
     };
+
+    # Bubblewrap wrapper utilities
+    nix-bwrapper = {
+      url = "github:Naxdy/nix-bwrapper";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -43,6 +49,7 @@
       agenix,
       agenix-rekey,
       flake-utils,
+      nix-bwrapper,
     }:
     let
 
@@ -62,6 +69,7 @@
               })
 
               agenix-rekey.overlays.default
+              nix-bwrapper.overlays.default
             ];
           }
         );
