@@ -36,6 +36,12 @@
       url = "github:Naxdy/nix-bwrapper";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # System-wide theming
+    stylix = {
+      url = "github:nix-community/stylix/release-25.05";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -50,6 +56,7 @@
       agenix-rekey,
       flake-utils,
       nix-bwrapper,
+      stylix,
     }:
     let
 
@@ -66,6 +73,21 @@
                   inherit system;
                   config.allowUnfree = true;
                 };
+              })
+
+
+              # Global ImageMagick downgrade to fix gscan2pdf issues
+              # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
+              (final: prev: {
+                imagemagick = prev.imagemagick.overrideAttrs (old: {
+                  version = "7.1.2-3";
+                  src = prev.fetchFromGitHub {
+                    owner = "ImageMagick";
+                    repo = "ImageMagick";
+                    tag = "7.1.2-3";
+                    hash = "sha256-L4apUdF1VJXSVqWAyjYFG/4qDJoJ0ObmSOpd90kqXsU=";
+                  };
+                });
               })
 
               agenix-rekey.overlays.default
@@ -91,6 +113,9 @@
 
             # Used for setting up secureboot (not yet upstreamed into NixOS)
             lanzaboote.nixosModules.lanzaboote
+
+            # System-wide theming
+            stylix.nixosModules.stylix
 
             # NixOS Configuration
             ./configuration.nix

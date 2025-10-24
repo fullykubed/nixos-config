@@ -6,6 +6,14 @@ return {
       "kkharji/sqlite.lua",
     },
     config = function()
+      require("telescope").setup({
+        extensions = {
+          frecency = {
+            db_safe_mode = false,
+          },
+        },
+      })
+
       require("telescope").load_extension("frecency")
 
       -- Optional: Add a keybinding for frecency

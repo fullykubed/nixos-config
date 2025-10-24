@@ -69,6 +69,7 @@ in
       dracula-theme # gtk theme
       wofi # menu / launcher
       ydotool # scripting CLI for wayland
+      wl-color-picker # color picker for wayland
 
       # Custom sway scripts
       scripts
@@ -539,7 +540,8 @@ in
           # Application launchers
           bindsym ${swayModifier}+d exec wofi
           bindsym ${swayModifier}+c exec ${pkgs.copyq}/bin/copyq toggle
-          
+          bindsym ${swayModifier}+p exec ${pkgs.wl-color-picker}/bin/wl-color-picker
+
           # Screenshot
           bindsym ${swayModifier}+s exec grimshot copy area
           bindsym ${swayModifier}+Shift+s exec screenshot-satty

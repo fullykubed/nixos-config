@@ -27,6 +27,7 @@
     ./modules/common/keyboards.nix
     ./modules/common/audio.nix
     ./modules/common/pdf.nix
+    ./modules/common/scanner.nix
     ./modules/common/packages.nix
     ./modules/common/direnv.nix
     ./modules/common/ssh.nix
@@ -40,6 +41,7 @@
     ./modules/common/image-viewer.nix
     ./modules/common/sway
     ./modules/common/wayland
+    ./modules/common/theme.nix
     ./modules/common/browser.nix
     ./modules/common/scripts
     ./modules/common/video-editor.nix
@@ -48,7 +50,6 @@
     ./modules/common/systemd.nix
     ./modules/common/home.nix
     ./modules/common/messaging.nix
-    ./modules/common/ide.nix
     ./modules/common/nvim
     ./modules/common/claude
     ./modules/common/crypto.nix

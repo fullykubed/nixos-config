@@ -5,31 +5,6 @@ return {
   main = "nvim-treesitter.configs", -- Sets main module to use for opts
   config = function(_, opts)
     require("nvim-treesitter.configs").setup(opts)
-
-    -- Custom TSX/JSX/Astro highlighting configuration
-    vim.api.nvim_create_autocmd("FileType", {
-      pattern = { "typescriptreact", "javascriptreact", "tsx", "jsx", "astro" },
-      callback = function()
-        -- Define a consistent color for both React/Astro components and HTML elements
-        local tag_color = "#61AFEF" -- Light blue for all tags
-        local prop_name_color = "#E06C75" -- Red for prop names
-
-        -- React components and HTML elements (use same color)
-        vim.api.nvim_set_hl(0, "@tag.tsx", { fg = tag_color })
-        vim.api.nvim_set_hl(0, "@tag.jsx", { fg = tag_color })
-        vim.api.nvim_set_hl(0, "@tag.builtin.tsx", { fg = tag_color })
-        vim.api.nvim_set_hl(0, "@tag.builtin.jsx", { fg = tag_color })
-
-        -- Astro components and HTML elements (use same color)
-        vim.api.nvim_set_hl(0, "@tag.astro", { fg = tag_color })
-        vim.api.nvim_set_hl(0, "@tag.builtin.astro", { fg = tag_color })
-
-        -- Prop/attribute names (different color)
-        vim.api.nvim_set_hl(0, "@tag.attribute.tsx", { fg = prop_name_color })
-        vim.api.nvim_set_hl(0, "@tag.attribute.jsx", { fg = prop_name_color })
-        vim.api.nvim_set_hl(0, "@tag.attribute.astro", { fg = prop_name_color })
-      end,
-    })
   end,
   -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
   opts = {

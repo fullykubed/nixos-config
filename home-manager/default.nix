@@ -19,11 +19,6 @@ in
     [
       # Need to sort
 
-      ################################
-      ##  Scanners and Printers
-      ################################
-      gscan2pdf # Scanning GUI
-
     ]
     ++ (builtins.attrValues scripts);
 }

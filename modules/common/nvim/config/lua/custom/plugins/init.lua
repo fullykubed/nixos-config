@@ -22,7 +22,7 @@ local function flatten_plugins(...)
 end
 
 return flatten_plugins(
-  require("custom.plugins.colorscheme"),
+  require("custom.plugins.theme"),
   require("custom.plugins.telescope"),
   require("custom.plugins.lsp"),
   require("custom.plugins.blink"),

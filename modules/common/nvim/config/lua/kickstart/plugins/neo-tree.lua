@@ -14,6 +14,11 @@ return {
     { "\\", ":Neotree reveal<CR>", desc = "NeoTree reveal", silent = true },
   },
   opts = {
+    window = {
+      mappings = {
+        ["\\"] = "close_window",
+      },
+    },
     filesystem = {
       follow_current_file = {
         enabled = true,
@@ -45,5 +50,15 @@ return {
     -- Enable git status tracking
     enable_git_status = true,
     enable_diagnostics = true,
+    -- Disable auto-centering in Neo-tree
+    event_handlers = {
+      {
+        event = "neo_tree_buffer_enter",
+        handler = function()
+          vim.opt_local.scrolloff = 0
+          vim.opt_local.sidescrolloff = 0
+        end,
+      },
+    },
   },
 }

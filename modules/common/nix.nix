@@ -12,6 +12,10 @@
 
     # Ensure the cpu doesn't get blasted
     daemonCPUSchedPolicy = "idle";
-    settings.max-jobs = 16;
+    settings = {
+      max-jobs = 16;
+      # Increase download buffer size to prevent warnings (1GB)
+      download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
+    };
   };
 }

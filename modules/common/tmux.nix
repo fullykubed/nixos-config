@@ -96,6 +96,10 @@
       ];
 
       extraConfig = ''
+                # Set background color to base00 for inactive, base01 for active
+                set -g window-style 'bg=${config.lib.stylix.colors.withHashtag.base00}'
+                set -g window-active-style 'bg=${config.lib.stylix.colors.withHashtag.base01}'
+
                 # Use Ctrl-a as prefix
                 unbind C-b
                 set -g prefix C-a
@@ -128,7 +132,7 @@
 
                 # Rotate panes
                 bind -n M-r rotate-window
-                bind -n M-e rotate-window -D
+                bind -n M-e rotate-windowR -D
 
                 # Maximize/zoom pane
                 bind m resize-pane -Z
@@ -176,10 +180,10 @@
                 set -g status-justify left
 
                 # Terminal overrides for alacritty with true color support
-                set -g default-terminal "alacritty"
+                set -g default-terminal "tmux-256color"
                 set-option -sa terminal-features ''',alacritty:RGB'''
                 set-option -ga terminal-features ",alacritty:usstyle"
-                set-option -ga terminal-overrides ''',alacritty:Tc'''
+                set-option -ga terminal-overrides ",*:Tc"
 
                 # Enable focus events
                 set -g focus-events on
@@ -196,41 +200,28 @@
                 set -g set-titles-string "#S / #W"
 
                 # Message styling
-                set -g message-style fg=colour232,bg=colour33,bold
+                set -g message-style fg=${config.lib.stylix.colors.withHashtag.base00},bg=${config.lib.stylix.colors.withHashtag.base0D},bold
 
-                # Pane border styling - creates padding effect
-                # Use thicker borders as visual padding between panes
-                set -g pane-border-style fg=#2a2a2a,bg=#2a2a2a
-                set -g pane-active-border-style fg=#000000,bg=#000000  # Black border for active pane
-                set -g pane-border-lines heavy
-                set -g popup-border-lines heavy
+                # Copy mode selection color (match nvim visual selection)
+                set -g mode-style fg=${config.lib.stylix.colors.withHashtag.base05},bg=${config.lib.stylix.colors.withHashtag.base03}
+
+                # Pane border styling - no borders for panes, but visible borders for popups
+                set -g pane-border-lines single
+                set -g popup-border-lines rounded
                 set -g pane-border-status off
                 set -g pane-border-indicators off
-
-                # Set pane background colors using hooks
-                # Active pane: pure black background, Inactive panes: lighter gray background
-                # Use hooks to change pane style on focus events
-                set-hook -g pane-focus-in 'select-pane -P "bg=#000000"'
-                set-hook -g pane-focus-out 'select-pane -P "bg=#2a2a2a"'
-                
-                # Initialize all panes with inactive style
-                set-hook -g after-new-window 'select-pane -P "bg=#2a2a2a"'
-                set-hook -g after-split-window 'select-pane -P "bg=#2a2a2a"'
+                # Make pane borders invisible by setting colors to background
+                set -g pane-border-style fg=default,bg=default
+                set -g pane-active-border-style fg=default,bg=default
+                # Keep popup borders visible
+                set -g popup-border-style fg=${config.lib.stylix.colors.withHashtag.base0D},bg=default
 
                 # Change the working directory of the session to the working directory of the current pane
                 bind -n M-c attach-session -c "#{pane_current_path}"
 
                 # Mouse mode toggle - useful for TUI apps that need mouse events
                 bind m set -g mouse \; display-message "Mouse #{?mouse,ON,OFF}"
-
-                # Better mouse event handling for TUI applications
-                # Override default mouse bindings to be less aggressive
-                bind -T root MouseDown1Pane select-pane -t = \; send-keys -M
-                bind -T root MouseDrag1Pane send-keys -M
-                bind -T root WheelUpPane send-keys -M
-                bind -T root WheelDownPane send-keys -M
-
-                # Automatic mouse handling for specific applications
+               # Automatic mouse handling for specific applications
                 # Detect k9s and automatically enable mouse passthrough
                 set-hook -g pane-exited 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
                 set-hook -g after-new-window 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
