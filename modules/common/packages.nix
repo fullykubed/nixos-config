@@ -164,7 +164,7 @@
     ################################
     ##  Gaming
     ################################
-    lutris
+    unstable.lutris
     gamemode
     gamescope
 
