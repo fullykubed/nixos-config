@@ -220,6 +220,22 @@
                 # Change the working directory of the session to the working directory of the current pane
                 bind -n M-c attach-session -c "#{pane_current_path}"
 
+                # Mouse mode toggle - useful for TUI apps that need mouse events
+                bind m set -g mouse \; display-message "Mouse #{?mouse,ON,OFF}"
+
+                # Better mouse event handling for TUI applications
+                # Override default mouse bindings to be less aggressive
+                bind -T root MouseDown1Pane select-pane -t = \; send-keys -M
+                bind -T root MouseDrag1Pane send-keys -M
+                bind -T root WheelUpPane send-keys -M
+                bind -T root WheelDownPane send-keys -M
+
+                # Automatic mouse handling for specific applications
+                # Detect k9s and automatically enable mouse passthrough
+                set-hook -g pane-exited 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
+                set-hook -g after-new-window 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
+                set-hook -g window-pane-changed 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
+
         	# sesh settings
         	bind-key x kill-pane # skip "kill-pane 1? (y/n)" prompt
         	set -g detach-on-destroy off  # don't exit from tmux when closing a session
