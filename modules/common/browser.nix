@@ -3,7 +3,10 @@ let
   # Create an FHS environment for Firefox to bypass system allocator
   firefox-fhs = pkgs.buildFHSEnv {
     name = "firefox";
-    targetPkgs = pkgs: [ pkgs.firefox pkgs.tridactyl-native ];
+    targetPkgs = pkgs: [
+      pkgs.firefox
+      pkgs.tridactyl-native
+    ];
     runScript = "firefox";
   };
 in
@@ -14,7 +17,8 @@ in
   ];
 
   home-manager.users.${config.username} = {
-    home.file.".mozilla/native-messaging-hosts/tridactyl.json".source = "${pkgs.tridactyl-native}/lib/mozilla/native-messaging-hosts/tridactyl.json";
+    home.file.".mozilla/native-messaging-hosts/tridactyl.json".source =
+      "${pkgs.tridactyl-native}/lib/mozilla/native-messaging-hosts/tridactyl.json";
 
     xdg.configFile."tridactyl/tridactylrc".text = ''
       " Tridactyl configuration file

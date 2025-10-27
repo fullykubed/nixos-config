@@ -3,6 +3,7 @@
 
   users.users.${config.username} = {
     isNormalUser = true;
+    shell = pkgs.zsh;
     extraGroups = [
       "wheel"
       "scanner"

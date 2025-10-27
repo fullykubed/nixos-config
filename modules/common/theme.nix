@@ -35,7 +35,7 @@
 
     polarity = "dark";
 
-    # Base16 color scheme 
+    # Base16 color scheme
     base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-city-dark.yaml";
 
     # Wallpaper - stylix will generate theme colors from this image

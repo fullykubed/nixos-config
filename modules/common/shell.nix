@@ -1,5 +1,7 @@
 { config, pkgs, ... }:
 {
+  # Enable zsh system-wide
+  programs.zsh.enable = true;
 
   environment.systemPackages = with pkgs; [
     kitty # terminal
@@ -17,21 +19,18 @@
   home-manager.users.${config.username} = {
 
     ################################
-    ##  Alacritty Terminal Configuration
+    ##  Wezterm Terminal Configuration
     ################################
-    programs.alacritty = {
+    programs.wezterm = {
       enable = true;
-      settings = {
-        env = {
-          TERM = "alacritty-direct";
-        };
-        window = {
-          padding = {
-            x = 10;
-            y = 10;
-          };
-        };
-      };
+      enableZshIntegration = true;
+      extraConfig = ''
+        return {
+          default_prog = { "${pkgs.zsh}/bin/zsh" },
+          enable_tab_bar = false,
+          enable_wayland = true,
+        }
+      '';
     };
 
     ################################
@@ -40,6 +39,7 @@
     programs.starship = {
       enable = true;
       enableBashIntegration = true;
+      enableZshIntegration = true;
       settings = {
         format = "$username$hostname$directory$git_branch$git_state$git_status$cmd_duration$line_break$character";
         directory = {
@@ -114,6 +114,10 @@
       # Standard temporary directories (must be absolute paths)
       TMP = "/tmp";
       TMPDIR = "/tmp";
+
+      # Use nvim as pager
+      PAGER = "nvim -R";
+      MANPAGER = "nvim +Man!";
     };
 
     ####################################
@@ -123,6 +127,7 @@
       enable = true;
       daemon.enable = true;
       enableBashIntegration = true;
+      enableZshIntegration = true;
       flags = [
         "--disable-up-arrow"
       ];
@@ -140,6 +145,35 @@
     programs.zoxide = {
       enable = true;
       enableBashIntegration = true;
+      enableZshIntegration = true;
+    };
+
+    ####################################
+    ## Fuzzy Finder - FZF
+    ####################################
+    programs.fzf = {
+      enable = true;
+      enableBashIntegration = true;
+      enableZshIntegration = true;
+    };
+
+    ####################################
+    ## Better ls - Eza
+    ####################################
+    programs.eza = {
+      enable = true;
+      enableBashIntegration = true;
+      enableZshIntegration = true;
+    };
+
+    ####################################
+    ## GPG Agent
+    ####################################
+    services.gpg-agent = {
+      enable = true;
+      enableBashIntegration = true;
+      enableZshIntegration = true;
+      pinentryPackage = pkgs.pinentry-gnome3;
     };
 
     ####################################
@@ -147,6 +181,24 @@
     ####################################
     programs.bash = {
       enable = true;
+    };
+
+ ####################################
+    ## Zsh Config
+    ####################################
+    programs.zsh = {
+      enable = true;
+      autosuggestion.enable = true;
+      syntaxHighlighting.enable = true;
+      oh-my-zsh = {
+        enable = true;
+        plugins = [
+          "alias-finder"
+          "colored-man-pages"
+          "command-not-found"
+          "fancy-ctrl-z"
+        ];
+      };
     };
   };
 }

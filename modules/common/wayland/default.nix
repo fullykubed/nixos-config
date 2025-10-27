@@ -12,7 +12,6 @@
     NIXOS_OZONE_WL = "1";
   };
 
-
   # Enable the windowing system.
   # Note: This does NOT actually start X11 despite the name
   services.xserver.enable = true;

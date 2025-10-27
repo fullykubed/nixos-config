@@ -13,7 +13,8 @@
 
     programs.tmux = {
       enable = true;
-      terminal = "alacritty";
+      terminal = "wezterm";
+      shell = "${pkgs.zsh}/bin/zsh";
       historyLimit = 10000;
       mouse = true;
       keyMode = "vi";
@@ -179,10 +180,10 @@
                 set -g status-interval 5
                 set -g status-justify left
 
-                # Terminal overrides for alacritty with true color support
+                # Terminal overrides for wezterm with true color support
                 set -g default-terminal "tmux-256color"
-                set-option -sa terminal-features ''',alacritty:RGB'''
-                set-option -ga terminal-features ",alacritty:usstyle"
+                set-option -sa terminal-features ''',wezterm:RGB'''
+                set-option -ga terminal-features ",wezterm:usstyle"
                 set-option -ga terminal-overrides ",*:Tc"
 
                 # Enable focus events

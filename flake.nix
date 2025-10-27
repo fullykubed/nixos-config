@@ -75,7 +75,6 @@
                 };
               })
 
-
               # Global ImageMagick downgrade to fix gscan2pdf issues
               # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
               (final: prev: {

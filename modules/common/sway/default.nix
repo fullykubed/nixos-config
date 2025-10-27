@@ -360,7 +360,7 @@ in
         };
         config = {
           modifier = swayModifier;
-          terminal = "alacritty";
+          terminal = "wezterm";
           menu = "wofi";
           gaps = {
             inner = 10;
@@ -406,7 +406,7 @@ in
           bindsym ${swayModifier}+Alt+m [class="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
-          bindsym ${swayModifier}+Alt+b [title="btop"] focus
+          bindsym ${swayModifier}+Alt+b [app_id="btop"] focus
           bindsym ${swayModifier}+Alt+f exec sway-switch-and-launch-if-ne browser firefox firefox
           bindsym ${swayModifier}+Alt+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
           bindsym ${swayModifier}+Alt+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
@@ -454,9 +454,9 @@ in
           bindsym ${swayModifier}+Shift+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -b 'Yes, exit sway' 'swaymsg exit'
 
           # Terminal
-          bindsym ${swayModifier}+Return exec alacritty
-          bindsym ${swayModifier}+Shift+Return exec alacritty --class floating-terminal
-          bindsym ${swayModifier}+o exec alacritty -e bash -c "sesh connect \$(sesh list -t | ${pkgs.wofi}/bin/wofi --show dmenu -p 'Select tmux session:')"
+          bindsym ${swayModifier}+Return exec wezterm
+          bindsym ${swayModifier}+Shift+Return exec wezterm start --class floating-terminal
+          bindsym ${swayModifier}+o exec wezterm start -- bash -c "sesh connect \$(sesh list -t | ${pkgs.wofi}/bin/wofi --show dmenu -p 'Select tmux session:')"
 
           # Mode switching
           bindsym ${swayModifier}+r mode resize
@@ -575,8 +575,8 @@ in
           exec swaymsg "workspace messages; exec slack;"
           exec swaymsg "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"
-          exec swaymsg "workspace editor; exec alacritty -t nvim"
-          exec swaymsg "workspace monitoring; exec alacritty -t btop -e btop"
+          exec swaymsg "workspace editor; exec wezterm start --class nvim -- nvim"
+          exec swaymsg "workspace monitoring; exec wezterm start --class btop -- btop"
           exec swaymsg "workspace spotify; exec spotify"
 
           # Indicate to systemd that we have started the sway session

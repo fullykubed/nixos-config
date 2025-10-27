@@ -15,7 +15,12 @@
   ];
 
   home-manager.users.${config.username} =
-    { config, pkgs, lib, ... }:
+    {
+      config,
+      pkgs,
+      lib,
+      ...
+    }:
     {
       xdg.configFile = {
         "nvim" = {

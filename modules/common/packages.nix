@@ -5,7 +5,7 @@
 {
   nixpkgs.config.allowUnfree = true;
   environment.systemPackages = with pkgs; [
-    wget 
+    wget
 
     ################################
     ##  Nix Debugging Utilities
