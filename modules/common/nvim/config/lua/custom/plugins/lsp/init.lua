@@ -152,15 +152,16 @@ return {
           capabilities = capabilities,
         }, server_config or {})
 
-        -- Add navbuddy to all servers
+        -- Add navbuddy to servers that support document symbols
         local original_on_attach = config.on_attach
         config.on_attach = function(client, bufnr)
           if original_on_attach then
             original_on_attach(client, bufnr)
           end
 
+          -- Only attach navbuddy if the client supports document symbols
           local navbuddy_ok, navbuddy = pcall(require, "nvim-navbuddy")
-          if navbuddy_ok then
+          if navbuddy_ok and client.server_capabilities.documentSymbolProvider then
             navbuddy.attach(client, bufnr)
           end
         end

@@ -30,6 +30,7 @@ return flatten_plugins(
   require("custom.plugins.todo-comments"),
   require("custom.plugins.mini-ai"),
   require("custom.plugins.treesitter"),
+  require("custom.plugins.mdx"),
   require("custom.plugins.autosave"),
   require("custom.plugins.vim-tmux-navigator"),
   require("custom.plugins.comment"),
