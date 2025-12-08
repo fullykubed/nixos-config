@@ -1,7 +1,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }:
 {
@@ -117,128 +116,128 @@
       ];
 
       extraConfig = ''
-                # Set background color to base00 for inactive, base01 for active
-                set -g window-style 'bg=${config.lib.stylix.colors.withHashtag.base00}'
-                set -g window-active-style 'bg=${config.lib.stylix.colors.withHashtag.base01}'
+          # Set background color to base00 for inactive, base01 for active
+          set -g window-style 'bg=${config.lib.stylix.colors.withHashtag.base00}'
+          set -g window-active-style 'bg=${config.lib.stylix.colors.withHashtag.base01}'
 
-                # Use Ctrl-a as prefix
-                unbind C-b
-                set -g prefix C-a
-                bind C-a send-prefix
+          # Use Ctrl-a as prefix
+          unbind C-b
+          set -g prefix C-a
+          bind C-a send-prefix
 
-                # Split panes using | and -
-                bind | split-window -h -c "#{pane_current_path}"
-                bind - split-window -v -c "#{pane_current_path}"
-                unbind '"'
-                unbind %
+          # Split panes using | and -
+          bind | split-window -h -c "#{pane_current_path}"
+          bind - split-window -v -c "#{pane_current_path}"
+          unbind '"'
+          unbind %
 
-                # Rename window and session
-                bind r command-prompt -I "#W" "rename-window '%%'"
-                bind R command-prompt -I "#S" "rename-session '%%'"
+          # Rename window and session
+          bind r command-prompt -I "#W" "rename-window '%%'"
+          bind R command-prompt -I "#S" "rename-session '%%'"
 
-                # Reload config
-                bind -n M-R source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded!"
+          # Reload config
+          bind -n M-R source-file ~/.config/tmux/tmux.conf \; display-message "Config reloaded!"
 
-                # Resize panes with vim keys
-                bind -r h resize-pane -L 5
-                bind -r j resize-pane -D 5
-                bind -r k resize-pane -U 5
-                bind -r l resize-pane -R 5
+          # Resize panes with vim keys
+          bind -r h resize-pane -L 5
+          bind -r j resize-pane -D 5
+          bind -r k resize-pane -U 5
+          bind -r l resize-pane -R 5
 
-                # Move panes around (swap with direction)
-                bind -n M-h swap-pane -d -t '{left-of}'
-                bind -n M-j swap-pane -d -t '{down-of}'
-                bind -n M-k swap-pane -d -t '{up-of}'
-                bind -n M-l swap-pane -d -t '{right-of}'
+          # Move panes around (swap with direction)
+          bind -n M-h swap-pane -d -t '{left-of}'
+          bind -n M-j swap-pane -d -t '{down-of}'
+          bind -n M-k swap-pane -d -t '{up-of}'
+          bind -n M-l swap-pane -d -t '{right-of}'
 
-                # Rotate panes
-                bind -n M-r rotate-window
-                bind -n M-e rotate-windowR -D
+          # Rotate panes
+          bind -n M-r rotate-window
+          bind -n M-e rotate-windowR -D
 
-                # Maximize/zoom pane
-                bind m resize-pane -Z
+          # Maximize/zoom pane
+          bind m resize-pane -Z
 
-                # Custom master layout - main pane at top with 70% height
-                bind -n M-m select-layout main-horizontal \; run-shell "tmux resize-pane -t 0 -y \$((\$(tmux display -p '#{window_height}') * 70 / 100))"
+          # Custom master layout - main pane at top with 70% height
+          bind -n M-m select-layout main-horizontal \; run-shell "tmux resize-pane -t 0 -y \$((\$(tmux display -p '#{window_height}') * 70 / 100))"
 
-                # Window navigation
-                bind -n C-n next-window
-                bind -n C-p previous-window
+          # Window navigation
+          bind -n C-n next-window
+          bind -n C-p previous-window
 
-                # Session navigation - show windows in tree view (expanded)
-                bind s choose-tree -Z
-                bind -n M-1 select-window -t 1
-                bind -n M-2 select-window -t 2
-                bind -n M-3 select-window -t 3
-                bind -n M-4 select-window -t 4
-                bind -n M-5 select-window -t 5
-                bind -n M-6 select-window -t 6
-                bind -n M-7 select-window -t 7
-                bind -n M-8 select-window -t 8
-                bind -n M-9 select-window -t 9
+          # Session navigation - show windows in tree view (expanded)
+          bind s choose-tree -Z
+          bind -n M-1 select-window -t 1
+          bind -n M-2 select-window -t 2
+          bind -n M-3 select-window -t 3
+          bind -n M-4 select-window -t 4
+          bind -n M-5 select-window -t 5
+          bind -n M-6 select-window -t 6
+          bind -n M-7 select-window -t 7
+          bind -n M-8 select-window -t 8
+          bind -n M-9 select-window -t 9
 
-                # Create new window with current path
-                bind c new-window -c "#{pane_current_path}"
+          # Create new window with current path
+          bind c new-window -c "#{pane_current_path}"
 
-                # Kill pane/window without confirmation
-                bind x kill-pane
-                bind X kill-window
+          # Kill pane/window without confirmation
+          bind x kill-pane
+          bind X kill-window
 
-                # Copy mode improvements
-                bind Enter copy-mode
-                bind -T copy-mode-vi v send-keys -X begin-selection
-                bind -T copy-mode-vi C-v send-keys -X rectangle-toggle
-                bind -T copy-mode-vi y send-keys -X copy-selection-and-cancel
-                bind -T copy-mode-vi Escape send-keys -X cancel
+          # Copy mode improvements
+          bind Enter copy-mode
+          bind -T copy-mode-vi v send-keys -X begin-selection
+          bind -T copy-mode-vi C-v send-keys -X rectangle-toggle
+          bind -T copy-mode-vi y send-keys -X copy-selection-and-cancel
+          bind -T copy-mode-vi Escape send-keys -X cancel
 
-                # Copy to system clipboard (requires wl-copy for Wayland)
-                bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'wl-copy'
-                bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'wl-copy'
+          # Copy to system clipboard (requires wl-copy for Wayland)
+          bind -T copy-mode-vi y send-keys -X copy-pipe-and-cancel 'wl-copy'
+          bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-pipe-and-cancel 'wl-copy'
 
-                # Status bar customization
-                set -g status-position top
-                set -g status-interval 5
-                set -g status-justify left
+          # Status bar customization
+          set -g status-position top
+          set -g status-interval 5
+          set -g status-justify left
 
-                # Terminal overrides for wezterm with true color support
-                set -g default-terminal "tmux-256color"
-                set-option -sa terminal-features ''',wezterm:RGB'''
-                set-option -ga terminal-features ",wezterm:usstyle"
-                set-option -ga terminal-overrides ",*:Tc"
+          # Terminal overrides for wezterm with true color support
+          set -g default-terminal "tmux-256color"
+          set-option -sa terminal-features ''',wezterm:RGB'''
+          set-option -ga terminal-features ",wezterm:usstyle"
+          set-option -ga terminal-overrides ",*:Tc"
 
-                # Enable focus events
-                set -g focus-events on
+          # Enable focus events
+          set -g focus-events on
 
-                # Activity monitoring
-                setw -g monitor-activity on
-                set -g visual-activity off
+          # Activity monitoring
+          setw -g monitor-activity on
+          set -g visual-activity off
 
-                # Renumber windows when one is closed
-                set -g renumber-windows on
+          # Renumber windows when one is closed
+          set -g renumber-windows on
 
-                # Set parent terminal title to reflect current window
-                set -g set-titles on
-                set -g set-titles-string "#S / #W"
+          # Set parent terminal title to reflect current window
+          set -g set-titles on
+          set -g set-titles-string "#S / #W"
 
-                # Message styling
-                set -g message-style fg=${config.lib.stylix.colors.withHashtag.base00},bg=${config.lib.stylix.colors.withHashtag.base0D},bold
+          # Message styling
+          set -g message-style fg=${config.lib.stylix.colors.withHashtag.base00},bg=${config.lib.stylix.colors.withHashtag.base0D},bold
 
-                # Copy mode selection color (match nvim visual selection)
-                set -g mode-style fg=${config.lib.stylix.colors.withHashtag.base05},bg=${config.lib.stylix.colors.withHashtag.base03}
+          # Copy mode selection color (match nvim visual selection)
+          set -g mode-style fg=${config.lib.stylix.colors.withHashtag.base05},bg=${config.lib.stylix.colors.withHashtag.base03}
 
-                # Pane border styling - no borders for panes, but visible borders for popups
-                set -g pane-border-lines single
-                set -g popup-border-lines rounded
-                set -g pane-border-status off
-                set -g pane-border-indicators off
-                # Make pane borders invisible by setting colors to background
-                set -g pane-border-style fg=default,bg=default
-                set -g pane-active-border-style fg=default,bg=default
-                # Keep popup borders visible
-                set -g popup-border-style fg=${config.lib.stylix.colors.withHashtag.base0D},bg=default
+          # Pane border styling - no borders for panes, but visible borders for popups
+          set -g pane-border-lines single
+          set -g popup-border-lines rounded
+          set -g pane-border-status off
+          set -g pane-border-indicators off
+          # Make pane borders invisible by setting colors to background
+          set -g pane-border-style fg=default,bg=default
+          set -g pane-active-border-style fg=default,bg=default
+          # Keep popup borders visible
+          set -g popup-border-style fg=${config.lib.stylix.colors.withHashtag.base0D},bg=default
 
-                # Change the working directory of the session to the working directory of the current pane
-                bind -n M-c attach-session -c "#{pane_current_path}"
+          # Change the working directory of the session to the working directory of the current pane
+          bind -n M-c attach-session -c "#{pane_current_path}"
 
           # Activate Mouse
           set -g mouse on
