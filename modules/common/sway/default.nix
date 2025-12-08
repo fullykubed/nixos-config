@@ -339,7 +339,7 @@ in
       };
     };
 
-    programs.bash = {
+    programs.zsh = {
       # Make sure the desktop entries show up in sway
       profileExtra = ''
         if [ "$(tty)" = "/dev/tty1" ]; then
@@ -403,7 +403,7 @@ in
           # Quick application/workspace focus
           bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
           bindsym ${swayModifier}+Alt+s [app_id="signal"] focus
-          bindsym ${swayModifier}+Alt+m [class="Slack"] focus
+          bindsym ${swayModifier}+Alt+m [app_id="Slack"] focus
           bindsym ${swayModifier}+Alt+e workspace editor
           bindsym ${swayModifier}+Alt+n workspace files
           bindsym ${swayModifier}+Alt+b [app_id="btop"] focus
