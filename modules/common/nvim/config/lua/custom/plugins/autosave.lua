@@ -4,7 +4,7 @@ return {
   opts = {
     enabled = true,
     execution_message = {
-      enabled = true,
+      enabled = false,
       message = function()
         return "AutoSaved at " .. vim.fn.strftime("%H:%M:%S")
       end,
