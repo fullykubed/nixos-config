@@ -220,13 +220,10 @@
                 # Change the working directory of the session to the working directory of the current pane
                 bind -n M-c attach-session -c "#{pane_current_path}"
 
-                # Mouse mode toggle - useful for TUI apps that need mouse events
-                bind m set -g mouse \; display-message "Mouse #{?mouse,ON,OFF}"
-               # Automatic mouse handling for specific applications
-                # Detect k9s and automatically enable mouse passthrough
-                set-hook -g pane-exited 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
-                set-hook -g after-new-window 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
-                set-hook -g window-pane-changed 'if-shell "tmux display-message -p \"#{pane_current_command}\" | grep -q k9s" "set -g mouse on"'
+          # Activate Mouse
+          set -g mouse on
+          bind -n WheelUpPane if -F '#{alternate_on}' 'send-keys Up' 'if -F "#{mouse_any_flag}" "send -M" "copy-mode -e; send-keys -M"'
+          bind -n WheelDownPane if -F '#{alternate_on}' 'send-keys Down' 'send-keys -M'
 
         	# sesh settings
         	bind-key x kill-pane # skip "kill-pane 1? (y/n)" prompt
