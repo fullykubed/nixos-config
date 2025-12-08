@@ -41,6 +41,10 @@ vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selection up" })
 -- Better paste (doesn't overwrite register when pasting over selection)
 vim.keymap.set("x", "<leader>p", [["_dP]], { desc = "Paste without yanking deleted text" })
 
+-- Change without yanking (uses black hole register)
+vim.keymap.set({ "n", "v" }, "c", [["_c]], { desc = "Change without yanking" })
+vim.keymap.set("n", "C", [["_C]], { desc = "Change to end of line without yanking" })
+
 -- Quick save
 vim.keymap.set("n", "<leader>w", "<cmd>w<CR>", { desc = "Save file" })
 
