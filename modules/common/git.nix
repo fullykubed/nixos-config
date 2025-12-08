@@ -218,7 +218,7 @@ in
         # Overrides for specific directories
         ###########################################################
         {
-          condition = "gitdir:${config.homeDir}/repos/panfactum/clients/hudson/";
+          condition = "gitdir:${config.homeDir}/repos/panfactum/clients/hudsonts/";
           contents = {
             user = {
               name = gitName;
