@@ -9,7 +9,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }:
 let
@@ -63,6 +62,11 @@ in
           os:
             copyToClipboardCmd: "wl-copy {{text}}"
             readFromClipboardCmd: "wl-paste"
+
+          keybinding:
+            universal:
+              quit: '<esc>'
+              quit-alt1: 'q'
 
           customCommands:
             - key: 'C'
