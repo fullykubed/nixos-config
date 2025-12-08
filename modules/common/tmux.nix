@@ -11,6 +11,26 @@
       sesh # Session manager for tmux
     ];
 
+    # Systemd user service to start tmux server on login
+    systemd.user.services.tmux-server = {
+      Unit = {
+        Description = "Tmux server";
+        After = [ "graphical-session.target" ];
+      };
+
+      Service = {
+        Type = "forking";
+        ExecStart = "${pkgs.tmux}/bin/tmux start-server";
+        ExecStop = "${pkgs.tmux}/bin/tmux kill-server";
+        Restart = "on-failure";
+        RestartSec = 3;
+      };
+
+      Install = {
+        WantedBy = [ "default.target" ];
+      };
+    };
+
     programs.tmux = {
       enable = true;
       terminal = "wezterm";
