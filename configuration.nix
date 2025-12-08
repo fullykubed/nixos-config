@@ -16,6 +16,7 @@
     ./modules/common/zfs.nix
     ./modules/common/locale.nix
     ./modules/common/networking.nix
+    ./modules/common/time.nix
     ./modules/common/users.nix
     ./modules/common/bluetooth.nix
     ./modules/common/sshd.nix

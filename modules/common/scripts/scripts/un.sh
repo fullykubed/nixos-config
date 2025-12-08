@@ -93,7 +93,7 @@ echo "Using repository root: $REPO_ROOT"
 
 # Copy the local system configuration project to the OS etc directory;
 # Change ownership to root
-sudo rsync \
+doas rsync \
   -r \
   -p \
   --usermap=$USER:root \
@@ -111,7 +111,7 @@ if [[ "$UPDATE_MODE" == true ]]; then
     exit 1
   fi
   echo "Updating flake inputs..."
-  cd /etc/nixos && sudo nix flake update
+  cd /etc/nixos && doas nix flake update
 fi
 
 # Build the rebuild command
@@ -137,4 +137,4 @@ else
 fi
 
 # Execute the rebuild
-sudo nixos-rebuild $REBUILD_CMD $BUILD_FLAGS --flake "/etc/nixos#$HOSTNAME"
+doas nixos-rebuild $REBUILD_CMD $BUILD_FLAGS --flake "/etc/nixos#$HOSTNAME"
