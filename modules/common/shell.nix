@@ -183,7 +183,7 @@
       enable = true;
     };
 
- ####################################
+    ####################################
     ## Zsh Config
     ####################################
     programs.zsh = {
@@ -195,10 +195,14 @@
         plugins = [
           "alias-finder"
           "colored-man-pages"
-          "command-not-found"
           "fancy-ctrl-z"
         ];
       };
     };
+
+    ####################################
+    ## Command Not Found
+    ####################################
+    programs.command-not-found.enable = true;
   };
 }
