@@ -122,10 +122,10 @@ in
       zio = "watch -n 1 zpool iostat -lvy 1 1";
 
       # For checking stats on a zfs pool
-      zstat = "sudo zpool status -v";
+      zstat = "doas zpool status -v";
 
       # For checkings block stats on a zfs dataset
-      zblock = "sudo zdb -bbb";
+      zblock = "doas zdb -bbb";
     };
   };
 
