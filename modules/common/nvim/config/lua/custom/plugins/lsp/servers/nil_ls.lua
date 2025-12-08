@@ -6,7 +6,7 @@ return {
   settings = {
     ["nil"] = {
       formatting = {
-        command = { "nix fmt" },
+        command = { "nix", "fmt" },
       },
     },
   },
