@@ -24,8 +24,33 @@ in
     ];
   };
 
-  # Add sudo compatibility wrapper
-  environment.systemPackages = [ sudo-compat ];
+  # Configure PAM to use Yubikey U2F for doas
+  security.pam.services.doas = {
+    u2fAuth = true;
+  };
+
+  # Enable U2F authentication
+  security.pam.u2f = {
+    enable = true;
+    control = "sufficient"; # Allow password OR yubikey (use "required" to mandate yubikey)
+    settings = {
+      cue = true; # Prompt to touch the key
+      origin = "pam://nixos"; # Makes the key independent of the hardware
+      authfile = pkgs.writeText "u2f-mappings" (
+        pkgs.lib.concatStrings [
+          config.username
+          ":tGvO5XWn+Ytz49zkZITTo9YWpFzO6XnZk3X5AuyDbJ5mo2w/0lv5d7Q/dRYYv+WEU8sGma90mClHnAYysNjkTQ==,jBm2zt1lSIF68gFdk/T6li5kGAxsZR4UHFJAqS3fQwKPOuqYt+iFGcGBV078iVj6O3GA0XpdI76N/nSAqvsZNA==,es256,+presence"
+          ":1wsJRGnmP+8OvTlo+EZ+iPMGrWoFNU1pHGKaIshrWAvMoqkgy2nhOK/M/SCWeN068/ylCMLvyRiMfhzorQkwig==,VQlRxN/YmuwQ/brZyeRmJW+vWQLc+YajVOu68KGikGyBx+nB9e4X0FwxmZ5lZ87VF+iysDu4/UTf41OnRzDdog==,es256,+presence"
+        ]
+      );
+    };
+  };
+
+  # Add sudo compatibility wrapper and pam_u2f tools
+  environment.systemPackages = [
+    sudo-compat
+    pkgs.pam_u2f
+  ];
 
   services.passSecretService.enable = true;
   services.dbus.packages = [ pkgs.grc ];
