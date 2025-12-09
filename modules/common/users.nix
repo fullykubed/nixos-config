@@ -5,7 +5,6 @@
     isNormalUser = true;
     shell = pkgs.zsh;
     extraGroups = [
-      "wheel"
       "scanner"
       "lp"
       "corectrl"
