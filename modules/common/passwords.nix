@@ -23,6 +23,14 @@
           ExcludedChars = "";
         };
 
+        # Database locking configuration
+        Security = {
+          LockDatabaseIdle = true; # Enable locking after idle timeout
+          LockDatabaseIdleSeconds = 43200; # Lock after 12 hours (12 * 60 * 60 seconds)
+          LockDatabaseMinimize = false; # Disable locking when minimizing window
+          LockDatabaseScreenLock = false; # Disable locking when screen locks
+        };
+
         SSHAgent.Enabled = true;
       };
     };
