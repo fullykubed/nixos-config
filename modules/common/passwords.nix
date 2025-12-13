@@ -2,6 +2,7 @@
 {
   environment.systemPackages = with pkgs; [
     keepassxc # Password manager
+    libsecret # Provides lib-secert, a tool for managing secrets using the secret service
   ];
   home-manager.users.${config.username} = {
     programs.keepassxc = {
@@ -14,7 +15,12 @@
           Enabled = true;
         };
 
-        FdoSecrets.Enabled = true;
+        FdoSecrets = {
+          Enabled = true;
+          ConfirmDeleteItem = true;
+          ConfirmAccessItem = false;
+          UnlockBeforeSearch = true;
+        };
 
         GUI.TrayIconAppearance = "monochrome-light";
 
