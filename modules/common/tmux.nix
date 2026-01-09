@@ -10,21 +10,19 @@
       sesh # Session manager for tmux
     ];
 
-    # Systemd user service to start tmux server on login
-    systemd.user.services.tmux-server = {
+    systemd.user.services.tmux-start-server = {
       Unit = {
-        Description = "Tmux server";
-        After = [ "graphical-session.target" ];
+        Description = "tmux start-server (zsh login-shell equivalent)";
+        After = [ "default.target" ];
       };
-
       Service = {
-        Type = "forking";
-        ExecStart = "${pkgs.tmux}/bin/tmux start-server";
-        ExecStop = "${pkgs.tmux}/bin/tmux kill-server";
-        Restart = "on-failure";
-        RestartSec = 3;
+        Type = "oneshot";
+        RemainAfterExit = true;
+        EnvironmentFile = "-%t/environment.d/*.conf";
+        Environment = "TMUX_TMPDIR=%t";
+        ExecStart = "/run/current-system/sw/bin/zsh -lc 'tmux start-server'";
+        ExecStop = "/run/current-system/sw/bin/zsh -lc 'tmux kill-server'";
       };
-
       Install = {
         WantedBy = [ "default.target" ];
       };
@@ -54,22 +52,13 @@
           plugin = resurrect;
           extraConfig = ''
             set -g @resurrect-capture-pane-contents 'on'
-            set -g @resurrect-strategy-nvim 'session'
-          '';
-        }
-        {
-          plugin = continuum;
-          extraConfig = ''
-            set -g @continuum-restore 'on'
-            set -g @continuum-save-interval '15'
           '';
         }
         {
           plugin = dracula;
           extraConfig = ''
-            set -g @dracula-show-powerline true
+            set -g @dracula-show-powerline false
             set -g @dracula-show-left-icon session
-            set -g @dracula-plugins "continuum attached-clients"
             set -g @dracula-show-timezone false
             set -g @dracula-military-time false
             set -g @dracula-show-location false
@@ -113,6 +102,13 @@
             set -g @tnotify-sleep-duration '2'
           '';
         }
+        {
+          plugin = continuum;
+          extraConfig = ''
+            set -g @continuum-restore 'on'
+            set -g @continuum-save-interval '5'
+          '';
+        }
       ];
 
       extraConfig = ''
@@ -152,7 +148,7 @@
 
           # Rotate panes
           bind -n M-r rotate-window
-          bind -n M-e rotate-windowR -D
+          bind -n M-e rotate-window -D
 
           # Maximize/zoom pane
           bind m resize-pane -Z
