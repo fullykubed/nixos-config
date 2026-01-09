@@ -5,11 +5,11 @@
     packages = with pkgs; [
       noto-fonts
       noto-fonts-cjk-sans
-      noto-fonts-emoji
+      noto-fonts-color-emoji
       font-awesome
       source-han-sans
-      source-han-sans-japanese
-      source-han-serif-japanese
+      source-han-sans
+      source-han-serif
       nerd-fonts.jetbrains-mono
       nerd-fonts.fira-code
       nerd-fonts.droid-sans-mono
@@ -56,7 +56,7 @@
         name = "Noto Serif";
       };
       emoji = {
-        package = pkgs.noto-fonts-emoji;
+        package = pkgs.noto-fonts-color-emoji;
         name = "Noto Color Emoji";
       };
     };

@@ -1,7 +1,6 @@
 { config, pkgs, ... }:
 {
   environment.systemPackages = with pkgs; [
-    electrum # BTC
     unstable.wasabiwallet # BTC (privacy focused with coinjoin)
     monero-gui # Monero w/ GUI
     mycrypto # Ethereum

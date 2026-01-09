@@ -7,7 +7,7 @@
 {
 
   # The linux kernl to use
-  boot.kernelPackages = pkgs.linuxPackages_6_16;
+  boot.kernelPackages = pkgs.linuxPackages_6_18;
 
   # Use scudo memory allocator for improved security with better compatibility
   # Options: "libc" (default), "graphene-hardened", "graphene-hardened-light", "scudo", "jemalloc", "mimalloc"

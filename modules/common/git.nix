@@ -102,12 +102,16 @@ in
       unstable.lazygit # Terminal UI for git commands
     ];
 
+    programs.difftastic = {
+      enable = true;
+      git.enable = true;
+    };
+
     programs.git = {
       enable = true;
       lfs.enable = true;
-      difftastic.enable = true;
 
-      aliases = {
+      settings.aliases = {
         fpush = "push --force-with-least"; # Safe version of force-push
         lg = "log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
       };

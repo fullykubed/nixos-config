@@ -20,6 +20,6 @@
   };
 
   environment.systemPackages = with pkgs; [
-    libsForQt5.okular # PDF editing
+    kdePackages.okular # PDF editing
   ];
 }

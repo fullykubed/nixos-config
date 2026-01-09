@@ -28,7 +28,7 @@
     ################################
     ##  KVM
     ################################
-    barrier
+    deskflow
 
     ################################
     ##  Doc Editors
@@ -58,7 +58,7 @@
     ################################
     bubblewrap # Unprivileged sandboxing tool
     wireguard-tools # User-space tools for interfacing with wireguard kernel module
-    openssl_3_0 # Certificate generation
+    openssl_3 # Certificate generation
     xorg.xeyes # For checking if an app is running in x compat mode
     su # For UID mapping
 
@@ -67,7 +67,6 @@
     ################################
     gnumake
     gcc
-    clang_13
     fakeroot
     ncurses
     flex
@@ -86,7 +85,7 @@
     gtk3 # toolkit for creating guis
     webkitgtk_6_0 # webkit rendering engine
     # Note: See https://mozillagfx.wordpress.com/2021/10/30/switching-the-linux-graphics-stack-from-glx-to-egl/
-    glxinfo # CLI for debugging some issues with GLX, powers X graphics (older)
+    mesa-demos # CLI for debugging some issues with GLX, powers X graphics (older)
     egl-wayland # CLI for debugging some issues with the EGLStreams; EGLStreams powers Wayland desktop (newer)
 
     ################################
@@ -121,7 +120,6 @@
     ################################
     ##  External Devices
     ################################
-    android-udev-rules # Working with pixel
     android-tools # Working with pixel (and other android devices)
     libusb1 # for programming usb devices
 

@@ -4,7 +4,6 @@
   config,
   lib,
   pkgs,
-  modulesPath,
   ...
 }:
 let
@@ -55,10 +54,13 @@ let
   '';
 in
 {
+  boot.zfs = {
+    package = pkgs.zfs_2_4;
+  };
 
   # ZFS support for podman
   virtualisation.podman = {
-    extraPackages = with pkgs; [ zfs ];
+    extraPackages = [ config.boot.zfs.package ];
   };
 
   boot.kernelParams = [

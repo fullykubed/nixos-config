@@ -6,26 +6,26 @@
     # Secrets management
     agenix.url = "https://flakehub.com/f/ryantm/agenix/0.15.0";
     agenix-rekey = {
-      url = "github:oddlama/agenix-rekey?ref=395cdb1631e9715e37d0e859a2b1da63f0ae333b";
+      url = "github:oddlama/agenix-rekey?ref=42362b12f59978aabf3ec3334834ce2f3662013d";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
     # Determinate Nix to replace base nix
-    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3.8";
+    determinate.url = "https://flakehub.com/f/DeterminateSystems/determinate/3.15";
 
     # Nixpkg repositories (stable and unstable)
-    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2505";
+    nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0.2511";
     nixpkgs-unstable.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
 
     # Secure boot integrations
     lanzaboote = {
-      url = "https://flakehub.com/f/nix-community/lanzaboote/0.4.2";
+      url = "https://flakehub.com/f/nix-community/lanzaboote/1.0.0";
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
     # Home manager
     home-manager = {
-      url = "https://flakehub.com/f/nix-community/home-manager/0.2505";
+      url = "https://flakehub.com/f/nix-community/home-manager/0.2511";
       inputs = {
         nixpkgs.follows = "nixpkgs";
       };
@@ -39,7 +39,7 @@
 
     # System-wide theming
     stylix = {
-      url = "github:nix-community/stylix/release-25.05";
+      url = "github:nix-community/stylix/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

@@ -10,7 +10,7 @@
   environment.systemPackages = with pkgs; [
     ranger # TUI file manager
     ueberzug # image previewer for ranger
-    poppler_utils # pdf util suite (used for pdf previews)
+    poppler-utils # pdf util suite (used for pdf previews)
     ffmpegthumbnailer # previews for videos
     odt2txt # previews for open office files
     exiftool # tool for working with files in the file manager
