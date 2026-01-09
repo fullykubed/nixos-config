@@ -575,7 +575,6 @@ in
           exec swaymsg "workspace messages; exec slack;"
           exec swaymsg "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"
-          exec swaymsg "workspace editor; exec wezterm start --class nvim -- nvim"
           exec swaymsg "workspace monitoring; exec wezterm start --class btop -- btop"
           exec swaymsg "workspace spotify; exec spotify"
 
