@@ -98,7 +98,7 @@
       # [O]pen
       o = "xdg-open"; # Opens a file using the preferred application
 
-      cat = "bat";
+      cat = "bat --no-pager";
 
       cd = "z";
     };
