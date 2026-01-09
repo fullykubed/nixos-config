@@ -1,4 +1,36 @@
 { config, pkgs, ... }:
+let
+  scheme = "${pkgs.base16-schemes}/share/themes/tokyo-city-dark.yaml";
+  fonts = {
+    monospace = {
+      package = pkgs.nerd-fonts.jetbrains-mono;
+      name = "JetBrainsMono Nerd Font";
+    };
+    sansSerif = {
+      package = pkgs.noto-fonts;
+      name = "Noto Sans";
+    };
+    serif = {
+      package = pkgs.noto-fonts;
+      name = "Noto Serif";
+    };
+    emoji = {
+      package = pkgs.noto-fonts-color-emoji;
+      name = "Noto Color Emoji";
+    };
+    sizes = {
+      applications = 11;
+      terminal = 12;
+      desktop = 10;
+      popups = 10;
+    };
+  };
+  cursor = {
+    package = pkgs.bibata-cursors;
+    name = "Bibata-Modern-Ice";
+    size = 24;
+  };
+in
 {
   # Font packages - moved from wayland module
   fonts = {
@@ -32,54 +64,25 @@
 
   stylix = {
     enable = true;
-
+    homeManagerIntegration.autoImport = false;
     polarity = "dark";
+    base16Scheme = scheme;
+    fonts = fonts;
+    cursor = cursor;
 
-    # Base16 color scheme
-    base16Scheme = "${pkgs.base16-schemes}/share/themes/tokyo-city-dark.yaml";
-
-    # Wallpaper - stylix will generate theme colors from this image
-    # image = /path/to/your/wallpaper.jpg;
-
-    # Font configuration
-    fonts = {
-      monospace = {
-        package = pkgs.nerd-fonts.jetbrains-mono;
-        name = "JetBrainsMono Nerd Font";
+  };
+  home-manager.users.${config.username} = {
+    stylix = {
+      enable = true;
+      polarity = "dark";
+      base16Scheme = scheme;
+      fonts = fonts;
+      cursor = cursor;
+      targets = {
+        tmux = {
+          enable = false;
+        };
       };
-      sansSerif = {
-        package = pkgs.noto-fonts;
-        name = "Noto Sans";
-      };
-      serif = {
-        package = pkgs.noto-fonts;
-        name = "Noto Serif";
-      };
-      emoji = {
-        package = pkgs.noto-fonts-color-emoji;
-        name = "Noto Color Emoji";
-      };
-    };
-
-    # Font sizes
-    fonts.sizes = {
-      applications = 11;
-      terminal = 12;
-      desktop = 10;
-      popups = 10;
-    };
-
-    # Cursor configuration
-    cursor = {
-      package = pkgs.bibata-cursors;
-      name = "Bibata-Modern-Ice";
-      size = 24;
-    };
-
-    # Application-specific settings
-    targets = {
-      # Enable theming for various applications
-      # firefox.enable = true;
     };
   };
 }
