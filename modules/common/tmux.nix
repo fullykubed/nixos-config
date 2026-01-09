@@ -12,13 +12,12 @@
 
     systemd.user.services.tmux-start-server = {
       Unit = {
-        Description = "tmux start-server (zsh login-shell equivalent)";
+        Description = "Starts the tmux server";
         After = [ "default.target" ];
       };
       Service = {
         Type = "oneshot";
         RemainAfterExit = true;
-        EnvironmentFile = "-%t/environment.d/*.conf";
         Environment = "TMUX_TMPDIR=%t";
         ExecStart = "/run/current-system/sw/bin/zsh -lc 'tmux start-server'";
         ExecStop = "/run/current-system/sw/bin/zsh -lc 'tmux kill-server'";
