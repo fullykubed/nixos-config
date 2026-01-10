@@ -144,6 +144,7 @@ in
 
     # Claude Code settings with notification hooks
     home.file.".claude/settings.json".text = builtins.toJSON {
+      spinnerTipsEnabled = false;
       attribution = {
         commit = "";
         pr = "";
