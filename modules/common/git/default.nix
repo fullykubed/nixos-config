@@ -14,7 +14,9 @@
 let
   gitName = "Jack Langston";
 
-  gitCloneForWorktree = pkgs.writeShellScriptBin "git-clone-for-worktree" (builtins.readFile ./scripts/git-clone-for-worktree);
+  gitCloneForWorktree = pkgs.writeShellScriptBin "git-clone-for-worktree" (
+    builtins.readFile ./scripts/git-clone-for-worktree
+  );
 
   lazyworktree = pkgs.buildGoModule rec {
     pname = "lazyworktree";

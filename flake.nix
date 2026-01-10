@@ -132,9 +132,8 @@
                 home-manager.useGlobalPkgs = true;
                 home-manager.useUserPackages = true;
                 home-manager.sharedModules = [ stylix.homeModules.stylix ];
-
-                home-manager.users.${config.username} = import ./home-manager/default.nix {
-                  inherit pkgs lib config;
+                home-manager.users.${config.username} = {
+                  home.stateVersion = "22.11";
                 };
               }
             )
