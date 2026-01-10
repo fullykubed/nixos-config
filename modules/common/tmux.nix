@@ -205,8 +205,8 @@ in
           bind -n M-m select-layout main-horizontal \; run-shell "tmux resize-pane -t 0 -y \$((\$(tmux display -p '#{window_height}') * 70 / 100))"
 
           # Window navigation
-          bind -n C-n next-window
-          bind -n C-p previous-window
+          bind -n M-n next-window
+          bind -n M-p previous-window
 
           # Session navigation - show windows in tree view (expanded)
           bind s choose-tree -Z
@@ -224,8 +224,8 @@ in
           bind c new-window -c "#{pane_current_path}"
 
           # Kill pane/window without confirmation
-          bind x kill-pane
-          bind X kill-window
+          bind -n M-x kill-pane
+          bind -n M-X kill-window
 
           # Copy mode improvements
           bind Enter copy-mode
