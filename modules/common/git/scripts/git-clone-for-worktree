@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Clone a repository as a bare clone and create a worktree for the default branch
+
+set -e
+
+if [[ -z "$1" ]]; then
+  echo "Usage: git-clone-for-worktree <repository_url> [directory]" >&2
+  exit 1
+fi
+
+repository_url="$1"
+directory="${2:-$(basename "$repository_url" .git)}"
+
+git clone --bare "$repository_url" "$directory/.git"
+git --git-dir="$directory/.git" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+cd "$directory"
+
+cat > .envrc << 'EOF'
+# Hub-only Git environment
+export GIT_DIR="$PWD/.git"
+
+# Defensive: ensure this never leaks into worktrees
+unset GIT_WORK_TREE
+unset GIT_INDEX_FILE
+
+# Guard: refuse to load if this is not the hub
+if [[ ! -d "$PWD/.git" || ! -f "$PWD/.git/HEAD" ]]; then
+  echo "Refusing to load hub direnv: not in git hub directory"
+  return 1
+fi
+EOF
+
+direnv allow
+
+default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
+git worktree add "$default_branch"

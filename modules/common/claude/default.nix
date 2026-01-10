@@ -53,11 +53,11 @@ in
         # Notification hook - triggers when Claude needs permission or is waiting
         Notification = [
           {
-            matcher = ".*"; # Match all notifications
+            matcher = "permission_prompt|elicitation_dialog";
             hooks = [
               {
                 type = "command";
-                command = "${notifyHook}";
+                command = "workmux set-window-status waiting";
               }
             ];
           }
@@ -70,7 +70,7 @@ in
             hooks = [
               {
                 type = "command";
-                command = "${notifyHook}";
+                command = "workmux set-window-status done";
               }
             ];
           }
@@ -83,7 +83,7 @@ in
             hooks = [
               {
                 type = "command";
-                command = "${notifyHook}";
+                command = "workmux set-window-status working";
               }
             ];
           }

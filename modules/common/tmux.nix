@@ -3,13 +3,63 @@
   pkgs,
   ...
 }:
+let
+  workmux = pkgs.rustPlatform.buildRustPackage rec {
+    pname = "workmux";
+    version = "0.1.79";
+
+    src = pkgs.fetchFromGitHub {
+      owner = "raine";
+      repo = "workmux";
+      rev = "9289c5ae1f7c0f3e8548a0173858ad1265864f71";
+      hash = "sha256-VZlrhjKnkzlokJmHlQErlMfpp69n0gisJpdJ1UUSVNw=";
+    };
+
+    cargoHash = "sha256-mjAdMNv4GbtWdKsTHaBNfvip/qORuMuS88plZohzM9o=";
+
+    meta = with pkgs.lib; {
+      description = "CLI tool combining git worktrees and tmux for parallel development";
+      homepage = "https://github.com/raine/workmux";
+      license = licenses.mit;
+      mainProgram = "workmux";
+    };
+  };
+in
 {
   home-manager.users.${config.username} = {
     home.packages = with pkgs; [
       libnotify # Required for tmux-notify desktop notifications
       sesh # Session manager for tmux
+      workmux # Git worktrees + tmux workflow tool
     ];
 
+    programs.zsh.initContent = ''
+      # Workmux completions
+      eval "$(workmux completions zsh)"
+    '';
+
+    programs.zsh.shellAliases = {
+      wm = "workmux";
+    };
+
+    xdg.configFile."workmux/config.yaml".text = ''
+      # Global workmux configuration
+      merge_strategy: rebase
+      agent: claude
+      worktree_naming: full
+      worktree_dir: ../
+      window_prefix: "\uf418 "
+
+      post_create:
+        - direnv allow
+
+      files:
+        copy:
+          - .env
+    '';
+
+    # This launches tmux when the system boots so that
+    # sessions are resurrected and immediately available
     systemd.user.services.tmux-start-server = {
       Unit = {
         Description = "Starts the tmux server";
@@ -20,7 +70,6 @@
         RemainAfterExit = true;
         Environment = "TMUX_TMPDIR=%t";
         ExecStart = "/run/current-system/sw/bin/zsh -lc 'tmux start-server'";
-        ExecStop = "/run/current-system/sw/bin/zsh -lc 'tmux kill-server'";
       };
       Install = {
         WantedBy = [ "default.target" ];
@@ -257,6 +306,15 @@
         		    --preview 'sesh preview {}'
         	)\""
           bind -n M-S run-shell "sesh last"
+
+          # Workmux dashboard popup
+          bind -n M-a display-popup -h 30 -w 100 -E "workmux dashboard"
+
+          # Lazygit popup
+          bind -n M-g display-popup -h 90% -w 90% -E "lazygit"
+
+          # Lazyworktree popup
+          bind -n M-w display-popup -h 90% -w 90% -E "lazyworktree"
 
           # Keybinding browser with fzf - shows all tmux keybindings and allows execution
           bind -n M-? run-shell "tmux list-keys -aN | \

@@ -32,7 +32,7 @@
     ./modules/common/packages.nix
     ./modules/common/direnv.nix
     ./modules/common/ssh.nix
-    ./modules/common/git.nix
+    ./modules/common/git
     ./modules/common/printer.nix
     ./modules/common/shell.nix
     ./modules/common/tmux.nix

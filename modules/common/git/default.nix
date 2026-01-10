@@ -13,6 +13,27 @@
 }:
 let
   gitName = "Jack Langston";
+
+  gitCloneForWorktree = pkgs.writeShellScriptBin "git-clone-for-worktree" (builtins.readFile ./scripts/git-clone-for-worktree);
+
+  lazyworktree = pkgs.buildGoModule rec {
+    pname = "lazyworktree";
+    version = "1.21.1";
+    src = pkgs.fetchFromGitHub {
+      owner = "chmouel";
+      repo = "lazyworktree";
+      rev = "v${version}";
+      hash = "sha256-5ercx4htJ1GS7nGwK/BeIGrt4ZQLql4Z4pDTVTWZH8o=";
+    };
+    vendorHash = "sha256-0O8i84mzAYq/VUWn0vbHf218hwXRMAvlfKnBUYXo8Ck=";
+    subPackages = [ "cmd/lazyworktree" ];
+    meta = {
+      description = "A lazygit-inspired TUI for git worktrees";
+      homepage = "https://github.com/chmouel/lazyworktree";
+      mainProgram = "lazyworktree";
+    };
+  };
+
   allowedSignersFile = "git/allowed_signers";
   githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
   githubEmail = "github@fullstackjack.io";
@@ -100,7 +121,16 @@ in
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
       unstable.lazygit # Terminal UI for git commands
+      lazyworktree # TUI for git worktrees
+      gitCloneForWorktree # Clone repos for worktree workflows
     ];
+
+    programs.zsh.shellAliases = {
+      gc = "git-clone-for-worktree";
+      gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
+      lg = "lazygit";
+      lw = "lazyworktree";
+    };
 
     programs.difftastic = {
       enable = true;

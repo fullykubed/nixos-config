@@ -84,7 +84,6 @@
 
       # Listing aliases
       l = "eza -l --follow-symlinks -o --no-permissions --time-style iso -F"; # [L]ist files
-      lg = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [L]ist [G]it-mode
       lt = "eza -l --follow-symlinks -o --no-permissions --time-style iso -F -T -L 2"; # [L]ist [T]ree (limited)
       ltt = "eza -l --follow-symlinks -o --no-permissions --time-style iso -F -T"; # [L]ist [T]ree (full)
       lu = "dut -d 1"; # [L]ist [U]sage
