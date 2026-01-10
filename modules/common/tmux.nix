@@ -280,8 +280,14 @@ in
           # Keep popup borders visible
           set -g popup-border-style fg=${config.lib.stylix.colors.withHashtag.base0D},bg=default
 
-          # Change the working directory of the session to the working directory of the current pane
-          bind -n M-c attach-session -c "#{pane_current_path}"
+          # Create a new window with current path
+          bind -n M-c new-window -c "#{pane_current_path}"
+
+          # Change the working directory of the session to the current pane's path
+          bind -n M-C attach-session -c "#{pane_current_path}"
+
+          # Floating terminal popup
+          bind -n M-Enter display-popup -h 80% -w 80% -E
 
           # Activate Mouse
           set -g mouse on
