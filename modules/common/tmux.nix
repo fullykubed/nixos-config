@@ -311,10 +311,10 @@ in
           bind -n M-a display-popup -h 30 -w 100 -E "workmux dashboard"
 
           # Lazygit popup
-          bind -n M-g display-popup -h 90% -w 90% -E "lazygit"
+          bind -n M-g display-popup -d "#{pane_current_path}" -h 90% -w 90% -E "lazygit"
 
           # Lazyworktree popup
-          bind -n M-w display-popup -h 90% -w 90% -E "lazyworktree"
+          bind -n M-w display-popup -d "#{pane_current_path}" -h 90% -w 90% -E "lazyworktree"
 
           # Keybinding browser with fzf - shows all tmux keybindings and allows execution
           bind -n M-? run-shell "tmux list-keys -aN | \
