@@ -5,6 +5,97 @@
   ...
 }:
 let
+  # Bubblewrap-sandboxed Claude Code with restricted filesystem access
+  claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
+    name = "claude";
+    runScript = "${pkgs.unstable.claude-code}/bin/claude";
+    targetPkgs = pkgs: [ pkgs.unstable.claude-code ];
+
+    unshareUser = false;
+    unshareIpc = true;
+    unsharePid = true;
+    unshareUts = true;
+    privateTmp = true;
+
+    extraBwrapArgs = [
+      "--hostname"
+      "claude-sandbox"
+      "--size"
+      "67108864"
+      "--tmpfs"
+      "/home"
+      "--dir"
+      "/home/jack"
+
+      # Read-only mounts
+      "--ro-bind-try"
+      "\${HOME}/.gitconfig"
+      "\${HOME}/.gitconfig"
+      "--ro-bind-try"
+      "\${HOME}/.ssh"
+      "\${HOME}/.ssh"
+      "--ro-bind-try"
+      "\${HOME}/.gnupg"
+      "\${HOME}/.gnupg"
+      "--ro-bind-try"
+      "\${HOME}/.tmux"
+      "\${HOME}/.tmux"
+      "--ro-bind-try"
+      "\${HOME}/.config"
+      "\${HOME}/.config"
+      "--ro-bind-try"
+      "\${HOME}/.themes"
+      "\${HOME}/.themes"
+      "--ro-bind-try"
+      "\${HOME}/.bashrc"
+      "\${HOME}/.bashrc"
+      "--ro-bind-try"
+      "\${HOME}/.bash_profile"
+      "\${HOME}/.bash_profile"
+      "--ro-bind-try"
+      "\${HOME}/.profile"
+      "\${HOME}/.profile"
+      "--ro-bind-try"
+      "\${HOME}/.zshrc"
+      "\${HOME}/.zshrc"
+      "--ro-bind-try"
+      "\${HOME}/.zshenv"
+      "\${HOME}/.zshenv"
+
+      # Read-write mounts
+      "--bind-try"
+      "\${HOME}/repos"
+      "\${HOME}/repos"
+      "--bind-try"
+      "\${HOME}/.cache"
+      "\${HOME}/.cache"
+      "--bind-try"
+      "\${HOME}/.npm"
+      "\${HOME}/.npm"
+      "--bind-try"
+      "\${HOME}/.cargo"
+      "\${HOME}/.cargo"
+      "--bind-try"
+      "\${HOME}/.local"
+      "\${HOME}/.local"
+      "--bind-try"
+      "\${HOME}/.claude"
+      "\${HOME}/.claude"
+      "--bind-try"
+      "\${HOME}/.claude.json"
+      "\${HOME}/.claude.json"
+      "--bind-try"
+      "\${HOME}/.claude.json.backup"
+      "\${HOME}/.claude.json.backup"
+      "--bind-try"
+      "\${HOME}/.aws"
+      "\${HOME}/.aws"
+      "--bind-try"
+      "\${HOME}/.kube"
+      "\${HOME}/.kube"
+    ];
+  };
+
   # Build the notification hook script as a derivation
   claudeNotifyHook = pkgs.stdenv.mkDerivation {
     pname = "claude-notify-hook";
@@ -46,9 +137,26 @@ in
 {
   # Claude Code configuration and hooks
   home-manager.users.${config.username} = {
+    # Zsh alias for claude with dangerously-skip-permissions
+    programs.zsh.shellAliases = {
+      cc = "claude --dangerously-skip-permissions";
+    };
+
     # Claude Code settings with notification hooks
     home.file.".claude/settings.json".text = builtins.toJSON {
-      includeCoAuthoredBy = false;
+      attribution = {
+        commit = "";
+        pr = "";
+      };
+      env = {
+        DISABLE_AUTOUPDATER = "1";
+        DISABLE_TELEMETRY = "1";
+        CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
+        CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
+        CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
+        DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
+        DISABLE_ERROR_REPORTING = "1";
+      };
       hooks = {
         # Notification hook - triggers when Claude needs permission or is waiting
         Notification = [
@@ -93,8 +201,8 @@ in
   };
 
   # Also make the script available in system packages for testing
-  environment.systemPackages = with pkgs; [
+  environment.systemPackages = [
     claudeNotifyHook
-    unstable.claude-code
+    claude-code-sandboxed
   ];
 }
