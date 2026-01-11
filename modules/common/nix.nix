@@ -5,9 +5,9 @@
     # Configure automatic package garbage collection
     gc = {
       automatic = true;
-      dates = "05:00";
+      dates = "*-*-* 00:00:00"; # Midnight daily
       persistent = true;
-      options = "-d"; # ensures old profiles are cleaned
+      options = "--delete-older-than 7d"; # Keep 7 days for rollback
     };
 
     # Ensure the cpu doesn't get blasted
@@ -16,6 +16,31 @@
       max-jobs = 16;
       # Increase download buffer size to prevent warnings (1GB)
       download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
+    };
+  };
+
+  # Add WakeSystem to the auto-generated nix-gc timer
+  systemd.timers.nix-gc.timerConfig.WakeSystem = true;
+
+  # Nix store optimization service
+  systemd.services.nix-store-optimise = {
+    description = "Nix Store Optimization";
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "/run/current-system/sw/bin/nix-store --optimise";
+      CPUSchedulingPolicy = "idle";
+      IOSchedulingClass = "idle";
+    };
+  };
+
+  # Timer for nix-store-optimise that runs after GC
+  systemd.timers.nix-store-optimise = {
+    description = "Nix Store Optimization Timer";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 00:15:00"; # 15 minutes after midnight (after GC)
+      Persistent = true;
+      WakeSystem = true;
     };
   };
 }

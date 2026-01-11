@@ -133,6 +133,69 @@ let
 
   # Path to the built notification hook
   notifyHook = "${claudeNotifyHook}/bin/claude-notify-hook";
+
+  # Build the PRD task management scripts
+  claudeTaskScripts = pkgs.stdenv.mkDerivation {
+    pname = "claude-task-scripts";
+    version = "1.0.0";
+
+    src = ./scripts;
+
+    buildInputs = [
+      pkgs.bash
+      pkgs.yq-go
+      pkgs.jq
+      pkgs.check-jsonschema
+    ];
+
+    installPhase = ''
+      mkdir -p $out/bin $out/share/claude
+
+      # Copy schema files
+      cp ${./specs/tasks.schema.json} $out/share/claude/tasks.schema.json
+      cp ${./specs/research.schema.json} $out/share/claude/research.schema.json
+
+      # claude-task-status script
+      substitute $src/task-status.sh $out/bin/claude-task-status \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+      chmod +x $out/bin/claude-task-status
+
+      # claude-update-task-status script
+      substitute $src/update-task-status.sh $out/bin/claude-update-task-status \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+      chmod +x $out/bin/claude-update-task-status
+
+      # claude-validate-tasks script
+      substitute $src/validate-tasks.sh $out/bin/claude-validate-tasks \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+        --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
+        --replace "@schema-path@" "$out/share/claude/tasks.schema.json"
+      chmod +x $out/bin/claude-validate-tasks
+
+      # claude-list-prds script
+      substitute $src/list-prds.sh $out/bin/claude-list-prds \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x $out/bin/claude-list-prds
+
+      # claude-research-status script
+      substitute $src/research-status.sh $out/bin/claude-research-status \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+      chmod +x $out/bin/claude-research-status
+
+      # claude-validate-research script
+      substitute $src/validate-research.sh $out/bin/claude-validate-research \
+        --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
+        --replace "@schema-path@" "$out/share/claude/research.schema.json"
+      chmod +x $out/bin/claude-validate-research
+
+      # claude-list-draft-tasks script
+      substitute $src/list-prd-draft-tasks.sh $out/bin/claude-list-draft-tasks \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x $out/bin/claude-list-draft-tasks
+    '';
+  };
 in
 {
   # Claude Code configuration and hooks
@@ -142,8 +205,22 @@ in
       cc = "claude --dangerously-skip-permissions";
     };
 
+    # Deploy skill configurations
+    home.file.".claude/skills" = {
+      source = ./skills;
+      recursive = true;
+    };
+
+    # Deploy PRD and task specifications (referenced by skills via @)
+    home.file.".claude/specs" = {
+      source = ./specs;
+      recursive = true;
+    };
+
     # Claude Code settings with notification hooks
-    home.file.".claude/settings.json".text = builtins.toJSON {
+    home.file.".claude/settings.json" = {
+      force = true;
+      text = builtins.toJSON {
       spinnerTipsEnabled = false;
       attribution = {
         commit = "";
@@ -199,11 +276,44 @@ in
         ];
       };
     };
+    };
+
+    # Activation script to inject exa MCP server into ~/.claude.json (user scope)
+    home.activation.injectExaMcpKey = {
+      after = [ "writeBoundary" ];
+      before = [ ];
+      data = ''
+        CLAUDE_JSON="$HOME/.claude.json"
+        EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
+        EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
+
+        if [[ -f "$EXA_TOKEN_PATH" ]]; then
+          EXA_API_KEY="$(cat "$EXA_TOKEN_PATH")"
+          # Create file with empty object if it doesn't exist
+          if [[ ! -f "$CLAUDE_JSON" ]]; then
+            echo '{}' > "$CLAUDE_JSON"
+          fi
+          ${pkgs.jq}/bin/jq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
+          mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
+        fi
+      '';
+    };
   };
 
   # Also make the script available in system packages for testing
   environment.systemPackages = [
     claudeNotifyHook
+    claudeTaskScripts
     claude-code-sandboxed
   ];
+
+  # Exa API token for MCP server
+  age.secrets = {
+    exa-token = {
+      rekeyFile = ../../../secrets/exa-token.age;
+      owner = config.username;
+      group = "users";
+      mode = "0400";
+    };
+  };
 }

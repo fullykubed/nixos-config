@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Constants
+MAX_DIFF_SIZE=50000
+
+# Error handling helper
+error_exit() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
+# Check for staged changes
+if git diff --cached --quiet; then
+    error_exit "No staged changes to commit"
+fi
+
+# Get the diff (with size handling)
+diff=$(git diff --cached)
+diff_size=${#diff}
+
+if [[ $diff_size -gt $MAX_DIFF_SIZE ]]; then
+    # Use stat summary for large diffs
+    diff_summary=$(git diff --cached --stat)
+    diff="[Diff too large - showing summary only]
+
+$diff_summary
+
+[Truncated diff - first 10000 chars]
+${diff:0:10000}..."
+fi
+
+# Construct prompt and call Claude
+prompt="Generate a conventional commit message for the following git diff.
+
+Requirements:
+- Use conventional commit format (feat:, fix:, chore:, docs:, refactor:, test:, style:, perf:, build:, ci:)
+- Keep the subject line under 72 characters
+- Add a body if the changes are complex (separated by a blank line)
+- Focus on the \"why\" not just the \"what\"
+- Output ONLY the commit message, no explanations or markdown formatting
+
+Diff:
+$diff"
+
+# Call claude and capture result
+if ! commit_msg=$(claude -p "$prompt" 2>&1); then
+    error_exit "Failed to generate commit message: $commit_msg"
+fi
+
+# Output only the commit message
+echo "$commit_msg"

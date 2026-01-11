@@ -18,6 +18,10 @@ let
     builtins.readFile ./scripts/git-clone-for-worktree
   );
 
+  aiCommit = pkgs.writeShellScriptBin "ai-commit" (
+    builtins.readFile ./scripts/ai-commit
+  );
+
   lazyworktree = pkgs.buildGoModule rec {
     pname = "lazyworktree";
     version = "1.21.1";
@@ -101,6 +105,12 @@ in
                   key: 'CommitMessage'
               command: 'git -c core.hooksPath=/dev/null commit -m "{{.Form.CommitMessage}}"'
               loadingText: 'committing without hooks...'
+            - key: '<c-a>'
+              description: 'Generate commit message with AI'
+              context: 'files'
+              command: 'git commit -e -m "$(ai-commit)"'
+              output: terminal
+              loadingText: 'Generating AI commit message...'
         '';
       };
 
@@ -125,6 +135,7 @@ in
       unstable.lazygit # Terminal UI for git commands
       lazyworktree # TUI for git worktrees
       gitCloneForWorktree # Clone repos for worktree workflows
+      aiCommit # Generate commit messages with Claude AI
     ];
 
     programs.zsh.shellAliases = {
@@ -142,6 +153,11 @@ in
     programs.git = {
       enable = true;
       lfs.enable = true;
+
+      ignores = [
+        ".claude/prds/" # Ignore Claude Code PRD files in all repos
+        ".claude/settings.local.json" # Ignore local Claude Code settings
+      ];
 
       settings.aliases = {
         fpush = "push --force-with-least"; # Safe version of force-push
