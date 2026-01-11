@@ -134,6 +134,40 @@ let
   # Path to the built notification hook
   notifyHook = "${claudeNotifyHook}/bin/claude-notify-hook";
 
+  # ccusage - Claude Code usage tracking
+  ccusageVersion = "16.2.5";
+  ccusage = pkgs.stdenv.mkDerivation rec {
+    pname = "ccusage";
+    version = ccusageVersion;
+
+    src = pkgs.fetchurl {
+      url = "https://registry.npmjs.org/ccusage/-/ccusage-${version}.tgz";
+      hash = "sha256-GXleBpZ3XF4DWrXG31Kh15SoOLRm6kXuuvIEEEmQ8eA=";
+    };
+
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+
+    installPhase = ''
+      runHook preInstall
+
+      mkdir -p $out/lib/node_modules/ccusage
+      cp -r ./* $out/lib/node_modules/ccusage/
+
+      mkdir -p $out/bin
+      makeWrapper ${pkgs.nodejs_20}/bin/node $out/bin/ccusage \
+        --add-flags "$out/lib/node_modules/ccusage/dist/index.js"
+
+      runHook postInstall
+    '';
+
+    meta = with pkgs.lib; {
+      description = "Claude Code usage tracking and cost analysis";
+      homepage = "https://github.com/ryoppippi/ccusage";
+      license = licenses.mit;
+      mainProgram = "ccusage";
+    };
+  };
+
   # Build the PRD task management scripts
   claudeTaskScripts = pkgs.stdenv.mkDerivation {
     pname = "claude-task-scripts";
@@ -221,6 +255,11 @@ in
     home.file.".claude/settings.json" = {
       force = true;
       text = builtins.toJSON {
+      statusLine = {
+        type = "command";
+        command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
+        padding = 0;
+      };
       spinnerTipsEnabled = false;
       attribution = {
         commit = "";
@@ -305,6 +344,7 @@ in
     claudeNotifyHook
     claudeTaskScripts
     claude-code-sandboxed
+    ccusage
   ];
 
   # Exa API token for MCP server
