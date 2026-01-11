@@ -4,16 +4,17 @@ set -euo pipefail
 
 # Constants
 MAX_DIFF_SIZE=50000
+MSG_FILE="/tmp/ai-commit-msg"
 
-# Error handling helper
-error_exit() {
-    echo "Error: $1" >&2
-    exit 1
-}
+# Use nvr when inside nvim to open commit editor in parent instance
+if [[ -n "${NVIM:-}" ]]; then
+    export GIT_EDITOR="nvr --remote-tab-wait-silent"
+fi
 
 # Check for staged changes
 if git diff --cached --quiet; then
-    error_exit "No staged changes to commit"
+    echo "Error: No staged changes to commit" >&2
+    exit 1
 fi
 
 # Get the diff (with size handling)
@@ -44,10 +45,18 @@ Requirements:
 Diff:
 $diff"
 
-# Call claude and capture result
-if ! commit_msg=$(claude -p "$prompt" 2>&1); then
-    error_exit "Failed to generate commit message: $commit_msg"
+echo "Generating commit message with Claude..."
+
+# Call claude with sonnet model and capture result
+if ! commit_msg=$(claude -p "$prompt" --model sonnet 2>/dev/null); then
+    echo "Error: Failed to generate commit message" >&2
+    exit 1
 fi
 
-# Output only the commit message
-echo "$commit_msg"
+# Write message to temp file
+echo "$commit_msg" > "$MSG_FILE"
+
+echo "Opening editor..."
+
+# Commit with editor - uses lazygit's editPreset (nvim-remote)
+git commit -e -F "$MSG_FILE"

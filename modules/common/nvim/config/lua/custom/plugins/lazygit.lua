@@ -23,6 +23,14 @@ return {
       vim.g.lazygit_floating_window_border_chars = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" }
       vim.g.lazygit_floating_window_use_plenary = 1
       vim.g.lazygit_use_neovim_remote = 1
+
+      -- Set bufhidden=delete so nvr --remote-wait exits when buffer closes
+      vim.api.nvim_create_autocmd("FileType", {
+        pattern = { "gitcommit", "gitrebase" },
+        callback = function()
+          vim.opt_local.bufhidden = "delete"
+        end,
+      })
     end,
   },
 }

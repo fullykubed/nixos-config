@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Constants
+MAX_DIFF_SIZE=50000
+MSG_FILE="/tmp/ai-reword-msg"
+
+# Use nvr when inside nvim to open commit editor in parent instance
+if [[ -n "${NVIM:-}" ]]; then
+    export EDITOR="nvr --remote-tab-wait-silent"
+else
+    EDITOR="${EDITOR:-vim}"
+fi
+
+# Validate arguments
+if [[ $# -lt 1 ]]; then
+    echo "Error: Missing commit SHA argument" >&2
+    echo "Usage: ai-reword <commit-sha>" >&2
+    exit 1
+fi
+
+SHA="$1"
+
+# Validate the SHA is a valid commit
+if ! git rev-parse --verify "$SHA^{commit}" >/dev/null 2>&1; then
+    echo "Error: Invalid commit SHA: $SHA" >&2
+    exit 1
+fi
+
+# Get the full SHA for reliable matching
+FULL_SHA=$(git rev-parse "$SHA")
+SHORT_SHA="${FULL_SHA:0:7}"
+
+# Get the existing commit message
+existing_msg=$(git log -1 --format=%B "$SHA")
+
+# Get the commit diff (with size handling)
+diff=$(git show --format="" "$SHA")
+diff_size=${#diff}
+
+if [[ $diff_size -gt $MAX_DIFF_SIZE ]]; then
+    # Use stat summary for large diffs
+    diff_summary=$(git show --stat --format="" "$SHA")
+    diff="[Diff too large - showing summary only]
+
+$diff_summary
+
+[Truncated diff - first 10000 chars]
+${diff:0:10000}..."
+fi
+
+# Construct prompt and call Claude
+prompt="Rewrite the following git commit message to improve it.
+
+You are given:
+1. The existing commit message
+2. The actual diff of the changes
+
+Requirements:
+- Analyze the diff to understand what changes were made
+- Review the existing message to understand the original intent
+- Generate an improved conventional commit message
+- Use conventional commit format (feat:, fix:, chore:, docs:, refactor:, test:, style:, perf:, build:, ci:)
+- Fix any formatting issues, typos, or unclear wording
+- Keep the subject line under 72 characters
+- Add a body if the changes are complex (separated by a blank line)
+- Focus on the \"why\" not just the \"what\"
+- Output ONLY the commit message, no explanations or markdown formatting
+
+Existing commit message:
+$existing_msg
+
+Diff:
+$diff"
+
+echo "Generating improved commit message with Claude..."
+
+# Call claude with sonnet model and capture result
+if ! commit_msg=$(claude -p "$prompt" --model sonnet 2>/dev/null); then
+    echo "Error: Failed to generate commit message" >&2
+    exit 1
+fi
+
+# Write message to temp file
+echo "$commit_msg" > "$MSG_FILE"
+
+echo "Opening editor..."
+
+# Check if this is the HEAD commit
+HEAD_SHA=$(git rev-parse HEAD)
+
+if [[ "$FULL_SHA" == "$HEAD_SHA" ]]; then
+    # For HEAD, use simple amend
+    git commit --amend -F "$MSG_FILE" -e
+else
+    # For non-HEAD, use interactive rebase
+    # Create a script to use as GIT_EDITOR that pre-populates the AI message
+    EDITOR_SCRIPT="/tmp/ai-reword-editor"
+    cat > "$EDITOR_SCRIPT" << 'EDITOREOF'
+#!/usr/bin/env bash
+# Copy AI message to the file git provides, then open editor
+MSG_FILE="/tmp/ai-reword-msg"
+TARGET_FILE="$1"
+cat "$MSG_FILE" > "$TARGET_FILE"
+EDITOREOF
+    echo "exec $EDITOR \"\$TARGET_FILE\"" >> "$EDITOR_SCRIPT"
+    chmod +x "$EDITOR_SCRIPT"
+
+    # Run rebase with automated sequence editor and custom commit editor
+    GIT_SEQUENCE_EDITOR="sed -i '0,/^pick $SHORT_SHA/s//reword $SHORT_SHA/'" \
+    GIT_EDITOR="$EDITOR_SCRIPT" \
+    git rebase -i "$FULL_SHA^"
+fi

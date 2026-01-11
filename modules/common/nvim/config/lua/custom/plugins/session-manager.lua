@@ -28,6 +28,11 @@ return {
     -- Auto save session
     vim.api.nvim_create_autocmd({ "BufWritePre" }, {
       callback = function()
+        -- Skip gitcommit/gitrebase buffers to avoid conflicts with nvr
+        local ft = vim.bo.filetype
+        if ft == "gitcommit" or ft == "gitrebase" then
+          return
+        end
         for _, buf in ipairs(vim.api.nvim_list_bufs()) do
           -- Don't save while there's any unsaved buffer
           if vim.api.nvim_get_option_value("modified", { buf = buf }) then

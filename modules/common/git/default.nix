@@ -22,6 +22,10 @@ let
     builtins.readFile ./scripts/ai-commit
   );
 
+  aiReword = pkgs.writeShellScriptBin "ai-reword" (
+    builtins.readFile ./scripts/ai-reword
+  );
+
   lazyworktree = pkgs.buildGoModule rec {
     pname = "lazyworktree";
     version = "1.21.1";
@@ -89,6 +93,10 @@ in
           os:
             copyToClipboardCmd: "wl-copy {{text}}"
             readFromClipboardCmd: "wl-paste"
+            edit: 'nvr --remote-tab-wait-silent {{filename}}'
+            editAtLine: 'nvr --remote-tab-wait-silent +{{line}} {{filename}}'
+            editAtLineAndWait: 'nvr --remote-tab-wait-silent +{{line}} {{filename}}'
+            editInTerminal: false
 
           keybinding:
             universal:
@@ -108,7 +116,13 @@ in
             - key: '<c-a>'
               description: 'Generate commit message with AI'
               context: 'files'
-              command: 'git commit -e -m "$(ai-commit)"'
+              command: 'ai-commit'
+              output: terminal
+              loadingText: 'Generating AI commit message...'
+            - key: '<c-a>'
+              description: 'Rewrite commit message with AI'
+              context: 'commits'
+              command: 'ai-reword {{.SelectedCommit.Hash}}'
               output: terminal
               loadingText: 'Generating AI commit message...'
         '';
@@ -136,6 +150,8 @@ in
       lazyworktree # TUI for git worktrees
       gitCloneForWorktree # Clone repos for worktree workflows
       aiCommit # Generate commit messages with Claude AI
+      aiReword # Rewrite commit messages with Claude AI
+      neovim-remote # For lazygit nvim-remote integration (avoids nested nvim issues)
     ];
 
     programs.zsh.shellAliases = {
