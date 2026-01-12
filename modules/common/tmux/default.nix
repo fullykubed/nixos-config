@@ -296,7 +296,7 @@ in
           bind -n M-C attach-session -c "#{pane_current_path}"
 
           # Floating terminal popup
-          bind -n M-Enter display-popup -h 80% -w 80% -E
+          bind -n M-Enter display-popup -d "#{pane_current_path}" -h 80% -w 80% -E
 
           # Activate Mouse
           set -g mouse on

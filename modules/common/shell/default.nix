@@ -25,11 +25,20 @@
       enable = true;
       enableZshIntegration = true;
       extraConfig = ''
+        local wezterm = require("wezterm")
         return {
           default_prog = { "${pkgs.zsh}/bin/zsh" },
           enable_tab_bar = false,
           enable_wayland = true,
           warn_about_missing_glyphs = false,
+          -- Disable Alt+Enter fullscreen toggle so it passes through to tmux for popup
+          keys = {
+            {
+              key = "Enter",
+              mods = "ALT",
+              action = wezterm.action.DisableDefaultAssignment,
+            },
+          },
         }
       '';
     };
