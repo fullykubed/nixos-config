@@ -40,6 +40,7 @@ in
 
     programs.zsh.shellAliases = {
       wm = "workmux";
+      wmm = "workmux merge";
     };
 
     xdg.configFile."workmux/config.yaml".text = ''
