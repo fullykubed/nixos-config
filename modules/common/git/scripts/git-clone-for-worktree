@@ -15,24 +15,21 @@ git clone --bare "$repository_url" "$directory/.git"
 git --git-dir="$directory/.git" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 cd "$directory"
 
-cat > .envrc << 'EOF'
-# Hub-only Git environment
-export GIT_DIR="$PWD/.git"
+default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
+git worktree add "$default_branch"
 
-# Defensive: ensure this never leaks into worktrees
-unset GIT_WORK_TREE
-unset GIT_INDEX_FILE
+cat > .envrc << EOF
+# Hub-only Git environment pointing to primary branch
+export GIT_DIR="\$PWD/$default_branch/.git"
+export GIT_WORK_TREE="\$PWD/$default_branch"
 
 # Guard: refuse to load if this is not the hub
-if [[ ! -d "$PWD/.git" || ! -f "$PWD/.git/HEAD" ]]; then
+if [[ ! -d "\$PWD/.git" || ! -f "\$PWD/.git/HEAD" ]]; then
   echo "Refusing to load hub direnv: not in git hub directory"
   return 1
 fi
 EOF
 
 direnv allow
-
-default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
-git worktree add "$default_branch"
 
 tmux new-session -d -s "$directory" -c "$PWD"
