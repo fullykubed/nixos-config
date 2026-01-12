@@ -16,6 +16,9 @@
       max-jobs = 16;
       # Increase download buffer size to prevent warnings (1GB)
       download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
+      # Determinate Systems cache
+      extra-substituters = [ "https://install.determinate.systems" ];
+      extra-trusted-public-keys = [ "cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM=" ];
     };
   };
 
