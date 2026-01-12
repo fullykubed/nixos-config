@@ -228,6 +228,18 @@ let
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@jq@" "${pkgs.jq}/bin/jq"
       chmod +x $out/bin/claude-list-draft-tasks
+
+      # claude-list-defined-tasks script
+      substitute $src/list-defined-tasks.sh $out/bin/claude-list-defined-tasks \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x $out/bin/claude-list-defined-tasks
+
+      # claude-get-task script
+      substitute $src/get-task.sh $out/bin/claude-get-task \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x $out/bin/claude-get-task
     '';
   };
 in

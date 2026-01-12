@@ -56,6 +56,36 @@ claude-list-draft-tasks my-feature
 # Output: [{"name": "Implement API endpoint", "description": "...", "spec": "specs/implement-api-endpoint.md", "parent": null}, ...]
 ```
 
+### `claude-list-defined-tasks <prd-name>`
+Lists all leaf tasks with `defined` status that are ready for implementation.
+
+```bash
+claude-list-defined-tasks my-feature
+# Output: [{"name": "Implement API endpoint", "description": "...", "spec": "specs/implement-api-endpoint.md", "parent": null}, ...]
+```
+
+### `claude-get-task <prd-name> <task-name>`
+Returns full task details including status, spec path, and file locations. Useful for checking task state without reading tasks.yaml.
+
+```bash
+claude-get-task my-feature "Implement API endpoint"
+# Output:
+# {
+#   "name": "Implement API endpoint",
+#   "description": "Create the login endpoint",
+#   "status": "defined",
+#   "spec": "specs/implement-api-endpoint.md",
+#   "spec_path": ".claude/prds/my-feature/specs/implement-api-endpoint.md",
+#   "spec_exists": true,
+#   "parent": null,
+#   "prd_name": "my-feature",
+#   "prd_path": ".claude/prds/my-feature/PRD.md",
+#   "log_path": ".claude/prds/my-feature/log.md",
+#   "log_exists": true,
+#   "found": true
+# }
+```
+
 ### `claude-research-status <prd-name>`
 Returns JSON describing research question status for a specific PRD.
 
@@ -95,7 +125,7 @@ Implement the tasks defined in a PRD. **No approval needed - proceed immediately
 **Prerequisites:** Run `claude-task-status <prd-name>` and verify `draft` count is 0. If draft tasks exist, suggest using action 3 (Plan PRD Tasks) first.
 
 **Once prerequisites pass (do NOT ask for approval):**
-1. Read the tasks.yaml to identify all tasks with `defined` status
+1. Run `claude-list-defined-tasks <prd-name>` to get all tasks ready for implementation
 2. Read `log.md` if it exists to understand prior work
 3. Work on top-level tasks sequentially; subtasks can be worked in parallel
 4. For each defined task:
@@ -153,7 +183,7 @@ If `draft` > 0, **you MUST ask the user for explicit approval** before generatin
 
 **Do NOT ask for approval. Proceed immediately with implementation.** Once task specs are defined, begin implementing without waiting for user confirmation:
 
-1. Read the tasks.yaml to identify all tasks with `defined` status
+1. Run `claude-list-defined-tasks <prd-name>` to get all tasks ready for implementation
 2. If `log.md` exists, read it to understand what has already been done
 3. Work on top-level tasks sequentially; subtasks can be worked in parallel
 4. For each defined task:
@@ -165,6 +195,7 @@ If `draft` > 0, **you MUST ask the user for explicit approval** before generatin
       - Note any important decisions or context
    c. Continue to the next task
 5. The subagent will:
+   - Use `claude-get-task` to get task details and spec path
    - Read the spec file for detailed requirements
    - Implement the task following constraints
    - Update task status to `completed`

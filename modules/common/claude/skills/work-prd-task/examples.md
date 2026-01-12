@@ -5,11 +5,29 @@
 **User**: `/work-prd-task user-auth "Implement login endpoint"`
 
 **Assistant**:
-1. Reads `.claude/prds/user-auth/tasks.yaml` - confirms task is `defined`
-2. Reads `.claude/prds/user-auth/specs/implement-login-endpoint.md`
-3. Reads `.claude/prds/user-auth/PRD.md` for overall context
-4. Reads `.claude/prds/user-auth/log.md` - sees prior setup task completed
-5. Reads files listed in spec's "Files to Modify"
+```bash
+claude-get-task user-auth "Implement login endpoint"
+```
+```json
+{
+  "name": "Implement login endpoint",
+  "description": "Create POST /api/auth/login endpoint",
+  "status": "defined",
+  "spec": "specs/implement-login-endpoint.md",
+  "spec_path": ".claude/prds/user-auth/specs/implement-login-endpoint.md",
+  "spec_exists": true,
+  "parent": null,
+  "prd_name": "user-auth",
+  "prd_path": ".claude/prds/user-auth/PRD.md",
+  "log_path": ".claude/prds/user-auth/log.md",
+  "log_exists": true,
+  "found": true
+}
+```
+
+Reads `.claude/prds/user-auth/specs/implement-login-endpoint.md` for detailed requirements.
+Reads `.claude/prds/user-auth/PRD.md` for overall context.
+Reads `.claude/prds/user-auth/log.md` - sees prior setup task completed.
 
 "Implementing login endpoint according to spec..."
 
@@ -43,13 +61,32 @@ claude-update-task-status user-auth "Implement login endpoint" completed
 **User**: `/work-prd-task user-auth "Add password reset flow"`
 
 **Assistant**:
+```bash
+claude-get-task user-auth "Add password reset flow"
+```
+```json
+{
+  "name": "Add password reset flow",
+  "description": "Allow users to reset their password via email",
+  "status": "defined",
+  "spec": "specs/add-password-reset-flow.md",
+  "spec_path": ".claude/prds/user-auth/specs/add-password-reset-flow.md",
+  "spec_exists": true,
+  ...
+}
+```
+
 Reads spec and sees:
 ```md
 ### Related Tasks
 - **Depends on**: "Implement email service" (must be completed first)
 ```
 
-Reads tasks.yaml - finds "Implement email service" has status `completed`.
+Uses `claude-get-task` to check dependency:
+```bash
+claude-get-task user-auth "Implement email service"
+```
+Returns `"status": "completed"`.
 
 Reads log.md:
 ```md
@@ -68,15 +105,23 @@ Set up SendGrid integration with templates...
 **User**: `/work-prd-task dark-mode "Add theme toggle"`
 
 **Assistant**:
-Reads tasks.yaml - finds task has status `draft`:
-```yaml
-- name: Add theme toggle
-  description: Add UI toggle for switching themes
-  status: draft
-  spec: specs/add-theme-toggle.md
+```bash
+claude-get-task dark-mode "Add theme toggle"
+```
+```json
+{
+  "name": "Add theme toggle",
+  "description": "Add UI toggle for switching themes",
+  "status": "draft",
+  "spec": "specs/add-theme-toggle.md",
+  "spec_path": ".claude/prds/dark-mode/specs/add-theme-toggle.md",
+  "spec_exists": false,
+  "found": true,
+  ...
+}
 ```
 
-"The task 'Add theme toggle' is still in draft status. It needs a detailed spec before implementation.
+"The task 'Add theme toggle' is still in draft status and its spec file doesn't exist yet.
 
 Run `/plan-prd-task dark-mode \"Add theme toggle\"` to create the spec first."
 
@@ -87,7 +132,17 @@ Run `/plan-prd-task dark-mode \"Add theme toggle\"` to create the spec first."
 **User**: `/work-prd-task user-auth "Set up database schema"`
 
 **Assistant**:
-Reads tasks.yaml - finds task has status `completed`.
+```bash
+claude-get-task user-auth "Set up database schema"
+```
+```json
+{
+  "name": "Set up database schema",
+  "description": "Create initial database tables",
+  "status": "completed",
+  ...
+}
+```
 
 "The task 'Set up database schema' is already completed.
 
@@ -103,6 +158,19 @@ Would you like to review the implementation or make changes?"
 **User**: `/work-prd-task api-gateway "Add Redis caching"`
 
 **Assistant**:
+```bash
+claude-get-task api-gateway "Add Redis caching"
+```
+```json
+{
+  "name": "Add Redis caching",
+  "status": "defined",
+  "spec_path": ".claude/prds/api-gateway/specs/add-redis-caching.md",
+  "spec_exists": true,
+  ...
+}
+```
+
 Reads spec and starts implementation...
 
 "I've encountered a blocker:
@@ -126,6 +194,10 @@ Task status remains `defined`. Please advise how to proceed."
 **User**: `/work-prd-task notifications "Implement push notifications"`
 
 **Assistant**:
+```bash
+claude-get-task notifications "Implement push notifications"
+```
+
 Reads spec:
 ```md
 ## Out of Scope
@@ -164,3 +236,54 @@ claude-list-prds
 "Which PRD would you like to work on?
 - **user-auth**: 3 tasks remaining (2 defined, 1 draft)
 - **dark-mode**: 3 tasks remaining (all draft - need specs first)"
+
+---
+
+## Example 8: No task specified
+
+**User**: `/work-prd-task user-auth`
+
+**Assistant**:
+```bash
+claude-list-defined-tasks user-auth
+```
+```json
+[
+  {"name": "Implement login endpoint", "description": "Create POST /api/auth/login", "spec": "specs/implement-login-endpoint.md", "parent": null},
+  {"name": "Add session management", "description": "Handle user sessions", "spec": "specs/add-session-management.md", "parent": null}
+]
+```
+
+"PRD 'user-auth' has 2 tasks ready for implementation:
+- **Implement login endpoint**: Create POST /api/auth/login
+- **Add session management**: Handle user sessions
+
+Which task would you like to implement?"
+
+---
+
+## Example 9: Task not found
+
+**User**: `/work-prd-task user-auth "Non-existent task"`
+
+**Assistant**:
+```bash
+claude-get-task user-auth "Non-existent task"
+```
+```json
+{
+  "found": false,
+  "name": "Non-existent task",
+  "prd_name": "user-auth",
+  "error": "Task not found in tasks.yaml"
+}
+```
+
+"The task 'Non-existent task' was not found in the user-auth PRD.
+
+Available defined tasks:"
+```bash
+claude-list-defined-tasks user-auth
+```
+"- Implement login endpoint
+- Add session management"
