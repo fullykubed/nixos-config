@@ -50,6 +50,15 @@ in
       worktree_dir: ../
       window_prefix: "\uf418 "
 
+      # Default layout: left pane for nvim, right pane for agent with terminal below
+      panes:
+        - command: nvim .
+        - command: cc
+          split: vertical
+          percentage: 33
+          focus: true
+        - split: horizontal
+
       post_create:
         - direnv allow
 
@@ -314,7 +323,7 @@ in
           bind -n M-S run-shell "sesh last"
 
           # Workmux dashboard popup
-          bind -n M-a display-popup -h 30 -w 100 -E "workmux dashboard"
+          bind -n M-a display-popup -h 90% -w 90% -E "workmux dashboard"
 
           # Lazygit popup
           bind -n M-g display-popup -d "#{pane_current_path}" -h 90% -w 90% -E "lazygit"
