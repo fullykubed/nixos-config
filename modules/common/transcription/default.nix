@@ -66,12 +66,24 @@ in
         Description = "VoxType push-to-talk voice-to-text daemon";
         Documentation = "https://github.com/peteonrails/voxtype";
         PartOf = [ "sway-session.target" ];
-        After = [ "sway-session.target" "pipewire.service" "pipewire-pulse.service" ];
+        After = [
+          "sway-session.target"
+          "pipewire.service"
+          "pipewire-pulse.service"
+        ];
       };
       Service = {
         Type = "simple";
         ExecStart = "${voxtype}/bin/voxtype daemon";
-        Environment = [ "PATH=${lib.makeBinPath [ pkgs.wtype pkgs.wl-clipboard pkgs.which ]}" ];
+        Environment = [
+          "PATH=${
+            lib.makeBinPath [
+              pkgs.wtype
+              pkgs.wl-clipboard
+              pkgs.which
+            ]
+          }"
+        ];
         Restart = "on-failure";
         RestartSec = 5;
         StandardOutput = "journal";

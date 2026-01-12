@@ -18,13 +18,9 @@ let
     builtins.readFile ./scripts/git-clone-for-worktree
   );
 
-  aiCommit = pkgs.writeShellScriptBin "ai-commit" (
-    builtins.readFile ./scripts/ai-commit
-  );
+  aiCommit = pkgs.writeShellScriptBin "ai-commit" (builtins.readFile ./scripts/ai-commit);
 
-  aiReword = pkgs.writeShellScriptBin "ai-reword" (
-    builtins.readFile ./scripts/ai-reword
-  );
+  aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
 
   lazyworktree = pkgs.buildGoModule rec {
     pname = "lazyworktree";

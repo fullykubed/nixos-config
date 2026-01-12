@@ -280,83 +280,83 @@ in
     home.file.".claude/settings.json" = {
       force = true;
       text = builtins.toJSON {
-      statusLine = {
-        type = "command";
-        command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
-        padding = 0;
-      };
-      spinnerTipsEnabled = false;
-      attribution = {
-        commit = "";
-        pr = "";
-      };
-      env = {
-        DISABLE_AUTOUPDATER = "1";
-        DISABLE_TELEMETRY = "1";
-        CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
-        CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
-        CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
-        DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
-        DISABLE_ERROR_REPORTING = "1";
-      };
-      hooks = {
-        # Notification hook - triggers when Claude needs permission or is waiting
-        Notification = [
-          {
-            matcher = "permission_prompt|elicitation_dialog";
-            hooks = [
-              {
-                type = "command";
-                command = "workmux set-window-status waiting";
-              }
-            ];
-          }
-        ];
+        statusLine = {
+          type = "command";
+          command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
+          padding = 0;
+        };
+        spinnerTipsEnabled = false;
+        attribution = {
+          commit = "";
+          pr = "";
+        };
+        env = {
+          DISABLE_AUTOUPDATER = "1";
+          DISABLE_TELEMETRY = "1";
+          CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
+          CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
+          CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
+          DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
+          DISABLE_ERROR_REPORTING = "1";
+        };
+        hooks = {
+          # Notification hook - triggers when Claude needs permission or is waiting
+          Notification = [
+            {
+              matcher = "permission_prompt|elicitation_dialog";
+              hooks = [
+                {
+                  type = "command";
+                  command = "workmux set-window-status waiting";
+                }
+              ];
+            }
+          ];
 
-        # When main agent stops and might be waiting for input
-        Stop = [
-          {
-            matcher = ".*";
-            hooks = [
-              {
-                type = "command";
-                command = "workmux set-window-status done";
-              }
-            ];
-          }
-        ];
+          # When main agent stops and might be waiting for input
+          Stop = [
+            {
+              matcher = ".*";
+              hooks = [
+                {
+                  type = "command";
+                  command = "workmux set-window-status done";
+                }
+              ];
+            }
+          ];
 
-        # When user submits a prompt - used to mark the Sway container
-        UserPromptSubmit = [
-          {
-            matcher = ".*";
-            hooks = [
-              {
-                type = "command";
-                command = "workmux set-window-status working";
-              }
-            ];
-          }
-        ];
+          # When user submits a prompt - used to mark the Sway container
+          UserPromptSubmit = [
+            {
+              matcher = ".*";
+              hooks = [
+                {
+                  type = "command";
+                  command = "workmux set-window-status working";
+                }
+              ];
+            }
+          ];
 
-        # Validate YAML files after editing
-        PostToolUse = [
-          {
-            matcher = "Edit|Write";
-            hooks = [
-              {
-                type = "command";
-                command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
-              }
-              {
-                type = "command";
-                command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
-              }
-            ];
-          }
-        ];
+          # Validate YAML files after editing
+          PostToolUse = [
+            {
+              matcher = "Edit|Write";
+              hooks = [
+                {
+                  type = "command";
+                  command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
+                }
+                {
+                  type = "command";
+                  command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
+                }
+              ];
+            }
+          ];
+        };
       };
-    };
     };
 
     # Activation script to inject exa MCP server into ~/.claude.json (user scope)
