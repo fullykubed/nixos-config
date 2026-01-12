@@ -45,7 +45,7 @@ in
     xdg.configFile."workmux/config.yaml".text = ''
       # Global workmux configuration
       merge_strategy: rebase
-      agent: claude
+      agent: cc
       worktree_naming: full
       worktree_dir: ../
       window_prefix: "\uf418 "
@@ -53,7 +53,7 @@ in
       # Default layout: left pane for nvim, right pane for agent with terminal below
       panes:
         - command: nvim .
-        - command: cc
+        - command: <agent>
           split: vertical
           percentage: 33
           focus: true
