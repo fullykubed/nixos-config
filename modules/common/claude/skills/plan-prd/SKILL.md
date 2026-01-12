@@ -63,7 +63,12 @@ claude-research-status <prd-directory>
    - The proposed changes make sense given the current implementation
    - There are no conflicts with existing patterns or architecture
 
-4. **Generate Research Questions**: If there are unknowns or questions that require external research:
+4. **Ask Initial Clarifying Questions**: If necessary, ask the user clarifying questions based on codebase exploration:
+   - Only ask questions if there are genuine ambiguities discovered during exploration
+   - Focus on questions about intent, scope, or approach that affect research or planning
+   - Skip this step if the objective and constraints are already clear
+
+5. **Generate Research Questions**: If there are unknowns or questions that require external research:
    - Generate a `research.yaml` file in the PRD directory with questions that need answers
    - Each question should have `text` and `mode` fields (`answer` or `deep-research`)
    - Use `deep-research` mode sparingly for complex questions with many potential answers
@@ -74,11 +79,16 @@ claude-research-status <prd-directory>
    - **Always ask about 3rd-party library/tool interfaces**: If the implementation involves using external libraries, APIs, or tools, generate research questions about how to interact with them (e.g., which specific API methods to use, expected input/output formats, authentication patterns)
    - **Exception**: Skip interface questions if existing code in the codebase already demonstrates clear patterns for using that library/tool - reference the existing examples instead
 
-5. **Execute Research**: If there are unanswered research questions (check with `claude-research-status`):
+6. **Execute Research**: If there are unanswered research questions (check with `claude-research-status`):
    - Use the `/research-prd <prd-name>` skill to answer the questions using the exa MCP server
    - Review the answers and incorporate relevant findings into the PRD
 
-6. **Plan the PRD**: With user input, update the PRD and tasks.yaml to:
+7. **Ask Clarifying Questions**: If necessary, ask the user clarifying questions before proceeding with planning:
+   - Only ask questions if there are genuine ambiguities or decisions that require user input
+   - Focus on questions that would significantly impact the architecture or implementation approach
+   - Skip this step if the objective, constraints, and research answers provide sufficient clarity
+
+8. **Plan the PRD**: With user input, update the PRD and tasks.yaml to:
    - Complete any missing sections in PRD.md
    - Add more specific and actionable tasks to tasks.yaml (all tasks must have `draft` status)
    - Include additional relevant files discovered during exploration
@@ -90,7 +100,7 @@ claude-research-status <prd-directory>
 
    **IMPORTANT: Do NOT generate task spec files during planning.** Spec files are created later when tasks are promoted from `draft` to `defined` status. During the planning phase, only create/update the PRD.md and tasks.yaml files.
 
-7. **Validate**: After planning, verify the PRD is complete and actionable:
+9. **Validate**: After planning, verify the PRD is complete and actionable:
    - All required sections are present and filled
    - File paths are correct and actions (Edit/Create/Delete) are specified
    - Constraints are clear and enforceable
