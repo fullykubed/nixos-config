@@ -119,7 +119,7 @@ doas git -C /etc/nixos init -q
 doas git -C /etc/nixos config user.email "nixos-rebuild@localhost"
 doas git -C /etc/nixos config user.name "nixos-rebuild"
 doas git -C /etc/nixos add -A
-doas git -C /etc/nixos commit -q -m "nixos-rebuild snapshot"
+doas git -C /etc/nixos commit --no-gpg-sign -q -m "nixos-rebuild snapshot"
 
 # Get current hostname for flake target
 HOSTNAME=$(hostname)
