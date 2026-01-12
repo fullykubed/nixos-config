@@ -81,7 +81,7 @@ in
   age = {
     secrets = {
       pushover-token = {
-        rekeyFile = ../../secrets/pushover-token.age;
+        rekeyFile = ../../../secrets/pushover-token.age;
         owner = "root";
         group = "root";
         mode = "0400";

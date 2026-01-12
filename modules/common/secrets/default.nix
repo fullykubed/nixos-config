@@ -8,7 +8,7 @@
         ../../yubikeys/yubikey_b_identity.pub
       ];
       storageMode = "local";
-      localStorageDir = ./../.. + "/secrets/rekeyed/${config.networking.hostName}";
+      localStorageDir = ./../../.. + "/secrets/rekeyed/${config.networking.hostName}";
     };
 
     #   secrets = {

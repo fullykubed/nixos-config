@@ -11,55 +11,55 @@
   #################################################
 
   imports = [
-    ./modules/common/nix.nix
-    ./modules/common/boot.nix
-    ./modules/common/zfs.nix
-    ./modules/common/locale.nix
-    ./modules/common/networking.nix
-    ./modules/common/time.nix
-    ./modules/common/users.nix
-    ./modules/common/bluetooth.nix
-    ./modules/common/sshd.nix
-    ./modules/common/secrets.nix
-    ./modules/common/yubikey.nix
-    ./modules/common/global-options.nix
-    ./modules/common/syncthing.nix
+    ./modules/common/nix
+    ./modules/common/boot
+    ./modules/common/zfs
+    ./modules/common/locale
+    ./modules/common/networking
+    ./modules/common/time
+    ./modules/common/users
+    ./modules/common/bluetooth
+    ./modules/common/sshd
+    ./modules/common/secrets
+    ./modules/common/yubikey
+    ./modules/common/global-options
+    ./modules/common/syncthing
     ./modules/common/containers
-    ./modules/common/keyboards.nix
-    ./modules/common/audio.nix
-    ./modules/common/pdf.nix
-    ./modules/common/scanner.nix
-    ./modules/common/packages.nix
-    ./modules/common/direnv.nix
-    ./modules/common/ssh.nix
+    ./modules/common/keyboards
+    ./modules/common/audio
+    ./modules/common/pdf
+    ./modules/common/scanner
+    ./modules/common/packages
+    ./modules/common/direnv
+    ./modules/common/ssh
     ./modules/common/git
-    ./modules/common/printer.nix
-    ./modules/common/shell.nix
-    ./modules/common/tmux.nix
-    ./modules/common/sqlite.nix
+    ./modules/common/printer
+    ./modules/common/shell
+    ./modules/common/tmux
+    ./modules/common/sqlite
     ./modules/common/file-explorer
-    ./modules/common/video-player.nix
-    ./modules/common/image-viewer.nix
+    ./modules/common/video-player
+    ./modules/common/image-viewer
     ./modules/common/sway
     ./modules/common/wayland
-    ./modules/common/theme.nix
-    ./modules/common/browser.nix
+    ./modules/common/theme
+    ./modules/common/browser
     ./modules/common/scripts
-    ./modules/common/video-editor.nix
-    ./modules/common/security.nix
-    ./modules/common/graphics.nix
-    ./modules/common/systemd.nix
-    ./modules/common/home.nix
-    ./modules/common/messaging.nix
+    ./modules/common/video-editor
+    ./modules/common/security
+    ./modules/common/graphics
+    ./modules/common/systemd
+    ./modules/common/home
+    ./modules/common/messaging
     ./modules/common/nvim
     ./modules/common/claude
-    ./modules/common/crypto.nix
-    ./modules/common/recording.nix
-    ./modules/common/finance.nix
-    ./modules/common/music-player.nix
-    ./modules/common/torrent.nix
-    ./modules/common/passwords.nix
-    ./modules/common/image-editor.nix
+    ./modules/common/crypto
+    ./modules/common/recording
+    ./modules/common/finance
+    ./modules/common/music-player
+    ./modules/common/torrent
+    ./modules/common/passwords
+    ./modules/common/image-editor
     ./modules/common/transcription
 
     # Our segemented modules
