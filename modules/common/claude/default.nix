@@ -254,9 +254,32 @@ in
   # Claude Code configuration and hooks
   home-manager.users.${config.username} = {
     # Zsh alias for claude with dangerously-skip-permissions
+    # noglob aliases disable glob expansion so ? * [] etc. are passed literally
     programs.zsh.shellAliases = {
       cc = "claude --dangerously-skip-permissions";
+      q = "noglob _q";
+      qq = "noglob _qq";
+      qqq = "noglob _qqq";
     };
+
+    # Quick question functions with different AI capabilities
+    # Prefixed with _ since they're called via noglob aliases
+    programs.zsh.initContent = ''
+      # Quick question with Opus and web search
+      _q() {
+        claude -p --dangerously-skip-permissions --model opus --tools "" --allowedTools "WebSearch" --system-prompt "You answer questions concisely for terminal output. Use WebSearch to find current information when needed. Format responses in markdown, keeping them under 50 lines. Be direct and factual. Include sources when citing specific facts." "$*" | glow
+      }
+
+      # Code context lookup with Exa
+      _qq() {
+        claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__get_code_context_exa" --system-prompt "You are a code assistant. Use the mcp__exa__get_code_context_exa tool to find relevant code examples, API documentation, and library usage patterns. Return concise, practical answers under 50 lines. Focus on working code examples. Format with markdown code blocks." "$*" | glow
+      }
+
+      # Deep research with Exa
+      _qqq() {
+        claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__deep_researcher_start,mcp__exa__deep_researcher_check" --system-prompt "You are a research assistant. Use mcp__exa__deep_researcher_start to begin research, then poll with mcp__exa__deep_researcher_check until complete. Synthesize findings into a concise summary under 80 lines. Include key citations. Format with markdown." "$*" | glow
+      }
+    '';
 
     # Deploy skill configurations
     home.file.".claude/skills" = {

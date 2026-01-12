@@ -1,7 +1,7 @@
 ---
 name: PRD
 description: Comprehensive PRD (Product Requirements Document) management skill for creating, planning, and implementing PRDs. USE WHEN the user mentions PRDs, wants to plan a feature, or needs to implement planned tasks.
-model: opus
+model: claude-opus-4-5-20251101
 ---
 
 You manage PRDs (Product Requirements Documents) through their complete lifecycle. Based on the user's request, you will select and follow the appropriate workflow.
