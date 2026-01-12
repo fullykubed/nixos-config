@@ -29,7 +29,7 @@ while [[ $# -gt 0 ]]; do
     echo "  -h, --help      Show this help message"
     echo ""
     echo "Without options, rebuilds and switches to the new configuration"
-    echo "with --fast flag (skips channel updates)"
+    echo "with --no-reexec flag (skips re-executing nixos-rebuild)"
     exit 0
     ;;
   *)
@@ -91,28 +91,38 @@ fi
 
 echo "Using repository root: $REPO_ROOT"
 
-# Copy the local system configuration project to the OS etc directory;
-# Change ownership to root
-doas rsync \
-  -r \
-  -p \
-  --usermap=$USER:root \
-  --exclude=.idea \
-  --exclude=.direnv \
-  "$REPO_ROOT/" /etc/nixos
-
-# Get current hostname for flake target
-HOSTNAME=$(hostname)
-
-# Update flake inputs if requested
+# Update flake inputs if requested (do this before copying)
 if [[ "$UPDATE_MODE" == true ]]; then
   if [[ "$OFFLINE_MODE" == true ]]; then
     echo "Error: Cannot update flake inputs in offline mode"
     exit 1
   fi
   echo "Updating flake inputs..."
-  cd /etc/nixos && doas nix flake update
+  nix flake update --flake "$REPO_ROOT"
 fi
+
+# Copy the repo to /etc/nixos and create a fresh git repo owned by root
+# This avoids libgit2 ownership issues with worktrees and user-owned repos
+doas rm -rf /etc/nixos
+doas mkdir -p /etc/nixos
+doas rsync \
+  -r \
+  -p \
+  --usermap=$USER:root \
+  --exclude=.git \
+  --exclude=.idea \
+  --exclude=.direnv \
+  "$REPO_ROOT/" /etc/nixos
+
+# Initialize a fresh git repo so nix flake can read it
+doas git -C /etc/nixos init -q
+doas git -C /etc/nixos config user.email "nixos-rebuild@localhost"
+doas git -C /etc/nixos config user.name "nixos-rebuild"
+doas git -C /etc/nixos add -A
+doas git -C /etc/nixos commit -q -m "nixos-rebuild snapshot"
+
+# Get current hostname for flake target
+HOSTNAME=$(hostname)
 
 # Build the rebuild command
 if [[ "$BOOT_MODE" == true ]]; then
@@ -128,9 +138,9 @@ if [[ "$OFFLINE_MODE" == true ]]; then
   BUILD_FLAGS="--offline"
   echo "Building in offline mode (no network access)"
 else
-  # Default to --fast for switch mode when not offline and not updating
+  # Default to --no-reexec for switch mode when not offline and not updating
   if [[ "$BOOT_MODE" == false ]] && [[ "$UPDATE_MODE" == false ]]; then
-    BUILD_FLAGS="--fast"
+    BUILD_FLAGS="--no-reexec"
   else
     BUILD_FLAGS=""
   fi
