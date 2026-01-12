@@ -173,7 +173,7 @@ let
     pname = "claude-task-scripts";
     version = "1.0.0";
 
-    src = ./scripts;
+    src = ./skills/PRD/scripts;
 
     buildInputs = [
       pkgs.bash
@@ -186,60 +186,67 @@ let
       mkdir -p $out/bin $out/share/claude
 
       # Copy schema files
-      cp ${./specs/tasks.schema.json} $out/share/claude/tasks.schema.json
-      cp ${./specs/research.schema.json} $out/share/claude/research.schema.json
+      cp ${./skills/PRD/schemas/tasks.schema.json} $out/share/claude/tasks.schema.json
+      cp ${./skills/PRD/schemas/research.schema.json} $out/share/claude/research.schema.json
 
-      # claude-task-status script
-      substitute $src/task-status.sh $out/bin/claude-task-status \
+      # claude-PRD-task-status script
+      substitute $src/task-status.sh "$out/bin/claude-PRD-task-status" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-      chmod +x $out/bin/claude-task-status
+      chmod +x "$out/bin/claude-PRD-task-status"
 
-      # claude-update-task-status script
-      substitute $src/update-task-status.sh $out/bin/claude-update-task-status \
+      # claude-PRD-update-task-status script
+      substitute $src/update-task-status.sh "$out/bin/claude-PRD-update-task-status" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-      chmod +x $out/bin/claude-update-task-status
+      chmod +x "$out/bin/claude-PRD-update-task-status"
 
-      # claude-validate-tasks script
-      substitute $src/validate-tasks.sh $out/bin/claude-validate-tasks \
+      # claude-PRD-validate-tasks script (from hooks folder)
+      substitute ${./hooks/validate-tasks.sh} "$out/bin/claude-PRD-validate-tasks" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
-        --replace "@schema-path@" "$out/share/claude/tasks.schema.json"
-      chmod +x $out/bin/claude-validate-tasks
+        --replace "@schema-path@" "$out/share/claude/tasks.schema.json" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x "$out/bin/claude-PRD-validate-tasks"
 
-      # claude-list-prds script
-      substitute $src/list-prds.sh $out/bin/claude-list-prds \
+      # claude-PRD-list-prds script
+      substitute $src/list-prds.sh "$out/bin/claude-PRD-list-prds" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@jq@" "${pkgs.jq}/bin/jq"
-      chmod +x $out/bin/claude-list-prds
+      chmod +x "$out/bin/claude-PRD-list-prds"
 
-      # claude-research-status script
-      substitute $src/research-status.sh $out/bin/claude-research-status \
+      # claude-PRD-research-status script
+      substitute $src/research-status.sh "$out/bin/claude-PRD-research-status" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-      chmod +x $out/bin/claude-research-status
+      chmod +x "$out/bin/claude-PRD-research-status"
 
-      # claude-validate-research script
-      substitute $src/validate-research.sh $out/bin/claude-validate-research \
+      # claude-PRD-validate-research script (from hooks folder)
+      substitute ${./hooks/validate-research.sh} "$out/bin/claude-PRD-validate-research" \
         --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
-        --replace "@schema-path@" "$out/share/claude/research.schema.json"
-      chmod +x $out/bin/claude-validate-research
+        --replace "@schema-path@" "$out/share/claude/research.schema.json" \
+        --replace "@jq@" "${pkgs.jq}/bin/jq"
+      chmod +x "$out/bin/claude-PRD-validate-research"
 
-      # claude-list-draft-tasks script
-      substitute $src/list-prd-draft-tasks.sh $out/bin/claude-list-draft-tasks \
+      # claude-PRD-list-draft-tasks script
+      substitute $src/list-prd-draft-tasks.sh "$out/bin/claude-PRD-list-draft-tasks" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@jq@" "${pkgs.jq}/bin/jq"
-      chmod +x $out/bin/claude-list-draft-tasks
+      chmod +x "$out/bin/claude-PRD-list-draft-tasks"
 
-      # claude-list-defined-tasks script
-      substitute $src/list-defined-tasks.sh $out/bin/claude-list-defined-tasks \
+      # claude-PRD-list-defined-tasks script
+      substitute $src/list-defined-tasks.sh "$out/bin/claude-PRD-list-defined-tasks" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@jq@" "${pkgs.jq}/bin/jq"
-      chmod +x $out/bin/claude-list-defined-tasks
+      chmod +x "$out/bin/claude-PRD-list-defined-tasks"
 
-      # claude-get-task script
-      substitute $src/get-task.sh $out/bin/claude-get-task \
+      # claude-PRD-get-task script
+      substitute $src/get-task.sh "$out/bin/claude-PRD-get-task" \
         --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
         --replace "@jq@" "${pkgs.jq}/bin/jq"
-      chmod +x $out/bin/claude-get-task
+      chmod +x "$out/bin/claude-PRD-get-task"
+
+      # claude-PRD-get-unanswered-research script
+      substitute $src/get-unanswered-research.sh "$out/bin/claude-PRD-get-unanswered-research" \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+      chmod +x "$out/bin/claude-PRD-get-unanswered-research"
     '';
   };
 in
@@ -260,6 +267,12 @@ in
     # Deploy PRD and task specifications (referenced by skills via @)
     home.file.".claude/specs" = {
       source = ./specs;
+      recursive = true;
+    };
+
+    # Deploy custom subagents
+    home.file.".claude/agents" = {
+      source = ./agents;
       recursive = true;
     };
 
@@ -321,6 +334,23 @@ in
               {
                 type = "command";
                 command = "workmux set-window-status working";
+              }
+            ];
+          }
+        ];
+
+        # Validate YAML files after editing
+        PostToolUse = [
+          {
+            matcher = "Edit|Write";
+            hooks = [
+              {
+                type = "command";
+                command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
+              }
+              {
+                type = "command";
+                command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
               }
             ];
           }
