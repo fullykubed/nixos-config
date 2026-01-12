@@ -36,11 +36,29 @@ in
     programs.zsh.initContent = ''
       # Workmux completions
       eval "$(workmux completions zsh)"
+
+      # Workmux add background - creates worktree in background with auto-generated branch name
+      _wmab() {
+        local prompt="$*"
+        local repo_branches
+        repo_branches=$(git branch -a --sort=-committerdate 2>/dev/null | head -10 | sed 's/^[* ]*//' | sed 's|remotes/origin/||' | grep -v '^HEAD' | tr '\n' ', ' | sed 's/, $//')
+        local branch_name
+        branch_name=$(claude -p \
+          --model haiku \
+          --tools "" \
+          --no-session-persistence \
+          --output-format json \
+          --json-schema '{"type":"object","properties":{"branch":{"type":"string","pattern":"^[a-z0-9][a-z0-9/-]*[a-z0-9]$"}},"required":["branch"],"additionalProperties":false}' \
+          --system-prompt "Generate a concise git branch name. Rules: kebab-case (lowercase with hyphens), 2-4 words max, focus on core task or feature not implementation details. By default avoid prefixes like feat/ or fix/, but if the repository examples use that pattern, follow it. Repository branch examples: $repo_branches" \
+          "$prompt" | jq -r '.structured_output.branch')
+        workmux add -b -p "$prompt" "$branch_name"
+      }
     '';
 
     programs.zsh.shellAliases = {
       wm = "workmux";
       wmm = "workmux merge";
+      wmab = "noglob _wmab";
     };
 
     xdg.configFile."workmux/config.yaml".text = ''
