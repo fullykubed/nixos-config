@@ -287,6 +287,12 @@ in
       recursive = true;
     };
 
+    # Deploy custom commands (invoked via /command-name in Claude Code)
+    home.file.".claude/commands" = {
+      source = ./commands;
+      recursive = true;
+    };
+
     # Deploy PRD and task specifications (referenced by skills via @)
     home.file.".claude/specs" = {
       source = ./specs;

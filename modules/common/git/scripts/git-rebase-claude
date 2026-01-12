@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ -n "${1:-}" ]]; then
+    target="$1"
+else
+    target="origin/$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')"
+fi
+
+echo "Fetching origin..."
+git fetch origin
+
+echo "Rebasing onto $target..."
+if git rebase "$target"; then
+    echo "Rebase complete."
+else
+    echo "Conflicts detected, restarting rebase with Claude Code..."
+    git rebase --abort
+    claude -p --dangerously-skip-permissions --no-session-persistence --model sonnet "/rebase $target"
+    echo "Rebase complete."
+fi
