@@ -572,6 +572,10 @@ in
           bindsym XF86AudioPrev exec playerctl previous
           bindsym XF86AudioStop exec playerctl stop
 
+          # Push-to-talk voice transcription
+          bindsym --no-repeat F10 exec voxtype record start
+          bindsym --release F10 exec voxtype record stop
+
           exec swaymsg "workspace messages; exec slack;"
           exec swaymsg "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"

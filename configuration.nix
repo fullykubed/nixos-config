@@ -60,6 +60,7 @@
     ./modules/common/torrent.nix
     ./modules/common/passwords.nix
     ./modules/common/image-editor.nix
+    ./modules/common/transcription
 
     # Our segemented modules
     ./backups/default.nix

@@ -15,6 +15,21 @@
           {
             matches = [
               {
+                # Scarlett Solo Mic2 input - Highest priority for default source
+                node.name = "~alsa_input.usb-Focusrite_Scarlett_Solo.*HiFi__Mic2__source"
+              }
+            ]
+            actions = {
+              update-props = {
+                priority.driver = 2500
+                priority.session = 2500
+                node.description = "Scarlett Solo Microphone"
+              }
+            }
+          }
+          {
+            matches = [
+              {
                 # Configure BRIO webcam microphone with normal priority
                 node.name = "~alsa_input.usb-046d_Logitech_BRIO.*"
               }
