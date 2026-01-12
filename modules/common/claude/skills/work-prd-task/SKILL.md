@@ -104,6 +104,15 @@ claude-update-task-status my-feature "Implement API endpoint" defined
   1. Do NOT mark the task as completed
   2. Document the blocker clearly
   3. Ask the user for guidance
+- **Getting Unstuck**: If you get stuck on implementation details, API usage, or library patterns:
+  1. Use the `mcp__exa__get_code_context_exa` tool to search for relevant code examples and documentation
+  2. Query with specific terms like the library name, function, or pattern you need help with
+  3. Use the returned context to inform your implementation approach
+  4. Make at least 3 different query attempts with `get_code_context_exa` (varying search terms) before escalating
+  5. **Escalation (use only once)**: If 3+ attempts with `get_code_context_exa` don't resolve the issue:
+     - Use `mcp__exa__deep_researcher_start` with `model: "exa-research"` to initiate comprehensive research
+     - Poll with `mcp__exa__deep_researcher_check` until status is `completed`
+     - Only escalate to deep research ONE TIME per task - if it still doesn't help, document the blocker and ask the user
 - **Respect Dependencies**: If the spec lists dependencies on other tasks, verify those are completed first.
 - **Preserve Context**: When modifying existing code, understand the surrounding context before making changes.
 
