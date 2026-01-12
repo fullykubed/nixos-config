@@ -22,24 +22,6 @@ let
 
   aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
 
-  lazyworktree = pkgs.buildGoModule rec {
-    pname = "lazyworktree";
-    version = "1.21.1";
-    src = pkgs.fetchFromGitHub {
-      owner = "chmouel";
-      repo = "lazyworktree";
-      rev = "v${version}";
-      hash = "sha256-5ercx4htJ1GS7nGwK/BeIGrt4ZQLql4Z4pDTVTWZH8o=";
-    };
-    vendorHash = "sha256-0O8i84mzAYq/VUWn0vbHf218hwXRMAvlfKnBUYXo8Ck=";
-    subPackages = [ "cmd/lazyworktree" ];
-    meta = {
-      description = "A lazygit-inspired TUI for git worktrees";
-      homepage = "https://github.com/chmouel/lazyworktree";
-      mainProgram = "lazyworktree";
-    };
-  };
-
   allowedSignersFile = "git/allowed_signers";
   githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
   githubEmail = "github@fullstackjack.io";
@@ -50,6 +32,11 @@ let
     name: "${config.homeDir}/${config.home-manager.users.${config.username}.home.file.${name}.target}";
 in
 {
+  imports = [
+    ./lazygit
+    ./lazyworktree
+  ];
+
   home-manager.users.${config.username} = {
 
     xdg.configFile = {
@@ -61,69 +48,6 @@ in
           ${githubHudsonEmail} ${githubHudsonPublicKey}
         '';
       };
-
-      lazygitConfig = {
-        enable = true;
-        target = "lazygit/config.yml";
-        text = ''
-          git:
-            commitPrefix: []
-            commit:
-              signOff: true
-              autoWrapCommitMessage: true
-              autoWrapWidth: 72
-            skipHookPrefix: "WIP"
-            parseEmoji: true
-
-          gui:
-            nerdFontsVersion: "3"
-            theme:
-              selectedLineBgColor:
-                - "#2d2d2d"
-              selectedRangeBgColor:
-                - "#2d2d2d"
-
-          update:
-            days: 1
-
-          os:
-            copyToClipboardCmd: "wl-copy {{text}}"
-            readFromClipboardCmd: "wl-paste"
-            edit: 'nvr --remote-tab-wait-silent {{filename}}'
-            editAtLine: 'nvr --remote-tab-wait-silent +{{line}} {{filename}}'
-            editAtLineAndWait: 'nvr --remote-tab-wait-silent +{{line}} {{filename}}'
-            editInTerminal: false
-
-          keybinding:
-            universal:
-              quit: '<esc>'
-              quit-alt1: 'q'
-
-          customCommands:
-            - key: 'C'
-              description: 'commit without hooks'
-              context: 'files'
-              prompts:
-                - type: 'input'
-                  title: 'Commit message'
-                  key: 'CommitMessage'
-              command: 'git -c core.hooksPath=/dev/null commit -m "{{.Form.CommitMessage}}"'
-              loadingText: 'committing without hooks...'
-            - key: '<c-a>'
-              description: 'Generate commit message with AI'
-              context: 'files'
-              command: 'ai-commit'
-              output: terminal
-              loadingText: 'Generating AI commit message...'
-            - key: '<c-a>'
-              description: 'Rewrite commit message with AI'
-              context: 'commits'
-              command: 'ai-reword {{.SelectedCommit.Hash}}'
-              output: terminal
-              loadingText: 'Generating AI commit message...'
-        '';
-      };
-
     };
 
     home.file = {
@@ -142,19 +66,14 @@ in
     home.packages = with pkgs; [
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
-      unstable.lazygit # Terminal UI for git commands
-      lazyworktree # TUI for git worktrees
       gitCloneForWorktree # Clone repos for worktree workflows
       aiCommit # Generate commit messages with Claude AI
       aiReword # Rewrite commit messages with Claude AI
-      neovim-remote # For lazygit nvim-remote integration (avoids nested nvim issues)
     ];
 
     programs.zsh.shellAliases = {
       gc = "git-clone-for-worktree";
       gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
-      lg = "lazygit";
-      lw = "lazyworktree";
     };
 
     programs.difftastic = {

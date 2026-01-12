@@ -34,3 +34,5 @@ direnv allow
 
 default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
 git worktree add "$default_branch"
+
+tmux new-session -d -s "$directory" -c "$PWD"
