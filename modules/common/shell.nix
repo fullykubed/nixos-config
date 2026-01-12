@@ -29,6 +29,7 @@
           default_prog = { "${pkgs.zsh}/bin/zsh" },
           enable_tab_bar = false,
           enable_wayland = true,
+          warn_about_missing_glyphs = false,
         }
       '';
     };
