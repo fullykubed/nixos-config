@@ -13,6 +13,7 @@
       config = {
         global = {
           warn_timeout = "30m";
+          hide_env_diff = true;
         };
       };
     };
