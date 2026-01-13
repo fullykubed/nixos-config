@@ -70,7 +70,7 @@ json_schema='{
     "body": {
       "type": "string",
       "minLength": 10,
-      "pattern": "^[^\\u0060].*[^\\u0060]$"
+      "pattern": "^[^\\u0060](?:(?!.{81})[^\\n]*(?:\\n(?!.{81})[^\\n]*)*)?[^\\u0060]$"
     }
   },
   "additionalProperties": false
@@ -92,6 +92,7 @@ Requirements:
 - Fix any formatting issues, typos, or unclear wording
 - Keep the description concise (under 60 characters)
 - Add a body if the changes are complex to explain the \"why\"
+- Keep each line in the body under 80 characters
 - Focus on the \"why\" not just the \"what\"
 
 Output Format:
