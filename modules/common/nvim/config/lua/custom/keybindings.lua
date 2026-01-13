@@ -105,3 +105,19 @@ vim.api.nvim_create_autocmd({ "StdinReadPost" }, {
     vim.keymap.set("n", "<Esc>", "<cmd>q<cr>", { buffer = buf, nowait = true, desc = "Quit pager" })
   end,
 })
+
+-------------------------------------------------------------------
+-- Git Commit Message Keymaps
+-------------------------------------------------------------------
+
+-- Quick keys to save/close or cancel commit messages
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "gitcommit", "gitrebase" },
+  group = vim.api.nvim_create_augroup("gitcommit-keybindings", { clear = true }),
+  callback = function()
+    local buf = vim.api.nvim_get_current_buf()
+    vim.keymap.set("n", "q", "<cmd>wq<cr>", { buffer = buf, nowait = true, desc = "Save and close commit" })
+    vim.keymap.set("n", "<Esc>", "<cmd>wq<cr>", { buffer = buf, nowait = true, desc = "Save and close commit" })
+    vim.keymap.set("n", "<C-c>", "<cmd>cq<cr>", { buffer = buf, nowait = true, desc = "Cancel commit" })
+  end,
+})
