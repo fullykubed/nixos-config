@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Fail if there are modified or uncommitted files
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "Error: There are modified or uncommitted files in the current branch."
+  echo "Please commit or stash your changes before merging."
+  git status --short
+  exit 1
+fi
+
+current_branch="$(git branch --show-current)"
+
+# Try workmux merge first
+if output=$(workmux merge "$@" 2>&1); then
+  echo "$output"
+  exit 0
+fi
+
+# Check if it's the worktree branch conflict error
+if echo "$output" | grep -q "is already used by worktree"; then
+  echo "Detected worktree branch conflict, using fallback merge strategy..."
+
+  # Extract target branch from error (e.g., "Failed to switch to branch 'main'")
+  target_branch=$(echo "$output" | grep -oP "Failed to switch to branch '\K[^']+")
+
+  if [[ -z "$target_branch" ]]; then
+    echo "Error: Could not determine target branch from error message"
+    echo "$output"
+    exit 1
+  fi
+
+  # Find the worktree path where target branch is checked out
+  target_worktree_path=$(git worktree list | grep "\[$target_branch\]" | awk '{print $1}')
+
+  if [[ -z "$target_worktree_path" ]]; then
+    echo "Error: Could not find worktree for branch '$target_branch'"
+    echo "$output"
+    exit 1
+  fi
+
+  echo "Rebasing '$current_branch' onto '$target_branch' in '$target_worktree_path'..."
+
+  # Change to target worktree and rebase
+  cd "$target_worktree_path" || exit 1
+  git fetch origin
+
+  # Find the worktree path for the branch being merged
+  current_branch_worktree=$(git worktree list | grep "\[$current_branch\]" | awk '{print $1}')
+
+  if git rebase "$current_branch"; then
+    echo "Rebase successful. Removing worktree..."
+    rm -rf "$current_branch_worktree"
+    workmux remove --force "$current_branch"
+    echo "Merge complete."
+  else
+    echo "Rebase failed due to conflicts."
+    git rebase --abort
+
+    echo ""
+    read -rp "Would you like to retry with Claude Code conflict resolution? [y/N] " response
+    if [[ "$response" =~ ^[Yy]$ ]]; then
+      echo "Running git-rebase-claude..."
+      if git-rebase-claude "$current_branch"; then
+        echo "Rebase successful. Removing worktree..."
+        rm -rf "$current_branch_worktree"
+        workmux remove --force "$current_branch"
+        echo "Merge complete."
+      else
+        echo "Claude rebase failed. Aborting..."
+        git rebase --abort 2>/dev/null || true
+        exit 1
+      fi
+    else
+      exit 1
+    fi
+  fi
+else
+  # Different error, just print it
+  echo "$output"
+  exit 1
+fi

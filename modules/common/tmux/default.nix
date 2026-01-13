@@ -80,6 +80,8 @@
           mainProgram = "workmux";
         };
       };
+
+      workmuxMerge = pkgs.writeShellScriptBin "workmux-merge" (builtins.readFile ./scripts/workmux-merge);
     in
     {
       home-manager.users.${config.username} = {
@@ -87,6 +89,7 @@
           libnotify
           sesh
           workmux
+          workmuxMerge
         ];
 
         xdg.configFile."workmux/config.yaml".text = ''
@@ -152,7 +155,7 @@
 
             shellAliases = {
               wm = "workmux";
-              wmm = "workmux merge";
+              wmm = "workmux-merge";
               wmab = "noglob _wmab";
             };
           };
