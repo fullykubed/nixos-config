@@ -2,7 +2,7 @@ return {
   "0x00-ketsu/autosave.nvim",
   event = { "InsertLeave", "TextChanged" },
   opts = {
-    enabled = true,
+    enabled = false,
     execution_message = {
       enabled = false,
       message = function()
