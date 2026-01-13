@@ -185,6 +185,7 @@ in
           for_window [class="copyq"] floating enable, resize set 50 ppt 50 ppt
           for_window [title="CopyQ"] floating enable, resize set 50 ppt 50 ppt
           for_window [app_id="floating-terminal"] floating enable, resize set 50 ppt 50 ppt
+          for_window [app_id="systemd-manager"] floating enable, resize set 60 ppt 70 ppt
 
           # Focus navigation
           bindsym ${swayModifier}+Alt+Up focus up
@@ -337,6 +338,7 @@ in
           bindsym ${swayModifier}+d exec wofi
           bindsym ${swayModifier}+c exec ${pkgs.copyq}/bin/copyq toggle
           bindsym ${swayModifier}+p exec ${pkgs.wl-color-picker}/bin/wl-color-picker
+          bindsym ${swayModifier}+m exec wezterm start --class systemd-manager -- doas systemd-manager-tui
 
           # Screenshot
           bindsym ${swayModifier}+s exec grimshot copy area
