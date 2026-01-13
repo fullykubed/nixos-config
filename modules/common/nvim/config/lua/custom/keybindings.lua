@@ -91,3 +91,17 @@ vim.keymap.set("n", "<leader>nx", "<cmd>!chmod +x %<CR>", { desc = "Make file ex
 -- Resize windows with arrow keys
 vim.keymap.set("n", "<C-Left>", "<cmd>vertical resize -2<CR>", { desc = "Decrease window width" })
 vim.keymap.set("n", "<C-Right>", "<cmd>vertical resize +2<CR>", { desc = "Increase window width" })
+
+-------------------------------------------------------------------
+-- Pager Mode Keymaps
+-------------------------------------------------------------------
+
+-- Allow q and Escape to quit when nvim is used as a pager (reading from stdin)
+vim.api.nvim_create_autocmd({ "StdinReadPost" }, {
+  group = vim.api.nvim_create_augroup("pager-keybindings", { clear = true }),
+  callback = function()
+    local buf = vim.api.nvim_get_current_buf()
+    vim.keymap.set("n", "q", "<cmd>q<cr>", { buffer = buf, nowait = true, desc = "Quit pager" })
+    vim.keymap.set("n", "<Esc>", "<cmd>q<cr>", { buffer = buf, nowait = true, desc = "Quit pager" })
+  end,
+})
