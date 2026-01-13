@@ -79,9 +79,7 @@ in
       inherit fonts;
       inherit cursor;
       targets = {
-        tmux = {
-          enable = false;
-        };
+        tmux.enable = false;
       };
     };
   };
