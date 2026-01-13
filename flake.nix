@@ -72,10 +72,10 @@
       # =========================================================================
       versions = {
         # workmux (modules/common/tmux)
-        workmux = "0.1.89";
-        workmuxRev = "456eae3fa8fdfde26af26d1c00e901f592fc977c";
-        workmuxSrcHash = "sha256-MG2KTxQvOiRSusxfB1FbfPohAui05EOVPOFoezlU5mI=";
-        workmuxCargoHash = "sha256-97q6gvHkq6cIx5VyXfytLVhtc1NsBtJd55FKjrRZTA8=";
+        workmux = "0.1.90";
+        workmuxRev = "86881c40495f1439f015f755e7662043893985f6";
+        workmuxSrcHash = "sha256-9zflH0pCY82amDk/CteGelOc8vB/ZyV1qUhgOEQnV30=";
+        workmuxCargoHash = "sha256-KytE2e71VyowpoVzk95cZIKlMkjp5KBntUjExaFKoHI=";
 
         # tmux-autoreload plugin (modules/common/tmux)
         tmuxAutoreload = "unstable-2024-01-01";
