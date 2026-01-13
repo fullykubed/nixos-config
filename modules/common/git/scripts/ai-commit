@@ -4,8 +4,19 @@ set -euo pipefail
 
 # Constants
 MAX_DIFF_SIZE=50000
-MSG_FILE=$(mktemp)
-COMMIT_OUTPUT_FILE=$(mktemp)
+
+# Temp files (MSG_FILE uses git's standard COMMIT_EDITMSG for filetype detection)
+git_dir=$(git rev-parse --git-dir)
+MSG_FILE="$git_dir/COMMIT_EDITMSG"
+CLAUDE_RESPONSE_FILE=$(mktemp)
+HOOK_OUTPUT_FILE=$(mktemp)
+FIXER_OUTPUT_FILE=$(mktemp)
+
+# Cleanup temp files on exit (don't delete COMMIT_EDITMSG - git expects it to persist)
+cleanup() {
+    rm -f "$CLAUDE_RESPONSE_FILE" "$HOOK_OUTPUT_FILE" "$FIXER_OUTPUT_FILE"
+}
+trap cleanup EXIT
 
 # Parse optional motivation argument
 motivation="${1:-}"
@@ -111,10 +122,57 @@ $prd_context
 }Diff:
 $diff"
 
-echo "Generating commit with Claude..."
+# Run git hooks and Claude in parallel for speed
+git_common_dir=$(git rev-parse --git-common-dir)
+hook_script="$git_common_dir/hooks/pre-commit"
+hook_exit=0
+fixer_pid=""
 
-# Call claude with sonnet model (no tools/MCP for simple prompt mode)
-if ! claude_response=$(claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
+# Check if pre-commit hook exists
+if [[ -x "$hook_script" ]]; then
+    echo "Running git hooks and generating commit message in parallel..."
+
+    # Start Claude in background
+    (claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt" > "$CLAUDE_RESPONSE_FILE" 2>&1) &
+    claude_pid=$!
+
+    # Run pre-commit hook directly (works with any framework), capture output
+    "$hook_script" > "$HOOK_OUTPUT_FILE" 2>&1 && hook_exit=0 || hook_exit=$?
+
+    # If hooks failed, immediately start Fixer to fix (parallel with Claude and user editing)
+    if [[ $hook_exit -ne 0 ]]; then
+        hook_output=$(cat "$HOOK_OUTPUT_FILE")
+        echo ""
+        echo "Git hook failure detected. Starting Claude Fixer in background..."
+
+        claude --model opus --fallback-model sonnet --dangerously-skip-permissions --verbose -p "The git commit failed due to git hook failures. Here is the output:
+
+$hook_output
+
+IMPORTANT RULES:
+1. Only edit files necessary to fix the hook failures
+2. Do not change any functionality - only fix formatting/linting issues
+3. After fixing, verify by running: $hook_script
+4. Stage your changes with: git add <file>
+5. Do NOT create a commit - the user will do that" > "$FIXER_OUTPUT_FILE" 2>&1 &
+        fixer_pid=$!
+    fi
+
+    # Wait for Claude to finish
+    wait $claude_pid && claude_exit=0 || claude_exit=$?
+    claude_response=$(cat "$CLAUDE_RESPONSE_FILE")
+else
+    echo "Generating commit message..."
+
+    # No hooks, just run Claude
+    if ! claude_response=$(claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
+        claude_exit=1
+    else
+        claude_exit=0
+    fi
+fi
+
+if [[ $claude_exit -ne 0 ]]; then
     echo "Error: Failed to generate commit message" >&2
     echo "Claude response: $claude_response" >&2
     exit 1
@@ -149,36 +207,29 @@ fi
 # Write message to temp file
 echo "$commit_msg" >"$MSG_FILE"
 
-echo "Opening editor..."
+# Open editor for user to review/edit the message (runs in parallel with Fixer if needed)
+${GIT_EDITOR:-${EDITOR:-nvim}} "$MSG_FILE"
 
-# Commit with editor - run interactively, capture exit code
-# Use script command to capture output while preserving tty for editor
-# Capture exit code before set -e can trigger
-script -q -c "git commit -e -F \"$MSG_FILE\"" "$COMMIT_OUTPUT_FILE" && commit_exit=0 || commit_exit=$?
+# Wait for Fixer to finish if it was started
+if [[ -n "$fixer_pid" ]]; then
+    echo "Waiting for Claude Fixer to finish..."
+    wait $fixer_pid && fixer_exit=0 || fixer_exit=$?
 
-if [[ $commit_exit -eq 0 ]]; then
-    exit 0
-fi
-
-commit_output=$(cat "$COMMIT_OUTPUT_FILE")
-
-# Check if failure was due to pre-commit hooks
-# Look for common pre-commit failure patterns:
-# - "Failed" with "hook id:" (pre-commit framework)
-# - "pre-commit" in error message
-if echo "$commit_output" | grep -qE "(hook id:|pre-commit|Failed.*\.\.\.+Failed)"; then
+    # Display Fixer's output
     echo ""
-    echo "Pre-commit hook failure detected. Starting Claude Opus to fix issues..."
+    echo "=== Fixer Output ==="
+    cat "$FIXER_OUTPUT_FILE"
+    echo "===================="
+    echo ""
 
-    # Launch Claude with Opus to fix pre-commit issues
-    claude --model opus --fallback-model sonnet -p "The git commit failed due to pre-commit hook failures. Here is the output:
+    if [[ $fixer_exit -ne 0 ]]; then
+        echo "Error: Claude Fixer failed to fix hook issues" >&2
+        exit 1
+    fi
 
-$commit_output
-
-Please fix the pre-commit hook failures and then create a new commit with this message:
-
-$(cat "$MSG_FILE")"
+    # Fixer made fixes - run hooks to verify its work
+    git commit -F "$MSG_FILE"
 else
-    # Non-hook failure (e.g., user aborted, empty message)
-    exit $commit_exit
+    # Hooks already passed during parallel run - skip them
+    git commit --no-verify -F "$MSG_FILE"
 fi

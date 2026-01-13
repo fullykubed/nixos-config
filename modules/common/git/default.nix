@@ -22,9 +22,7 @@ let
 
   aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
 
-  gitRebaseClaude = pkgs.writeShellScriptBin "git-rebase-claude" (
-    builtins.readFile ./scripts/git-rebase-claude
-  );
+  aiRebase = pkgs.writeShellScriptBin "ai-rebase" (builtins.readFile ./scripts/ai-rebase);
 
   allowedSignersFile = "git/allowed_signers";
   githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
@@ -73,7 +71,7 @@ in
       gitCloneForWorktree # Clone repos for worktree workflows
       aiCommit # Generate commit messages with Claude AI
       aiReword # Rewrite commit messages with Claude AI
-      gitRebaseClaude # Rebase with Claude Code conflict resolution
+      aiRebase # Rebase with Claude Code conflict resolution
     ];
 
     programs = {
@@ -81,7 +79,7 @@ in
         gc = "git-clone-for-worktree";
         gca = "ai-commit"; # [G]it [C]ommit [A]I
         gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
-        grb = "git-rebase-claude"; # [G]it [R]e[B]ase via Claude Code
+        grb = "ai-rebase"; # [G]it [R]e[B]ase via Claude Code
       };
 
       difftastic = {
