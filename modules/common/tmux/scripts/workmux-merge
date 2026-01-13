@@ -52,6 +52,7 @@ if echo "$output" | grep -q "is already used by worktree"; then
   if git rebase "$current_branch"; then
     echo "Rebase successful. Removing worktree..."
     rm -rf "$current_branch_worktree"
+    cd "$(dirname "$current_branch_worktree")"
     workmux remove --force "$current_branch"
     echo "Merge complete."
   else
@@ -65,6 +66,7 @@ if echo "$output" | grep -q "is already used by worktree"; then
       if git-rebase-claude "$current_branch"; then
         echo "Rebase successful. Removing worktree..."
         rm -rf "$current_branch_worktree"
+        cd "$(dirname "$current_branch_worktree")"
         workmux remove --force "$current_branch"
         echo "Merge complete."
       else
