@@ -11,22 +11,18 @@ fi
 repository_url="$1"
 directory="${2:-$(basename "$repository_url" .git)}"
 
-git clone --bare "$repository_url" "$directory/.git"
-git --git-dir="$directory/.git" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+git clone --bare "$repository_url" "$directory/.bare"
+git --git-dir="$directory/.bare" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 cd "$directory"
 
 default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
 git worktree add "$default_branch"
 
 cat > .envrc << EOF
-# Hub-only Git environment pointing to primary branch
-export GIT_DIR="\$PWD/$default_branch/.git"
-export GIT_WORK_TREE="\$PWD/$default_branch"
-
-# Guard: refuse to load if this is not the hub
-if [[ ! -d "\$PWD/.git" || ! -f "\$PWD/.git/HEAD" ]]; then
-  echo "Refusing to load hub direnv: not in git hub directory"
-  return 1
+# Only set GIT env vars when loaded directly, not via source_up
+if [[ "\$DIRENV_DIR" == "\$PWD" ]]; then
+  export GIT_DIR="\$PWD/.bare/worktrees/$default_branch"
+  export GIT_WORK_TREE="\$PWD/$default_branch"
 fi
 EOF
 
