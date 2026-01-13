@@ -42,6 +42,12 @@
       url = "github:nix-community/stylix/release-25.11";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # Git hooks for pre-commit checks
+    git-hooks = {
+      url = "github:cachix/git-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -57,6 +63,7 @@
       flake-utils,
       nix-bwrapper,
       stylix,
+      ...
     }:
     let
       # =========================================================================
@@ -108,37 +115,34 @@
       # =========================================================================
       overlays =
         system:
-        (
-          { config, pkgs, ... }:
-          {
-            nixpkgs.overlays = [
-              (final: prev: {
-                # Makes "unstable" available in configuration.nix
-                unstable = import nixpkgs-unstable {
-                  inherit system;
-                  config.allowUnfree = true;
+        (_: {
+          nixpkgs.overlays = [
+            (_: _: {
+              # Makes "unstable" available in configuration.nix
+              unstable = import nixpkgs-unstable {
+                inherit system;
+                config.allowUnfree = true;
+              };
+            })
+
+            # Global ImageMagick downgrade to fix gscan2pdf issues
+            # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
+            (_: prev: {
+              imagemagick = prev.imagemagick.overrideAttrs (_: {
+                version = versions.imagemagick;
+                src = prev.fetchFromGitHub {
+                  owner = "ImageMagick";
+                  repo = "ImageMagick";
+                  tag = versions.imagemagick;
+                  hash = versions.imagemagickSrcHash;
                 };
-              })
+              });
+            })
 
-              # Global ImageMagick downgrade to fix gscan2pdf issues
-              # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
-              (final: prev: {
-                imagemagick = prev.imagemagick.overrideAttrs (old: {
-                  version = versions.imagemagick;
-                  src = prev.fetchFromGitHub {
-                    owner = "ImageMagick";
-                    repo = "ImageMagick";
-                    tag = versions.imagemagick;
-                    hash = versions.imagemagickSrcHash;
-                  };
-                });
-              })
-
-              agenix-rekey.overlays.default
-              nix-bwrapper.overlays.default
-            ];
-          }
-        );
+            agenix-rekey.overlays.default
+            nix-bwrapper.overlays.default
+          ];
+        });
 
       # =========================================================================
       # NixOS System Builder
@@ -175,16 +179,16 @@
             (
               {
                 config,
-                pkgs,
-                lib,
                 ...
               }:
               {
-                home-manager.useGlobalPkgs = true;
-                home-manager.useUserPackages = true;
-                home-manager.sharedModules = [ stylix.homeModules.stylix ];
-                home-manager.users.${config.username} = {
-                  home.stateVersion = "22.11";
+                home-manager = {
+                  useGlobalPkgs = true;
+                  useUserPackages = true;
+                  sharedModules = [ stylix.homeModules.stylix ];
+                  users.${config.username} = {
+                    home.stateVersion = "22.11";
+                  };
                 };
               }
             )
@@ -194,12 +198,9 @@
             agenix-rekey.nixosModules.default
 
             # Options
-            (
-              { config, ... }:
-              {
-                username = "jack";
-              }
-            )
+            {
+              username = "jack";
+            }
           ];
         };
 
@@ -218,7 +219,7 @@
 
       agenix-rekey = agenix-rekey.configure {
         userFlake = self;
-        nixosConfigurations = self.nixosConfigurations;
+        inherit (self) nixosConfigurations;
       };
     }
     // flake-utils.lib.eachDefaultSystem (
@@ -244,18 +245,39 @@
         };
       in
       {
+        checks = {
+          pre-commit-check = inputs.git-hooks.lib.${system}.run {
+            src = ./.;
+            hooks = {
+              nixfmt-rfc-style.enable = true;
+              statix.enable = true;
+              deadnix.enable = true;
+              gitleaks = {
+                enable = true;
+                name = "gitleaks";
+                # Use protect mode to only scan staged changes, not full history
+                entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged -v --config ${./gitleaks.toml}";
+              };
+            };
+          };
+        };
+
         formatter = nixfmt;
         devShell = pkgs.mkShell {
           packages = [
             nixfmt
             pkgs.agenix-rekey
+            pkgs.gitleaks
             (pkgs.writeShellScriptBin "un" (
               # Remove the shebang line since writeShellScriptBin adds its own
               builtins.replaceStrings [ "#!/usr/bin/env bash\n" ] [ "" ] (
                 builtins.readFile ./modules/common/scripts/scripts/un.sh
               )
             ))
-          ];
+          ]
+          ++ self.checks.${system}.pre-commit-check.enabledPackages;
+
+          inherit (self.checks.${system}.pre-commit-check) shellHook;
         };
       }
     );

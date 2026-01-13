@@ -1,7 +1,4 @@
 {
-  config,
-  lib,
-  pkgs,
   modulesPath,
   ...
 }:
@@ -23,9 +20,11 @@
   ######################################
   ## Networking
   ######################################
-  networking.hostName = "fullykubed-tower"; # Define your hostname.
-  networking.hostId = "925bf176";
-  networking.interfaces.enp75s0.useDHCP = true;
+  networking = {
+    hostName = "fullykubed-tower"; # Define your hostname.
+    hostId = "925bf176";
+    interfaces.enp75s0.useDHCP = true;
+  };
 
   ######################################
   ## Monitors
@@ -52,64 +51,56 @@
   ######################################
   ## Boot Settings
   ######################################
-  boot.zfs.requestEncryptionCredentials = [
-    "primary/nixos"
-  ];
-  # TODO: Re-evaluate this
-  boot.zfs.forceImportAll = false;
+  boot.zfs = {
+    requestEncryptionCredentials = [
+      "primary/nixos"
+    ];
+    # TODO: Re-evaluate this
+    forceImportAll = false;
+  };
 
   ######################################
   ## Filesystem
   ######################################
-  fileSystems."/" = {
-    device = "primary/nixos/root";
-    fsType = "zfs";
-  };
+  fileSystems = {
+    "/" = {
+      device = "primary/nixos/root";
+      fsType = "zfs";
+    };
 
-  fileSystems."/home" = {
-    device = "primary/nixos/home";
-    fsType = "zfs";
-  };
+    "/home" = {
+      device = "primary/nixos/home";
+      fsType = "zfs";
+    };
 
-  fileSystems."/nix/store" = {
-    device = "primary/nixos/nix-store";
-    fsType = "zfs";
-  };
+    "/nix/store" = {
+      device = "primary/nixos/nix-store";
+      fsType = "zfs";
+    };
 
-  fileSystems."/nix/var/nix/db" = {
-    device = "primary/nixos/nix-db";
-    fsType = "zfs";
-  };
+    "/nix/var/nix/db" = {
+      device = "primary/nixos/nix-db";
+      fsType = "zfs";
+    };
 
-  fileSystems."/tmp" = {
-    device = "primary/nixos/tmp";
-    fsType = "zfs";
-  };
+    "/tmp" = {
+      device = "primary/nixos/tmp";
+      fsType = "zfs";
+    };
 
-  #  fileSystems."${config.homeDir}/media" =
-  #    {
-  #      device = "secondary/encrypted/media";
-  #      fsType = "zfs";
-  #    };
+    # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
+    # us from booting.
+    "/boot" = {
+      device = "/dev/disk/by-uuid/3103-B6F3";
+      fsType = "vfat";
+      options = [ "nofail" ];
+    };
 
-  #  fileSystems."/nix/var/log" =
-  #    {
-  #      device = "secondary/encrypted/logs/nix";
-  #      fsType = "zfs";
-  #    };
-
-  # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
-  # us from booting.
-  fileSystems."/boot" = {
-    device = "/dev/disk/by-uuid/3103-B6F3";
-    fsType = "vfat";
-    options = [ "nofail" ];
-  };
-
-  fileSystems."/boot1" = {
-    device = "/dev/disk/by-uuid/3182-4B71";
-    fsType = "vfat";
-    options = [ "nofail" ];
+    "/boot1" = {
+      device = "/dev/disk/by-uuid/3182-4B71";
+      fsType = "vfat";
+      options = [ "nofail" ];
+    };
   };
 
   # Again, "nofail" as these are not critical

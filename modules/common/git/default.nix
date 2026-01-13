@@ -22,7 +22,9 @@ let
 
   aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
 
-  gitRebaseClaude = pkgs.writeShellScriptBin "git-rebase-claude" (builtins.readFile ./scripts/git-rebase-claude);
+  gitRebaseClaude = pkgs.writeShellScriptBin "git-rebase-claude" (
+    builtins.readFile ./scripts/git-rebase-claude
+  );
 
   allowedSignersFile = "git/allowed_signers";
   githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
@@ -74,154 +76,156 @@ in
       gitRebaseClaude # Rebase with Claude Code conflict resolution
     ];
 
-    programs.zsh.shellAliases = {
-      gc = "git-clone-for-worktree";
-      gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
-      grb = "git-rebase-claude"; # [G]it [R]e[B]ase via Claude Code
-    };
-
-    programs.difftastic = {
-      enable = true;
-      git.enable = true;
-    };
-
-    programs.git = {
-      enable = true;
-      lfs.enable = true;
-
-      ignores = [
-        ".claude/prds/" # Ignore Claude Code PRD files in all repos
-        ".claude/settings.local.json" # Ignore local Claude Code settings
-      ];
-
-      settings.aliases = {
-        fpush = "push --force-with-least"; # Safe version of force-push
-        lg = "log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
+    programs = {
+      zsh.shellAliases = {
+        gc = "git-clone-for-worktree";
+        gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
+        grb = "git-rebase-claude"; # [G]it [R]e[B]ase via Claude Code
       };
 
-      includes = [
-        # Default Settings
-        {
-          contents = {
+      difftastic = {
+        enable = true;
+        git.enable = true;
+      };
 
-            credential = {
-              helper = "${pkgs.git-credential-manager}/bin/git-credential-manager";
-              credentialStore = "secretservice";
-            };
+      git = {
+        enable = true;
+        lfs.enable = true;
 
-            core = {
-              # Prevent line endings issues
-              autocrlf = "input";
-              safecrlf = true;
-            };
+        ignores = [
+          ".claude/prds/" # Ignore Claude Code PRD files in all repos
+          ".claude/settings.local.json" # Ignore local Claude Code settings
+        ];
 
-            pull = {
-              rebase = true; # Only rebase on pulls
-            };
+        settings.aliases = {
+          fpush = "push --force-with-least"; # Safe version of force-push
+          lg = "log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
+        };
 
-            merge = {
-              conflictstyle = "zdiff3"; # Show the original code in conflicts
-            };
+        includes = [
+          # Default Settings
+          {
+            contents = {
 
-            commit = {
-              gpgsign = true;
-            };
+              credential = {
+                helper = "${pkgs.git-credential-manager}/bin/git-credential-manager";
+                credentialStore = "secretservice";
+              };
 
-            rebase = {
-              autosquash = true; # allows fixup commits
-              autostash = true; # automatically stash and pop on rebase
-              updateRefs = true; # for rebasing stacked branches
-            };
+              core = {
+                # Prevent line endings issues
+                autocrlf = "input";
+                safecrlf = true;
+              };
 
-            push = {
-              default = "current"; # automatically setup remote branches
-              followtags = true; # automatically push tags
-            };
+              pull = {
+                rebase = true; # Only rebase on pulls
+              };
 
-            remote = {
-              origin = {
-                tagopt = "--tags"; # Automatically fetch tags from remote
+              merge = {
+                conflictstyle = "zdiff3"; # Show the original code in conflicts
+              };
+
+              commit = {
+                gpgsign = true;
+              };
+
+              rebase = {
+                autosquash = true; # allows fixup commits
+                autostash = true; # automatically stash and pop on rebase
+                updateRefs = true; # for rebasing stacked branches
+              };
+
+              push = {
+                default = "current"; # automatically setup remote branches
+                followtags = true; # automatically push tags
+              };
+
+              remote = {
+                origin = {
+                  tagopt = "--tags"; # Automatically fetch tags from remote
+                };
+              };
+
+              rerere = {
+                enabled = true; # automatically resolve conflicts more intelligently
+              };
+
+              help = {
+                autocorrect = "prompt"; # automatically run fixed commands
+              };
+
+              diff = {
+                algorithm = "histogram"; # Better diffs on file reordering
+              };
+
+              init = {
+                defaultBranch = "main"; # align with Github conventions
+              };
+
+              log = {
+                date = "iso-local"; # Better date prints
+                showSignature = true; # Show git signatures
+              };
+
+              # Do some additional checks to prevent file corruption
+              transfer.fsckobjects = true;
+              fetch.fsckobjects = true;
+              receive.fsckObjects = true;
+
+              fetch = {
+
+                # Automatically remove branches and tags that have been
+                # remove upstream
+                prune = true;
+                prunetags = true;
+              };
+
+              gpg = {
+                format = "ssh"; # Use ssh signing
+                ssh = {
+                  allowedSignersFile = "~/.config/${allowedSignersFile}";
+                };
+              };
+
+              user = {
+                name = gitName;
+                email = githubEmail;
+                signingKey = "key::${githubPublicKey}";
+              };
+
+              column = {
+                ui = "auto"; # Will try to break long lists into columns
+              };
+
+              branch = {
+                sort = "-committerdate"; # Sort branches by when they were last updated
+              };
+
+              tag = {
+                sort = "taggerdate"; # Sort tags by the date when they were updated
               };
             };
+          }
 
-            rerere = {
-              enabled = true; # automatically resolve conflicts more intelligently
-            };
-
-            help = {
-              autocorrect = "prompt"; # automatically run fixed commands
-            };
-
-            diff = {
-              algorithm = "histogram"; # Better diffs on file reordering
-            };
-
-            init = {
-              defaultBranch = "main"; # align with Github conventions
-            };
-
-            log = {
-              date = "iso-local"; # Better date prints
-              showSignature = true; # Show git signatures
-            };
-
-            # Do some additional checks to prevent file corruption
-            transfer.fsckobjects = true;
-            fetch.fsckobjects = true;
-            receive.fsckObjects = true;
-
-            fetch = {
-
-              # Automatically remove branches and tags that have been
-              # remove upstream
-              prune = true;
-              prunetags = true;
-            };
-
-            gpg = {
-              format = "ssh"; # Use ssh signing
-              ssh = {
-                allowedSignersFile = "~/.config/${allowedSignersFile}";
+          ###########################################################
+          # Overrides for specific directories
+          ###########################################################
+          {
+            condition = "gitdir:${config.homeDir}/repos/panfactum/clients/hudsonts/";
+            contents = {
+              user = {
+                name = gitName;
+                email = githubHudsonEmail;
+                signingKey = "key::${githubHudsonPublicKey}";
+              };
+              core = {
+                sshCommand = "ssh -o IdentitiesOnly=yes -i ${getKeyPath "githubHudsonPublicKey"}";
               };
             };
-
-            user = {
-              name = gitName;
-              email = githubEmail;
-              signingKey = "key::${githubPublicKey}";
-            };
-
-            column = {
-              ui = "auto"; # Will try to break long lists into columns
-            };
-
-            branch = {
-              sort = "-committerdate"; # Sort branches by when they were last updated
-            };
-
-            tag = {
-              sort = "taggerdate"; # Sort tags by the date when they were updated
-            };
-          };
-        }
-
-        ###########################################################
-        # Overrides for specific directories
-        ###########################################################
-        {
-          condition = "gitdir:${config.homeDir}/repos/panfactum/clients/hudsonts/";
-          contents = {
-            user = {
-              name = gitName;
-              email = githubHudsonEmail;
-              signingKey = "key::${githubHudsonPublicKey}";
-            };
-            core = {
-              sshCommand = "ssh -o IdentitiesOnly=yes -i ${getKeyPath "githubHudsonPublicKey"}";
-            };
-          };
-        }
-      ];
+          }
+        ];
+      };
     };
   };
 }

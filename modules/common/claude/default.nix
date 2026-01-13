@@ -24,7 +24,7 @@
   # ===========================================================================
   config =
     let
-      versions = config.versions;
+      inherit (config) versions;
 
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
@@ -249,121 +249,125 @@
     in
     {
       home-manager.users.${config.username} = {
-        programs.zsh.shellAliases = {
-          cc = "claude --dangerously-skip-permissions";
-          q = "noglob _q";
-          qq = "noglob _qq";
-          qqq = "noglob _qqq";
+        programs.zsh = {
+          shellAliases = {
+            cc = "claude --dangerously-skip-permissions";
+            q = "noglob _q";
+            qq = "noglob _qq";
+            qqq = "noglob _qqq";
+          };
+
+          initContent = ''
+            _q() {
+              claude -p --dangerously-skip-permissions --model opus --tools "" --allowedTools "WebSearch" --system-prompt "You answer questions concisely for terminal output. Use WebSearch to find current information when needed. Format responses in markdown, keeping them under 50 lines. Be direct and factual. Include sources when citing specific facts." "$*" | glow
+            }
+
+            _qq() {
+              claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__get_code_context_exa" --system-prompt "You are a code assistant. Use the mcp__exa__get_code_context_exa tool to find relevant code examples, API documentation, and library usage patterns. Return concise, practical answers under 50 lines. Focus on working code examples. Format with markdown code blocks." "$*" | glow
+            }
+
+            _qqq() {
+              claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__deep_researcher_start,mcp__exa__deep_researcher_check" --system-prompt "You are a research assistant. Use mcp__exa__deep_researcher_start to begin research, then poll with mcp__exa__deep_researcher_check until complete. Synthesize findings into a concise summary under 80 lines. Include key citations. Format with markdown." "$*" | glow
+            }
+          '';
         };
 
-        programs.zsh.initContent = ''
-          _q() {
-            claude -p --dangerously-skip-permissions --model opus --tools "" --allowedTools "WebSearch" --system-prompt "You answer questions concisely for terminal output. Use WebSearch to find current information when needed. Format responses in markdown, keeping them under 50 lines. Be direct and factual. Include sources when citing specific facts." "$*" | glow
-          }
+        home.file = {
+          ".claude/skills" = {
+            source = ./skills;
+            recursive = true;
+          };
 
-          _qq() {
-            claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__get_code_context_exa" --system-prompt "You are a code assistant. Use the mcp__exa__get_code_context_exa tool to find relevant code examples, API documentation, and library usage patterns. Return concise, practical answers under 50 lines. Focus on working code examples. Format with markdown code blocks." "$*" | glow
-          }
+          ".claude/commands" = {
+            source = ./commands;
+            recursive = true;
+          };
 
-          _qqq() {
-            claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__deep_researcher_start,mcp__exa__deep_researcher_check" --system-prompt "You are a research assistant. Use mcp__exa__deep_researcher_start to begin research, then poll with mcp__exa__deep_researcher_check until complete. Synthesize findings into a concise summary under 80 lines. Include key citations. Format with markdown." "$*" | glow
-          }
-        '';
+          ".claude/specs" = {
+            source = ./specs;
+            recursive = true;
+          };
 
-        home.file.".claude/skills" = {
-          source = ./skills;
-          recursive = true;
-        };
+          ".claude/agents" = {
+            source = ./agents;
+            recursive = true;
+          };
 
-        home.file.".claude/commands" = {
-          source = ./commands;
-          recursive = true;
-        };
+          ".claude/settings.json" = {
+            force = true;
+            text = builtins.toJSON {
+              statusLine = {
+                type = "command";
+                command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
+                padding = 0;
+              };
+              spinnerTipsEnabled = false;
+              attribution = {
+                commit = "";
+                pr = "";
+              };
+              env = {
+                DISABLE_AUTOUPDATER = "1";
+                DISABLE_TELEMETRY = "1";
+                CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
+                CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
+                CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
+                DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
+                DISABLE_ERROR_REPORTING = "1";
+              };
+              hooks = {
+                Notification = [
+                  {
+                    matcher = "permission_prompt|elicitation_dialog";
+                    hooks = [
+                      {
+                        type = "command";
+                        command = "workmux set-window-status waiting";
+                      }
+                    ];
+                  }
+                ];
 
-        home.file.".claude/specs" = {
-          source = ./specs;
-          recursive = true;
-        };
+                Stop = [
+                  {
+                    matcher = ".*";
+                    hooks = [
+                      {
+                        type = "command";
+                        command = "workmux set-window-status done";
+                      }
+                    ];
+                  }
+                ];
 
-        home.file.".claude/agents" = {
-          source = ./agents;
-          recursive = true;
-        };
+                UserPromptSubmit = [
+                  {
+                    matcher = ".*";
+                    hooks = [
+                      {
+                        type = "command";
+                        command = "workmux set-window-status working";
+                      }
+                    ];
+                  }
+                ];
 
-        home.file.".claude/settings.json" = {
-          force = true;
-          text = builtins.toJSON {
-            statusLine = {
-              type = "command";
-              command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
-              padding = 0;
-            };
-            spinnerTipsEnabled = false;
-            attribution = {
-              commit = "";
-              pr = "";
-            };
-            env = {
-              DISABLE_AUTOUPDATER = "1";
-              DISABLE_TELEMETRY = "1";
-              CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
-              CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
-              CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
-              DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
-              DISABLE_ERROR_REPORTING = "1";
-            };
-            hooks = {
-              Notification = [
-                {
-                  matcher = "permission_prompt|elicitation_dialog";
-                  hooks = [
-                    {
-                      type = "command";
-                      command = "workmux set-window-status waiting";
-                    }
-                  ];
-                }
-              ];
-
-              Stop = [
-                {
-                  matcher = ".*";
-                  hooks = [
-                    {
-                      type = "command";
-                      command = "workmux set-window-status done";
-                    }
-                  ];
-                }
-              ];
-
-              UserPromptSubmit = [
-                {
-                  matcher = ".*";
-                  hooks = [
-                    {
-                      type = "command";
-                      command = "workmux set-window-status working";
-                    }
-                  ];
-                }
-              ];
-
-              PostToolUse = [
-                {
-                  matcher = "Edit|Write";
-                  hooks = [
-                    {
-                      type = "command";
-                      command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
-                    }
-                    {
-                      type = "command";
-                      command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
-                    }
-                  ];
-                }
-              ];
+                PostToolUse = [
+                  {
+                    matcher = "Edit|Write";
+                    hooks = [
+                      {
+                        type = "command";
+                        command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
+                      }
+                      {
+                        type = "command";
+                        command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
+                      }
+                    ];
+                  }
+                ];
+              };
             };
           };
         };

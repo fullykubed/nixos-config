@@ -67,8 +67,8 @@ in
     homeManagerIntegration.autoImport = false;
     polarity = "dark";
     base16Scheme = scheme;
-    fonts = fonts;
-    cursor = cursor;
+    inherit fonts;
+    inherit cursor;
 
   };
   home-manager.users.${config.username} = {
@@ -76,8 +76,8 @@ in
       enable = true;
       polarity = "dark";
       base16Scheme = scheme;
-      fonts = fonts;
-      cursor = cursor;
+      inherit fonts;
+      inherit cursor;
       targets = {
         tmux = {
           enable = false;

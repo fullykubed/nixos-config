@@ -1,12 +1,6 @@
 # Thunar is a GUI file manager that is Wayland compatible
 
-{
-  config,
-  pkgs,
-  lib,
-  ...
-}:
-{
+_: {
 
   imports = [
     ./thunar.nix

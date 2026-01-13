@@ -1,5 +1,4 @@
-{ config, pkgs, ... }:
-{
+_: {
 
   nix = {
     # Configure automatic package garbage collection
@@ -22,28 +21,30 @@
     };
   };
 
-  # Add WakeSystem to the auto-generated nix-gc timer
-  systemd.timers.nix-gc.timerConfig.WakeSystem = true;
+  systemd = {
+    # Add WakeSystem to the auto-generated nix-gc timer
+    timers.nix-gc.timerConfig.WakeSystem = true;
 
-  # Nix store optimization service
-  systemd.services.nix-store-optimise = {
-    description = "Nix Store Optimization";
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "/run/current-system/sw/bin/nix-store --optimise";
-      CPUSchedulingPolicy = "idle";
-      IOSchedulingClass = "idle";
+    # Nix store optimization service
+    services.nix-store-optimise = {
+      description = "Nix Store Optimization";
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "/run/current-system/sw/bin/nix-store --optimise";
+        CPUSchedulingPolicy = "idle";
+        IOSchedulingClass = "idle";
+      };
     };
-  };
 
-  # Timer for nix-store-optimise that runs after GC
-  systemd.timers.nix-store-optimise = {
-    description = "Nix Store Optimization Timer";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "*-*-* 00:15:00"; # 15 minutes after midnight (after GC)
-      Persistent = true;
-      WakeSystem = true;
+    # Timer for nix-store-optimise that runs after GC
+    timers.nix-store-optimise = {
+      description = "Nix Store Optimization Timer";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnCalendar = "*-*-* 00:15:00"; # 15 minutes after midnight (after GC)
+        Persistent = true;
+        WakeSystem = true;
+      };
     };
   };
 }

@@ -1,28 +1,22 @@
 {
   config,
-  pkgs,
   lib,
   ...
 }:
 {
-  options.username =
-    with lib;
-    mkOption {
+  options = with lib; {
+    username = mkOption {
       type = types.str;
       description = "The primary user's username on the system.";
     };
 
-  options.homeDir =
-    with lib;
-    mkOption {
+    homeDir = mkOption {
       default = "/home/${config.username}";
       type = types.str;
       description = "The primary user's username on the system.";
     };
 
-  options.monitors =
-    with lib;
-    mkOption {
+    monitors = mkOption {
       default = { };
       type = types.attrsOf (
         types.submodule {
@@ -49,4 +43,5 @@
       );
       description = "Monitor configuration where keys are output names and values contain mode, position, and number.";
     };
+  };
 }

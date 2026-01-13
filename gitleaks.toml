@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow known false positives"
+regexes = [
+  # Public DNSCrypt minisign verification key (not a secret)
+  "minisign_key"
+]

@@ -20,50 +20,50 @@ in
     home.file.".mozilla/native-messaging-hosts/tridactyl.json".source =
       "${pkgs.tridactyl-native}/lib/mozilla/native-messaging-hosts/tridactyl.json";
 
-    xdg.configFile."tridactyl/tridactylrc".text = ''
-      " Tridactyl configuration file
+    xdg = {
+      configFile."tridactyl/tridactylrc".text = ''
+        " Tridactyl configuration file
 
-      " Clear existing configuration
-      sanitise tridactyllocal tridactylsync
+        " Clear existing configuration
+        sanitise tridactyllocal tridactylsync
 
-      " Use vim-style navigation
-      bind j scrollline 5
-      bind k scrollline -5
-      bind h scrollpx -50
-      bind l scrollpx 50
+        " Use vim-style navigation
+        bind j scrollline 5
+        bind k scrollline -5
+        bind h scrollpx -50
+        bind l scrollpx 50
 
-      " Tab management
-      bind J tabnext
-      bind K tabprev
-      bind x tabclose
-      bind u undo
+        " Tab management
+        bind J tabnext
+        bind K tabprev
+        bind x tabclose
+        bind u undo
 
-      " Ctrl-F should user the browser's native find
-      unbind <C-f>
+        " Ctrl-F should user the browser's native find
+        unbind <C-f>
 
-      " Opening pages
-      bind O fillcmdline bmarks
+        " Opening pages
+        bind O fillcmdline bmarks
 
-      " Cmdline navigation
-      bind --mode=ex <C-j> ex.next_completion
-      bind --mode=ex <C-k> ex.prev_completion
+        " Cmdline navigation
+        bind --mode=ex <C-j> ex.next_completion
+        bind --mode=ex <C-k> ex.prev_completion
 
-      " Search
-      bind / fillcmdline find
-      bind ? noh " Clears the search
-      bind n findnext 1
-      bind N findnext -1
+        " Search
+        bind / fillcmdline find
+        bind ? noh " Clears the search
+        bind n findnext 1
+        bind N findnext -1
 
-      " Misc settings
-      set smoothscroll true
-      set completionfuzziness 1
+        " Misc settings
+        set smoothscroll true
+        set completionfuzziness 1
 
-      " Use external editor
-      set editorcmd nvim
-    '';
+        " Use external editor
+        set editorcmd nvim
+      '';
 
-    xdg.mimeApps = {
-      defaultApplications = {
+      mimeApps.defaultApplications = {
         "x-scheme-handler/http" = [ "firefox.desktop" ];
         "x-scheme-handler/https" = [ "firefox.desktop" ];
         "x-scheme-handler/chrome" = [ "firefox.desktop" ];
@@ -75,20 +75,20 @@ in
         "application/x-extension-xhtml" = [ "firefox.desktop" ];
         "application/x-extension-xht" = [ "firefox.desktop" ];
       };
-    };
 
-    xdg.desktopEntries = {
-      firefox = {
-        name = "Firefox";
-        comment = "Firefox";
-        exec = "${firefox-fhs}/bin/firefox";
-        type = "Application";
-      };
-      chrome = {
-        name = "Chrome";
-        comment = "Chrome";
-        exec = "${pkgs.chromium}/bin/chromium";
-        type = "Application";
+      desktopEntries = {
+        firefox = {
+          name = "Firefox";
+          comment = "Firefox";
+          exec = "${firefox-fhs}/bin/firefox";
+          type = "Application";
+        };
+        chrome = {
+          name = "Chrome";
+          comment = "Chrome";
+          exec = "${pkgs.chromium}/bin/chromium";
+          type = "Application";
+        };
       };
     };
   };

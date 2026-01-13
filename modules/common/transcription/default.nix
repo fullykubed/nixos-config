@@ -28,7 +28,7 @@
   # ===========================================================================
   config =
     let
-      versions = config.versions;
+      inherit (config) versions;
 
       voxtype = pkgs.rustPlatform.buildRustPackage {
         pname = "voxtype";

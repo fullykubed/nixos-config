@@ -1,6 +1,6 @@
 {
   buildSecureServiceConfig =
-    overrides@{ ... }:
+    overrides:
     {
       DynamicUser = true;
       NoNewPrivileges = "yes";

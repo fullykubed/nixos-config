@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 let
   shotcut = pkgs.symlinkJoin {
     name = "shotcut";

@@ -28,7 +28,7 @@
   # ===========================================================================
   config =
     let
-      versions = config.versions;
+      inherit (config) versions;
 
       lazyworktree = pkgs.buildGoModule {
         pname = "lazyworktree";

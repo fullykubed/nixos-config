@@ -1,5 +1,4 @@
-{ config, pkgs, ... }:
-{
+_: {
   services.openssh = {
     enable = true;
     openFirewall = false;

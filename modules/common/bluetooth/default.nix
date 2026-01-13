@@ -3,7 +3,7 @@
 ## See https://nixos.wiki/wiki/Bluetooth
 ################################
 
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
 
   hardware.bluetooth = {

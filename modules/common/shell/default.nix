@@ -17,72 +17,6 @@
   ];
 
   home-manager.users.${config.username} = {
-
-    ################################
-    ##  Wezterm Terminal Configuration
-    ################################
-    programs.wezterm = {
-      enable = true;
-      enableZshIntegration = true;
-      extraConfig = ''
-        local wezterm = require("wezterm")
-        return {
-          default_prog = { "${pkgs.zsh}/bin/zsh" },
-          enable_tab_bar = false,
-          enable_wayland = true,
-          warn_about_missing_glyphs = false,
-          -- Disable Alt+Enter fullscreen toggle so it passes through to tmux for popup
-          keys = {
-            {
-              key = "Enter",
-              mods = "ALT",
-              action = wezterm.action.DisableDefaultAssignment,
-            },
-          },
-        }
-      '';
-    };
-
-    ################################
-    ##  Startup - Terminal Formatting
-    ################################
-    programs.starship = {
-      enable = true;
-      enableBashIntegration = true;
-      enableZshIntegration = true;
-      settings = {
-        format = "$username$hostname$directory$git_branch$git_state$git_status$cmd_duration$line_break$character";
-        directory = {
-          style = "bold 33";
-        };
-        character = {
-          success_symbol = "[❯](purple)";
-          error_symbol = "[❯](red)";
-        };
-        git_branch = {
-          format = "[$branch]($style)";
-          style = "34";
-        };
-        git_status = {
-          format = "[[(:$conflicted$untracked$modified$staged$renamed$deleted)](#cbffbe) ($ahead_behind$stashed)]($style)";
-          conflicted = "X";
-          untracked = "U";
-          modified = "M";
-          staged = "S";
-          renamed = "R";
-          deleted = "D";
-          stashed = "^";
-        };
-        git_state = {
-          format = "([$state( $progress_current/$progress_total)]($style)) ";
-          style = "bright-black";
-        };
-        cmd_duration = {
-          format = "[$duration]($style) ";
-          style = "white";
-        };
-      };
-    };
     ####################################
     ## Aliases
     ####################################
@@ -130,52 +64,6 @@
     };
 
     ####################################
-    ## Shell History - Atuin
-    ####################################
-    programs.atuin = {
-      enable = true;
-      daemon.enable = true;
-      enableBashIntegration = true;
-      enableZshIntegration = true;
-      flags = [
-        "--disable-up-arrow"
-      ];
-      settings = {
-        enter_accept = true;
-        workspaces = true;
-        update_check = false;
-        auto_sync = false;
-      };
-    };
-
-    ####################################
-    ## Autojump - Zoxide
-    ####################################
-    programs.zoxide = {
-      enable = true;
-      enableBashIntegration = true;
-      enableZshIntegration = true;
-    };
-
-    ####################################
-    ## Fuzzy Finder - FZF
-    ####################################
-    programs.fzf = {
-      enable = true;
-      enableBashIntegration = true;
-      enableZshIntegration = true;
-    };
-
-    ####################################
-    ## Better ls - Eza
-    ####################################
-    programs.eza = {
-      enable = true;
-      enableBashIntegration = true;
-      enableZshIntegration = true;
-    };
-
-    ####################################
     ## GPG Agent
     ####################################
     services.gpg-agent = {
@@ -185,33 +73,147 @@
       pinentry.package = pkgs.pinentry-gnome3;
     };
 
-    ####################################
-    ## Bash Config
-    ####################################
-    programs.bash = {
-      enable = true;
-    };
-
-    ####################################
-    ## Zsh Config
-    ####################################
-    programs.zsh = {
-      enable = true;
-      autosuggestion.enable = true;
-      syntaxHighlighting.enable = true;
-      oh-my-zsh = {
+    programs = {
+      ################################
+      ##  Wezterm Terminal Configuration
+      ################################
+      wezterm = {
         enable = true;
-        plugins = [
-          "alias-finder"
-          "colored-man-pages"
-          "fancy-ctrl-z"
-        ];
+        enableZshIntegration = true;
+        extraConfig = ''
+          local wezterm = require("wezterm")
+          return {
+            default_prog = { "${pkgs.zsh}/bin/zsh" },
+            enable_tab_bar = false,
+            enable_wayland = true,
+            warn_about_missing_glyphs = false,
+            -- Disable Alt+Enter fullscreen toggle so it passes through to tmux for popup
+            keys = {
+              {
+                key = "Enter",
+                mods = "ALT",
+                action = wezterm.action.DisableDefaultAssignment,
+              },
+            },
+          }
+        '';
       };
-    };
 
-    ####################################
-    ## Command Not Found
-    ####################################
-    programs.command-not-found.enable = true;
+      ################################
+      ##  Startup - Terminal Formatting
+      ################################
+      starship = {
+        enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+        settings = {
+          format = "$username$hostname$directory$git_branch$git_state$git_status$cmd_duration$line_break$character";
+          directory = {
+            style = "bold 33";
+          };
+          character = {
+            success_symbol = "[❯](purple)";
+            error_symbol = "[❯](red)";
+          };
+          git_branch = {
+            format = "[$branch]($style)";
+            style = "34";
+          };
+          git_status = {
+            format = "[[(:$conflicted$untracked$modified$staged$renamed$deleted)](#cbffbe) ($ahead_behind$stashed)]($style)";
+            conflicted = "X";
+            untracked = "U";
+            modified = "M";
+            staged = "S";
+            renamed = "R";
+            deleted = "D";
+            stashed = "^";
+          };
+          git_state = {
+            format = "([$state( $progress_current/$progress_total)]($style)) ";
+            style = "bright-black";
+          };
+          cmd_duration = {
+            format = "[$duration]($style) ";
+            style = "white";
+          };
+        };
+      };
+
+      ####################################
+      ## Shell History - Atuin
+      ####################################
+      atuin = {
+        enable = true;
+        daemon.enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+        flags = [
+          "--disable-up-arrow"
+        ];
+        settings = {
+          enter_accept = true;
+          workspaces = true;
+          update_check = false;
+          auto_sync = false;
+        };
+      };
+
+      ####################################
+      ## Autojump - Zoxide
+      ####################################
+      zoxide = {
+        enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+      };
+
+      ####################################
+      ## Fuzzy Finder - FZF
+      ####################################
+      fzf = {
+        enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+      };
+
+      ####################################
+      ## Better ls - Eza
+      ####################################
+      eza = {
+        enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+      };
+
+      ####################################
+      ## Bash Config
+      ####################################
+      bash = {
+        enable = true;
+      };
+
+      ####################################
+      ## Zsh Config
+      ####################################
+      zsh = {
+        enable = true;
+        autosuggestion.enable = true;
+        syntaxHighlighting.enable = true;
+        oh-my-zsh = {
+          enable = true;
+          plugins = [
+            "alias-finder"
+            "colored-man-pages"
+            "fancy-ctrl-z"
+          ];
+        };
+      };
+
+      ####################################
+      ## Command Not Found
+      ####################################
+      command-not-found.enable = true;
+    };
   };
 }

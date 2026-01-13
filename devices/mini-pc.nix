@@ -1,7 +1,4 @@
 {
-  config,
-  lib,
-  pkgs,
   modulesPath,
   ...
 }:
@@ -21,9 +18,11 @@
   ######################################
   ## Networking
   ######################################
-  networking.hostName = "fullykubed-mini-pc"; # Define your hostname.
-  networking.hostId = "925bf177";
-  networking.interfaces.enp87s0.useDHCP = true;
+  networking = {
+    hostName = "fullykubed-mini-pc"; # Define your hostname.
+    hostId = "925bf177";
+    interfaces.enp87s0.useDHCP = true;
+  };
 
   ######################################
   ## Monitors
@@ -50,52 +49,56 @@
   ######################################
   ## Boot Settings
   ######################################
-  boot.zfs.requestEncryptionCredentials = [
-    "rpool"
-  ];
-  # TODO: Re-evaluate this
-  boot.zfs.forceImportAll = false;
+  boot.zfs = {
+    requestEncryptionCredentials = [
+      "rpool"
+    ];
+    # TODO: Re-evaluate this
+    forceImportAll = false;
+  };
 
   ######################################
   ## Filesystem
   ######################################
-  fileSystems."/" = {
-    device = "rpool/root";
-    fsType = "zfs";
-  };
+  fileSystems = {
+    "/" = {
+      device = "rpool/root";
+      fsType = "zfs";
+    };
 
-  fileSystems."/home" = {
-    device = "rpool/home";
-    fsType = "zfs";
-  };
+    "/home" = {
+      device = "rpool/home";
+      fsType = "zfs";
+    };
 
-  fileSystems."/nix" = {
-    device = "rpool/nix";
-    fsType = "zfs";
-  };
+    "/nix" = {
+      device = "rpool/nix";
+      fsType = "zfs";
+    };
 
-  fileSystems."/var/log" = {
-    device = "rpool/var/log";
-    fsType = "zfs";
-  };
+    "/var/log" = {
+      device = "rpool/var/log";
+      fsType = "zfs";
+    };
 
-  fileSystems."/tmp" = {
-    device = "rpool/tmp";
-    fsType = "zfs";
-  };
+    "/tmp" = {
+      device = "rpool/tmp";
+      fsType = "zfs";
+    };
 
-  # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
-  # us from booting.
-  fileSystems."/boot1" = {
-    device = "/dev/disk/by-label/EFI_A";
-    fsType = "vfat";
-    options = [ "nofail" ];
-  };
+    # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
+    # us from booting.
+    "/boot1" = {
+      device = "/dev/disk/by-label/EFI_A";
+      fsType = "vfat";
+      options = [ "nofail" ];
+    };
 
-  fileSystems."/boot2" = {
-    device = "/dev/disk/by-label/EFI_B";
-    fsType = "vfat";
-    options = [ "nofail" ];
+    "/boot2" = {
+      device = "/dev/disk/by-label/EFI_B";
+      fsType = "vfat";
+      options = [ "nofail" ];
+    };
   };
 
   ######################################

@@ -54,8 +54,19 @@ let
   '';
 in
 {
-  boot.zfs = {
-    package = pkgs.zfs_2_4;
+  boot = {
+    zfs.package = pkgs.zfs_2_4;
+    kernelParams = [
+      "nohibernate" # With ZFS we cannot hibernate (also poses a security issue due to RAM persistence)
+      "zfs.zfs_max_recordsize=16777216" # Allow large 16M record sizes
+      "zfs.zfs_dirty_data_max_percent=50" # Allows 50% of RAM to be consumed by writes before throttling
+      "zfs.zfs_dirty_data_sync=1073741824" # Allows 1GiB of data to accumulate before forcing a disk sync more often than 5 sec interval
+    ];
+    extraModprobeConfig = ''
+      options zfs l2arc_rebuild_enabled=1 l2arc_headroom=0 l2arc_write_max=${
+        builtins.toString (100 * 1024 * 1024)
+      } l2arc_write_boost=${builtins.toString (1024 * 1024 * 1024)} l2arc_noprefetch=0
+    '';
   };
 
   # ZFS support for podman
@@ -63,20 +74,10 @@ in
     extraPackages = [ config.boot.zfs.package ];
   };
 
-  boot.kernelParams = [
-    "nohibernate" # With ZFS we cannot hibernate (also poses a security issue due to RAM persistence)
-    "zfs.zfs_max_recordsize=16777216" # Allow large 16M record sizes
-    "zfs.zfs_dirty_data_max_percent=50" # Allows 50% of RAM to be consumed by writes before throttling
-    "zfs.zfs_dirty_data_sync=1073741824" # Allows 1GiB of data to accumulate before forcing a disk sync more often than 5 sec interval
-  ];
-
-  services.zfs.autoScrub.enable = true;
-  services.zfs.trim.enable = true;
-  boot.extraModprobeConfig = ''
-    options zfs l2arc_rebuild_enabled=1 l2arc_headroom=0 l2arc_write_max=${
-      builtins.toString (100 * 1024 * 1024)
-    } l2arc_write_boost=${builtins.toString (1024 * 1024 * 1024)} l2arc_noprefetch=0
-  '';
+  services.zfs = {
+    autoScrub.enable = true;
+    trim.enable = true;
+  };
 
   age = {
     secrets = {
@@ -90,10 +91,8 @@ in
   };
 
   # Disk notifications
-  services.zfs.zed = {
-    settings = {
-      ZED_PUSHOVER_USER = pushover-user;
-    };
+  services.zfs.zed.settings = {
+    ZED_PUSHOVER_USER = pushover-user;
   };
 
   # Override the zed-functions.sh to source our secret

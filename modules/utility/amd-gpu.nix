@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 {
   services.xserver.videoDrivers = [ "amdgpu" ];
   programs.corectrl.enable = true;

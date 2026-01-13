@@ -1,4 +1,3 @@
-{ config, ... }:
-{
+_: {
   services.printing.enable = true;
 }

@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, ... }:
 {
   # Variables that enable Wayland compatibility in various tools
   environment.sessionVariables = {

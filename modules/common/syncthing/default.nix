@@ -27,7 +27,7 @@ in
     overrideDevices = true;
     overrideFolders = true;
     settings = {
-      devices = devices;
+      inherit devices;
       folders = {
         "keepass" = {
           id = "keepass";

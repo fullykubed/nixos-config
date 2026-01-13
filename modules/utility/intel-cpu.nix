@@ -1,5 +1,4 @@
-{ config, ... }:
-{
+_: {
   boot.kernelModules = [ "kvm-intel" ];
   hardware.cpu.intel.updateMicrocode = true;
 }

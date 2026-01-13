@@ -1,5 +1,4 @@
 {
-  config,
   pkgs,
   lib,
   ...
@@ -64,7 +63,7 @@ let
 
   buildSyncoidCommand =
     { source, backup }:
-    lib.escapeShellArgs ([
+    lib.escapeShellArgs [
       "${pkgs.sanoid}/bin/syncoid"
       ''--sendoptions="Rw"'' # send raw and recursive
       ''--recvoptions="u"'' # do not mount
@@ -74,12 +73,11 @@ let
       "--quiet"
       source
       backup
-    ]);
+    ];
 
   # Common configuration between sanoid and syncoid
   buildServiceConfig =
-    user:
-    overrides@{ ... }:
+    user: overrides:
     systemdUtil.buildSecureServiceConfig {
       Type = "oneshot";
       User = user;
@@ -115,26 +113,22 @@ in
       TZ = "UTC";
     };
     serviceConfig = buildServiceConfig "sanoid" {
-      ExecStartPre = (
-        map (buildZFSAllowCommand "sanoid" "allow" [
-          "snapshot"
-          "mount"
-          "destroy"
-        ]) datasetList
-      );
-      ExecStart = lib.escapeShellArgs ([
+      ExecStartPre = map (buildZFSAllowCommand "sanoid" "allow" [
+        "snapshot"
+        "mount"
+        "destroy"
+      ]) datasetList;
+      ExecStart = lib.escapeShellArgs [
         "${pkgs.sanoid}/bin/sanoid"
         "--cron"
         "--configdir"
         (pkgs.writeTextDir "sanoid.conf" sanoidCfg)
-      ]);
-      ExecStopPost = (
-        map (buildZFSAllowCommand "sanoid" "unallow" [
-          "snapshot"
-          "mount"
-          "destroy"
-        ]) datasetList
-      );
+      ];
+      ExecStopPost = map (buildZFSAllowCommand "sanoid" "unallow" [
+        "snapshot"
+        "mount"
+        "destroy"
+      ]) datasetList;
     };
   };
 

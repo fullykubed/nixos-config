@@ -1,6 +1,5 @@
 {
   config,
-  pkgs,
   lib,
   ...
 }:
@@ -24,12 +23,12 @@
   # ===========================================================================
   config =
     let
-      versions = config.versions;
+      inherit (config) versions;
     in
     {
       nixpkgs.overlays = [
-        (final: prev: {
-          brscan5 = prev.brscan5.overrideAttrs (old: {
+        (_: prev: {
+          brscan5 = prev.brscan5.overrideAttrs (_: {
             version = versions.brscan5;
             src = prev.fetchurl {
               url = "https://download.brother.com/welcome/dlf104033/brscan5-${versions.brscan5}.amd64.deb";
@@ -44,8 +43,12 @@
         brscan5.enable = true;
       };
 
-      services.saned.enable = true;
-      services.avahi.enable = true;
-      services.avahi.nssmdns4 = true;
+      services = {
+        saned.enable = true;
+        avahi = {
+          enable = true;
+          nssmdns4 = true;
+        };
+      };
     };
 }

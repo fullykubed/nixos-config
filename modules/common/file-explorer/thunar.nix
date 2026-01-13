@@ -3,7 +3,6 @@
 {
   config,
   pkgs,
-  lib,
   ...
 }:
 {
@@ -38,17 +37,19 @@
     };
   };
 
-  # Used by Thunar for mounting file systems
-  # See https://wiki.gnome.org/Projects/gvfs
-  services.gvfs.enable = true;
+  services = {
+    # Used by Thunar for mounting file systems
+    # See https://wiki.gnome.org/Projects/gvfs
+    gvfs.enable = true;
 
-  # Thumbnail support for images
-  services.tumbler.enable = true;
+    # Thumbnail support for images
+    tumbler.enable = true;
 
-  services.udev.extraRules = ''
-    # Don't show our ZFS devices
-    ENV{ID_SERIAL_SHORT}=="03F10797044452198042", ENV{UDISKS_IGNORE}="1"
-    ENV{ID_SERIAL_SHORT}=="03F10797044452198087", ENV{UDISKS_IGNORE}="1"
-    ENV{ID_SERIAL_SHORT}=="PHOC311302VJ118B", ENV{UDISKS_IGNORE}="1"
-  '';
+    udev.extraRules = ''
+      # Don't show our ZFS devices
+      ENV{ID_SERIAL_SHORT}=="03F10797044452198042", ENV{UDISKS_IGNORE}="1"
+      ENV{ID_SERIAL_SHORT}=="03F10797044452198087", ENV{UDISKS_IGNORE}="1"
+      ENV{ID_SERIAL_SHORT}=="PHOC311302VJ118B", ENV{UDISKS_IGNORE}="1"
+    '';
+  };
 }

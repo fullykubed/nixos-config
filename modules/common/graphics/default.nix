@@ -1,5 +1,4 @@
-{ config, ... }:
-{
+_: {
   # Enable open gl
   hardware.graphics = {
     enable = true;

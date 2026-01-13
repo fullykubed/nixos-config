@@ -6,43 +6,45 @@ let
   '';
 in
 {
-  security.auditd.enable = true; # Enable linux auditing
-  security.polkit.enable = true;
+  security = {
+    auditd.enable = true; # Enable linux auditing
+    polkit.enable = true;
 
-  # Disable sudo and use doas instead
-  security.sudo.enable = false;
+    # Disable sudo and use doas instead
+    sudo.enable = false;
 
-  # Configure doas
-  security.doas = {
-    enable = true;
-    extraRules = [
-      {
-        users = [ config.username ];
-        persist = true; # Keep authentication for 5 minutes by default
-        keepEnv = true; # Preserve environment variables
-      }
-    ];
-  };
+    # Configure doas
+    doas = {
+      enable = true;
+      extraRules = [
+        {
+          users = [ config.username ];
+          persist = true; # Keep authentication for 5 minutes by default
+          keepEnv = true; # Preserve environment variables
+        }
+      ];
+    };
 
-  # Configure PAM to use Yubikey U2F for doas
-  security.pam.services.doas = {
-    u2fAuth = true;
-  };
+    # Configure PAM to use Yubikey U2F for doas
+    pam.services.doas = {
+      u2fAuth = true;
+    };
 
-  # Enable U2F authentication
-  security.pam.u2f = {
-    enable = true;
-    control = "sufficient"; # Allow password OR yubikey (use "required" to mandate yubikey)
-    settings = {
-      cue = true; # Prompt to touch the key
-      origin = "pam://nixos"; # Makes the key independent of the hardware
-      authfile = pkgs.writeText "u2f-mappings" (
-        pkgs.lib.concatStrings [
-          config.username
-          ":tGvO5XWn+Ytz49zkZITTo9YWpFzO6XnZk3X5AuyDbJ5mo2w/0lv5d7Q/dRYYv+WEU8sGma90mClHnAYysNjkTQ==,jBm2zt1lSIF68gFdk/T6li5kGAxsZR4UHFJAqS3fQwKPOuqYt+iFGcGBV078iVj6O3GA0XpdI76N/nSAqvsZNA==,es256,+presence"
-          ":1wsJRGnmP+8OvTlo+EZ+iPMGrWoFNU1pHGKaIshrWAvMoqkgy2nhOK/M/SCWeN068/ylCMLvyRiMfhzorQkwig==,VQlRxN/YmuwQ/brZyeRmJW+vWQLc+YajVOu68KGikGyBx+nB9e4X0FwxmZ5lZ87VF+iysDu4/UTf41OnRzDdog==,es256,+presence"
-        ]
-      );
+    # Enable U2F authentication
+    pam.u2f = {
+      enable = true;
+      control = "sufficient"; # Allow password OR yubikey (use "required" to mandate yubikey)
+      settings = {
+        cue = true; # Prompt to touch the key
+        origin = "pam://nixos"; # Makes the key independent of the hardware
+        authfile = pkgs.writeText "u2f-mappings" (
+          pkgs.lib.concatStrings [
+            config.username
+            ":tGvO5XWn+Ytz49zkZITTo9YWpFzO6XnZk3X5AuyDbJ5mo2w/0lv5d7Q/dRYYv+WEU8sGma90mClHnAYysNjkTQ==,jBm2zt1lSIF68gFdk/T6li5kGAxsZR4UHFJAqS3fQwKPOuqYt+iFGcGBV078iVj6O3GA0XpdI76N/nSAqvsZNA==,es256,+presence"
+            ":1wsJRGnmP+8OvTlo+EZ+iPMGrWoFNU1pHGKaIshrWAvMoqkgy2nhOK/M/SCWeN068/ylCMLvyRiMfhzorQkwig==,VQlRxN/YmuwQ/brZyeRmJW+vWQLc+YajVOu68KGikGyBx+nB9e4X0FwxmZ5lZ87VF+iysDu4/UTf41OnRzDdog==,es256,+presence"
+          ]
+        );
+      };
     };
   };
 
