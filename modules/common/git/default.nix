@@ -79,6 +79,7 @@ in
     programs = {
       zsh.shellAliases = {
         gc = "git-clone-for-worktree";
+        gca = "ai-commit"; # [G]it [C]ommit [A]I
         gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
         grb = "git-rebase-claude"; # [G]it [R]e[B]ase via Claude Code
       };

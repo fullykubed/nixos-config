@@ -46,12 +46,40 @@ if [[ $diff_size -gt $MAX_DIFF_SIZE ]]; then
 
 $diff_summary
 
-[Truncated diff - first 10000 chars]
-${diff:0:10000}..."
+[Truncated diff - first $MAX_DIFF_SIZE chars]
+${diff:0:$MAX_DIFF_SIZE}..."
 fi
 
-# Construct prompt and call Claude
-prompt="Rewrite the following git commit message to improve it.
+# JSON schema for validation
+json_schema='{
+  "type": "object",
+  "required": ["type", "description"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["feat", "fix", "chore", "docs", "refactor", "test", "style", "perf", "build", "ci"]
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 20
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "body": {
+      "type": "string",
+      "minLength": 10,
+      "pattern": "^[^\\u0060].*[^\\u0060]$"
+    }
+  },
+  "additionalProperties": false
+}'
+
+# System prompt with instructions
+system_prompt="Rewrite the provided git commit message to improve it.
+
+Audience: Other engineers who will review this commit and care about why the changes were made, not just what changed.
 
 You are given:
 1. The existing commit message
@@ -61,14 +89,28 @@ Requirements:
 - Analyze the diff to understand what changes were made
 - Review the existing message to understand the original intent
 - Generate an improved conventional commit message
-- Use conventional commit format (feat:, fix:, chore:, docs:, refactor:, test:, style:, perf:, build:, ci:)
 - Fix any formatting issues, typos, or unclear wording
-- Keep the subject line under 72 characters
-- Add a body if the changes are complex (separated by a blank line)
+- Keep the description concise (under 60 characters)
+- Add a body if the changes are complex to explain the \"why\"
 - Focus on the \"why\" not just the \"what\"
-- Output ONLY the commit message, no explanations or markdown formatting
 
-Existing commit message:
+Output Format:
+Return ONLY valid JSON matching this schema (no markdown, no code blocks):
+{
+  \"type\": \"feat|fix|chore|docs|refactor|test|style|perf|build|ci\",
+  \"scope\": \"optional scope\",
+  \"description\": \"short description without type prefix\",
+  \"body\": \"optional longer explanation\"
+}
+
+Examples:
+
+{\"type\": \"feat\", \"scope\": \"auth\", \"description\": \"add OAuth2 login support\", \"body\": \"Integrate Google OAuth2 for user authentication to reduce friction during signup and improve security by eliminating password storage.\"}
+
+{\"type\": \"fix\", \"scope\": \"api\", \"description\": \"prevent race condition in cache invalidation\", \"body\": \"Multiple concurrent requests could read stale data when the cache was being refreshed. Add mutex lock around cache updates.\"}"
+
+# User prompt with existing message and diff
+user_prompt="Existing commit message:
 $existing_msg
 
 Diff:
@@ -76,10 +118,37 @@ $diff"
 
 echo "Generating improved commit message with Claude..."
 
-# Call claude with sonnet model and capture result
-if ! commit_msg=$(claude -p "$prompt" --model sonnet 2>/dev/null); then
+# Call claude with sonnet model (no tools/MCP for simple prompt mode)
+if ! claude_response=$(claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
     echo "Error: Failed to generate commit message" >&2
+    echo "Claude response: $claude_response" >&2
     exit 1
+fi
+
+# Validate JSON and extract fields
+if ! echo "$claude_response" | jq empty 2>/dev/null; then
+    echo "Error: Claude returned invalid JSON" >&2
+    echo "Response: $claude_response" >&2
+    exit 1
+fi
+
+# Extract from structured_output field (Claude wraps result in metadata)
+commit_type=$(echo "$claude_response" | jq -r '.structured_output.type')
+commit_scope=$(echo "$claude_response" | jq -r '.structured_output.scope // empty')
+commit_desc=$(echo "$claude_response" | jq -r '.structured_output.description')
+commit_body=$(echo "$claude_response" | jq -r '.structured_output.body // empty')
+
+# Construct the commit message
+if [[ -n "$commit_scope" ]]; then
+    commit_msg="${commit_type}(${commit_scope}): ${commit_desc}"
+else
+    commit_msg="${commit_type}: ${commit_desc}"
+fi
+
+if [[ -n "$commit_body" ]]; then
+    commit_msg="${commit_msg}
+
+${commit_body}"
 fi
 
 # Write message to temp file
