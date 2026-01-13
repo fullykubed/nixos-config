@@ -61,6 +61,7 @@
     ./modules/common/passwords
     ./modules/common/image-editor
     ./modules/common/transcription
+    ./modules/common/imagemagick
 
     # Our segemented modules
     ./backups/default.nix

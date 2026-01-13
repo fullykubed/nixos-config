@@ -59,8 +59,53 @@
       stylix,
     }:
     let
+      # =========================================================================
+      # Centralized Version Configuration
+      # All package versions and hashes are defined here for easy reference
+      # =========================================================================
+      versions = {
+        # workmux (modules/common/tmux)
+        workmux = "0.1.79";
+        workmuxRev = "9289c5ae1f7c0f3e8548a0173858ad1265864f71";
+        workmuxSrcHash = "sha256-VZlrhjKnkzlokJmHlQErlMfpp69n0gisJpdJ1UUSVNw=";
+        workmuxCargoHash = "sha256-mjAdMNv4GbtWdKsTHaBNfvip/qORuMuS88plZohzM9o=";
 
-      # Overlays module
+        # tmux-autoreload plugin (modules/common/tmux)
+        tmuxAutoreload = "unstable-2024-01-01";
+        tmuxAutoreloadRev = "e98aa3b74cfd5f2df2be2b5d4aa4ddcc843b2eba";
+        tmuxAutoreloadHash = "sha256-9Rk+VJuDqgsjc+gwlhvX6uxUqpxVD1XJdQcsc5s4pU4=";
+
+        # tmux-notify plugin (modules/common/tmux)
+        tmuxNotify = "unstable-2024-11-18";
+        tmuxNotifyRev = "b713320af05837c3b44e4d51167ff3062dbeae4b";
+        tmuxNotifyHash = "sha256-wOmq2stWXAFmYrRuIqf9IPATYXJ+OFoYXnJdHUnJQxY=";
+
+        # lazyworktree (modules/common/git/lazyworktree)
+        lazyworktree = "1.21.1";
+        lazyworktreeSrcHash = "sha256-5ercx4htJ1GS7nGwK/BeIGrt4ZQLql4Z4pDTVTWZH8o=";
+        lazyworktreeVendorHash = "sha256-0O8i84mzAYq/VUWn0vbHf218hwXRMAvlfKnBUYXo8Ck=";
+
+        # voxtype (modules/common/transcription)
+        voxtype = "0.4.12";
+        voxtypeSrcHash = "sha256-rMTfLvllr2zn+799+YTgE53Ve0khdE9FPaLtxF2pk58=";
+        voxtypeCargoHash = "sha256-VbqHyOA0BA8PpFrOvdaHi3Bv3IuTXhnlsOfrmNH6FHU=";
+
+        # ccusage (modules/common/claude)
+        ccusage = "16.2.5";
+        ccusageSrcHash = "sha256-GXleBpZ3XF4DWrXG31Kh15SoOLRm6kXuuvIEEEmQ8eA=";
+
+        # brscan5 Brother scanner driver (modules/utility/brother-scanner)
+        brscan5 = "1.3.1-0";
+        brscan5Hash = "sha256-0UMbXMBlyiZI90WG5FWEP2mIZEBsxXd11dtgtyuSDnY=";
+
+        # ImageMagick override (overlay below)
+        imagemagick = "7.1.2-3";
+        imagemagickSrcHash = "sha256-L4apUdF1VJXSVqWAyjYFG/4qDJoJ0ObmSOpd90kqXsU=";
+      };
+
+      # =========================================================================
+      # Overlays
+      # =========================================================================
       overlays =
         system:
         (
@@ -79,12 +124,12 @@
               # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
               (final: prev: {
                 imagemagick = prev.imagemagick.overrideAttrs (old: {
-                  version = "7.1.2-3";
+                  version = versions.imagemagick;
                   src = prev.fetchFromGitHub {
                     owner = "ImageMagick";
                     repo = "ImageMagick";
-                    tag = "7.1.2-3";
-                    hash = "sha256-L4apUdF1VJXSVqWAyjYFG/4qDJoJ0ObmSOpd90kqXsU=";
+                    tag = versions.imagemagick;
+                    hash = versions.imagemagickSrcHash;
                   };
                 });
               })
@@ -95,6 +140,9 @@
           }
         );
 
+      # =========================================================================
+      # NixOS System Builder
+      # =========================================================================
       mkNixosSystem =
         { system, device-module }:
         nixpkgs.lib.nixosSystem {
@@ -103,6 +151,9 @@
 
             # Load the Determinate module
             determinate.nixosModules.default
+
+            # Set version values (options are defined in their respective modules)
+            { config.versions = versions; }
 
             # Load the overlays
             (overlays system)

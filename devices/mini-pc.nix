@@ -10,6 +10,7 @@
   imports = [
     (modulesPath + "/installer/scan/not-detected.nix")
     ../modules/utility/intel-cpu.nix
+    ../modules/utility/brother-scanner.nix
   ];
 
   # Enable thermal monitoring
@@ -45,19 +46,6 @@
       notifications = true;
     };
   };
-
-  ######################################
-  ## Scanner
-  ######################################
-  # Scanning driver for Brother scanners (brother no longer provides the default version in nixpkgs)
-  nixpkgs.overlays = [ (self: super: { brscan5 = pkgs.unstable.brscan5; }) ];
-  hardware.sane = {
-    enable = true;
-    brscan5.enable = true;
-  };
-  services.saned.enable = true;
-  services.avahi.enable = true;
-  services.avahi.nssmdns4 = true;
 
   ######################################
   ## Boot Settings

@@ -12,6 +12,7 @@
     ../modules/utility/disable-wakeup-triggers.nix
     ../modules/utility/amd-cpu.nix
     ../modules/utility/amd-gpu.nix
+    ../modules/utility/brother-scanner.nix
   ];
 
   # Enable thermal monitoring
@@ -47,19 +48,6 @@
       num = 3; # Right monitor
     };
   };
-
-  ######################################
-  ## Scanner
-  ######################################
-  # Scanning driver for Brother scanners (brother no longer provides the default version in nixpkgs)
-  nixpkgs.overlays = [ (self: super: { brscan5 = pkgs.unstable.brscan5; }) ];
-  hardware.sane = {
-    enable = true;
-    brscan5.enable = true;
-  };
-  services.saned.enable = true;
-  services.avahi.enable = true;
-  services.avahi.nssmdns4 = true;
 
   ######################################
   ## Boot Settings
