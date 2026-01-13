@@ -26,7 +26,16 @@ return {
     -- Colorize stdin input (when nvim is used as a pager)
     vim.api.nvim_create_autocmd({ "StdinReadPost" }, {
       callback = function()
-        vim.g.baleia.once(vim.api.nvim_get_current_buf())
+        local buf = vim.api.nvim_get_current_buf()
+        -- Set as scratch buffer so it won't prompt to save
+        vim.bo[buf].buftype = "nofile"
+        vim.bo[buf].bufhidden = "wipe"
+        vim.bo[buf].swapfile = false
+        vim.g.baleia.once(buf)
+        -- Mark as not modified after a short delay (baleia is async)
+        vim.defer_fn(function()
+          vim.bo[buf].modified = false
+        end, 100)
       end,
     })
 
