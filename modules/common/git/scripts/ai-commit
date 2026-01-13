@@ -153,8 +153,8 @@ echo "Opening editor..."
 
 # Commit with editor - run interactively, capture exit code
 # Use script command to capture output while preserving tty for editor
-script -q -c "git commit -e -F \"$MSG_FILE\"" "$COMMIT_OUTPUT_FILE"
-commit_exit=$?
+# Capture exit code before set -e can trigger
+script -q -c "git commit -e -F \"$MSG_FILE\"" "$COMMIT_OUTPUT_FILE" && commit_exit=0 || commit_exit=$?
 
 if [[ $commit_exit -eq 0 ]]; then
     exit 0
