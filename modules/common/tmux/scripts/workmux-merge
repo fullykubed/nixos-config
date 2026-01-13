@@ -40,7 +40,7 @@ if echo "$output" | grep -q "is already used by worktree"; then
     exit 1
   fi
 
-  echo "Rebasing '$current_branch' onto '$target_branch' in '$target_worktree_path'..."
+  echo "Rebasing '$target_branch' onto '$current_branch' in '$target_worktree_path'..."
 
   # Change to target worktree and rebase
   cd "$target_worktree_path" || exit 1
