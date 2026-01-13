@@ -97,9 +97,9 @@ in
           ".claude/settings.local.json" # Ignore local Claude Code settings
         ];
 
-        settings.aliases = {
-          fpush = "push --force-with-least"; # Safe version of force-push
-          lg = "log --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)- %an%C(reset)%C(bold yellow)%d%C(reset)' --all";
+        settings.alias = {
+          fpush = "push --force-with-lease"; # Safe version of force-push
+          lg = "!git log --color=always --no-show-signature --graph --abbrev-commit --decorate --date=relative --format=format:'%C(bold blue)%h%C(reset) - %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim cyan)- %an%C(reset) %G?%C(bold yellow)%d%C(reset)' --all | sed -e 's/ G\\x1b/ ✅\\x1b/g' -e 's/ N\\x1b/ \\x1b/g' -e 's/ B\\x1b/ ❌\\x1b/g' -e 's/ U\\x1b/ ⚠️\\x1b/g' -e 's/ E\\x1b/ ❓\\x1b/g' | $PAGER";
         };
 
         includes = [
