@@ -10,21 +10,21 @@ Arguments: $ARGUMENTS
 
 ## Behavior
 
-- No arguments: fetch origin, rebase on origin's default branch
-- "origin": fetch origin, rebase on origin's default branch
-- "origin/branch": fetch origin, rebase on origin/branch
-- "branch": fetch origin, rebase on origin/branch
+- No arguments: fetch origin, update local default branch, rebase onto it
+- "origin": fetch origin, update local default branch, rebase onto it
+- "origin/branch": fetch origin, update local branch, rebase onto it
+- "branch": fetch origin, update local branch, rebase onto it
 
 ## Steps
 
 1. Determine the default branch by running: `git remote show origin | awk '/HEAD branch/ {print $NF}'`
 2. Parse arguments:
-   - No args → fetch origin, target is "origin/<default-branch>"
-   - Contains "/" (e.g., "origin/develop") → split into remote and branch, fetch remote, target is remote/branch
-   - Just "origin" → fetch origin, target is "origin/<default-branch>"
-   - Anything else → fetch origin, target is "origin/<branch>"
-3. Run: `git fetch <remote>`
-4. Run: `git rebase <target>`
+   - No args → target branch is <default-branch>
+   - Contains "/" (e.g., "origin/develop") → extract branch name after "/"
+   - Just "origin" → target branch is <default-branch>
+   - Anything else → target branch is the argument
+3. Run: `git fetch origin`
+4. Run: `git rebase <branch>` (using local branch, not origin/branch)
 5. If conflicts occur, handle them carefully (see below)
 6. Continue until rebase is complete
 
