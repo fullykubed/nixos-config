@@ -23,11 +23,44 @@ return {
         lsp_doc_border = false, -- add a border to hover docs and signature help
       },
       routes = {
+        -- Skip "written" messages (from :write command)
         {
           filter = {
             event = "msg_show",
             kind = "",
             find = "written",
+          },
+          opts = { skip = true },
+        },
+        -- Skip autosave messages
+        {
+          filter = {
+            event = "msg_show",
+            kind = "",
+            find = "AutoSave",
+          },
+          opts = { skip = true },
+        },
+        {
+          filter = {
+            event = "msg_show",
+            kind = "",
+            find = "saved at",
+          },
+          opts = { skip = true },
+        },
+        -- Skip vim.notify autosave notifications
+        {
+          filter = {
+            event = "notify",
+            find = "AutoSave",
+          },
+          opts = { skip = true },
+        },
+        {
+          filter = {
+            event = "notify",
+            find = "saved at",
           },
           opts = { skip = true },
         },

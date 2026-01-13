@@ -81,15 +81,6 @@ return {
         desc = "Check all files on focus/terminal events",
       })
 
-      -- Notify when files are reloaded
-      vim.api.nvim_create_autocmd("FileChangedShellPost", {
-        group = group,
-        callback = function()
-          vim.notify("File changed on disk. Buffer reloaded!", vim.log.levels.INFO, { title = "File Reloaded" })
-        end,
-        desc = "Notify on file reload",
-      })
-
       -- Auto-handle file change prompts
       vim.api.nvim_create_autocmd("FileChangedShell", {
         group = group,
