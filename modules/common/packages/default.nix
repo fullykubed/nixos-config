@@ -101,7 +101,6 @@
     sysz # TUI for systemd
     lnav # Structured log file navigator
     dmidecode # Reads info about connected devices from MOBO through SMBIOS/DMI
-    btop # Better interactive process monitoring
     lshw # Alternative way to query hardware
     lm_sensors # For reading hardware sensors
     mission-center # For displaying hardware sensors graphically

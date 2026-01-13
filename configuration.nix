@@ -62,6 +62,7 @@
     ./modules/common/image-editor
     ./modules/common/transcription
     ./modules/common/imagemagick
+    ./modules/common/btop
 
     # Our segemented modules
     ./backups/default.nix
