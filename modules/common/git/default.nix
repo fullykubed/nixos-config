@@ -194,6 +194,15 @@ in
                 signingKey = "key::${githubPublicKey}";
               };
 
+              advice = {
+                resolveConflict = false;
+                pushUpdateRejected = false; # Disables all push-related hints
+                addEmptyPathspec = false;
+                detachedHead = false;
+                sequencerInUse = false;
+                mergeConflict = false;
+              };
+
               column = {
                 ui = "auto"; # Will try to break long lists into columns
               };
