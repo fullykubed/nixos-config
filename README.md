@@ -55,21 +55,18 @@ nix run .#agenix-rekey
 
 ## Repository Structure
 
-```
+```text
 .
 ├── flake.nix                 # Main flake entry point
 ├── configuration.nix         # Base system configuration
 ├── devices/                  # Machine-specific configurations
 ├── modules/
-│   ├── common/              # Module configurations shared across all installs
-│   └── utility/            # Hardware-specific utilities
-├── home-manager/           # User environment configuration
-│   ├── default.nix        # Home Manager entry point
-│   └── nvim/             # Neovim configuration
-├── secrets/               # Encrypted secrets (agenix)
-    ├── *.age             # Age-encrypted secrets
-│   └── rekeyed/          # Per-machine encrypted secrets
-└── yubikeys/             # Public keys for secret encryption
+│   ├── common/               # Module configurations shared across all installs
+│   └── utility/              # Hardware-specific utilities
+├── secrets/                  # Encrypted secrets (agenix)
+│   ├── *.age                 # Age-encrypted secrets
+│   └── rekeyed/              # Per-machine encrypted secrets
+└── yubikeys/                 # Public keys for secret encryption
 ```
 
 ## Configured Machines
@@ -104,8 +101,8 @@ nix run .#agenix-rekey
 
 This configuration uses [agenix](https://github.com/ryantm/agenix) for managing encrypted secrets:
 
-1. Secrets are stored encrypted in `secrets/`
-2. Each machine has its own public key in `yubikeys/`
+1. Secrets are stored encrypted in [`secrets/`](secrets/)
+2. Each machine has its own public key in [`yubikeys/`](yubikeys/)
 3. Secrets are automatically rekeyed for each machine
 4. Decrypted at runtime into `/run/agenix/`
 
@@ -122,8 +119,8 @@ nix run .#agenix-rekey
 
 ### Adding a New Module
 
-1. Create module file in `modules/common/` or `modules/utility/`
-2. Import in `configuration.nix`
+1. Create module file in [`modules/common/`](modules/common/) or [`modules/utility/`](modules/utility/)
+2. Import in [`configuration.nix`](configuration.nix)
 3. Follow the standard module pattern:
 ```nix
 { config, pkgs, lib, ... }: {
@@ -133,14 +130,14 @@ nix run .#agenix-rekey
 
 ### Adding a New Machine
 
-1. Create device configuration in `devices/`
-2. Add nixosConfiguration in `flake.nix`
-3. Add public key to `yubikeys/` for secret management
+1. Create device configuration in [`devices/`](devices/)
+2. Add nixosConfiguration in [`flake.nix`](flake.nix)
+3. Add public key to [`yubikeys/`](yubikeys/) for secret management
 4. Run `nix run .#agenix-rekey` to rekey secrets
 
 ## Deployment
 
-The `un.sh` script (located in `modules/common/scripts/scripts/`) handles deployment:
+The [`un.sh`](modules/common/scripts/scripts/un.sh) script handles deployment:
 
 1. Copies configuration to `/etc/nixos`
 2. Runs `nixos-rebuild switch` with appropriate flags
