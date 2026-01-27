@@ -382,7 +382,7 @@ in
           exec swaymsg "workspace messages; exec signal-desktop;"
           exec swaymsg "workspace password; exec keepassxc"
           exec swaymsg "workspace monitoring; exec wezterm start --class btop -- btop"
-          exec swaymsg "workspace spotify; exec spotify"
+          exec swaymsg "workspace spotify; exec wezterm start --class spotify_player -- spotify_player"
 
           # Indicate to systemd that we have started the sway session
           exec sway-session-start --with-cleanup
