@@ -12,7 +12,9 @@ repository_url="$1"
 directory="${2:-$(basename "$repository_url" .git)}"
 
 git clone --bare "$repository_url" "$directory/.bare"
-git --git-dir="$directory/.bare" config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+export GIT_DIR="$directory/.bare" 
+
+git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 cd "$directory"
 
 default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
