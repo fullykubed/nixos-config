@@ -76,6 +76,15 @@ return {
           vim.keymap.set(mode, l, r, opts)
         end
 
+        -- Helper function to refresh Neo-tree git status
+        local function refresh_neotree_git()
+          vim.schedule(function()
+            if package.loaded["neo-tree.sources.git_status"] then
+              require("neo-tree.sources.git_status").refresh()
+            end
+          end)
+        end
+
         -- Navigation
         map("n", "]c", function()
           if vim.wo.diff then
@@ -99,16 +108,30 @@ return {
         -- visual mode
         map("v", "<leader>gs", function()
           gitsigns.stage_hunk({ vim.fn.line("."), vim.fn.line("v") })
+          refresh_neotree_git()
         end, { desc = "Git [s]tage hunk" })
         map("v", "<leader>gr", function()
           gitsigns.reset_hunk({ vim.fn.line("."), vim.fn.line("v") })
+          refresh_neotree_git()
         end, { desc = "Git [r]eset hunk" })
         -- normal mode
-        map("n", "<leader>gs", gitsigns.stage_hunk, { desc = "Git [s]tage hunk" })
-        map("n", "<leader>gr", gitsigns.reset_hunk, { desc = "Git [r]eset hunk" })
-        map("n", "<leader>gS", gitsigns.stage_buffer, { desc = "Git [S]tage buffer" })
+        map("n", "<leader>gs", function()
+          gitsigns.stage_hunk()
+          refresh_neotree_git()
+        end, { desc = "Git [s]tage hunk" })
+        map("n", "<leader>gr", function()
+          gitsigns.reset_hunk()
+          refresh_neotree_git()
+        end, { desc = "Git [r]eset hunk" })
+        map("n", "<leader>gS", function()
+          gitsigns.stage_buffer()
+          refresh_neotree_git()
+        end, { desc = "Git [S]tage buffer" })
         map("n", "<leader>gu", gitsigns.stage_hunk, { desc = "Git [u]ndo stage hunk" })
-        map("n", "<leader>gR", gitsigns.reset_buffer, { desc = "Git [R]eset buffer" })
+        map("n", "<leader>gR", function()
+          gitsigns.reset_buffer()
+          refresh_neotree_git()
+        end, { desc = "Git [R]eset buffer" })
         map("n", "<leader>gp", gitsigns.preview_hunk, { desc = "Git [p]review hunk" })
         map("n", "<leader>gb", function()
           gitsigns.blame_line({ full = true })
