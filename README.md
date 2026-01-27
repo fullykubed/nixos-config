@@ -18,6 +18,8 @@ Personal [NixOS](https://nixos.org/) configuration for multiple machines using [
   - Kernel hardening inspired by [nix-mineral](https://github.com/cynicsketch/nix-mineral)
   - [GrapheneOS hardened memory allocator](https://github.com/GrapheneOS/hardened_malloc) for exploit mitigation
   - Application sandboxing with [nix-bwrapper](https://github.com/Naxdy/nix-bwrapper)
+  - Automatic scanning with [vulnix](https://github.com/nix-community/vulnix) along with custom CVE patching overlay for vulnerabilities
+  - Rebuild all packages from source with additional compiler hardening flags 
   - Encrypted secrets with [agenix](https://github.com/ryantm/agenix) and [agenix-rekey](https://github.com/oddlama/agenix-rekey) for per-machine rekeying
   - Password management with [KeePassXC](https://keepassxc.org/), [SSH agent integration](https://keepassxc.org/docs/KeePassXC_UserGuide#_ssh_agent_integration), and [Syncthing](https://syncthing.net/) sync
   - [doas](https://github.com/Duncaen/OpenDoas) replacement for sudo with YubiKey authentication
@@ -50,6 +52,9 @@ Personal [NixOS](https://nixos.org/) configuration for multiple machines using [
 ├── modules/
 │   ├── common/              # Shared modules across all systems
 │   └── utility/             # Hardware-specific utilities
+├── patches/                 # Security patches overlay
+│   ├── cves/                # CVE fix patches
+│   └── fixes/               # Non-CVE build fixes
 ├── backups/                 # ZFS backup configuration
 ├── secrets/                 # Encrypted secrets (agenix)
 ├── yubikeys/                # Public keys for secret encryption
