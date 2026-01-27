@@ -16,6 +16,7 @@ Personal NixOS configuration for multiple machines using Nix flakes, [Home Manag
 - **Security**
   - Secure boot with [Lanzaboote](https://github.com/nix-community/lanzaboote)
   - Kernel hardening inspired by [nix-mineral](https://github.com/cynicsketch/nix-mineral)
+  - [GrapheneOS hardened memory allocator](https://github.com/GrapheneOS/hardened_malloc) for exploit mitigation
   - Application sandboxing with [nix-bwrapper](https://github.com/Naxdy/nix-bwrapper)
   - Encrypted secrets with [agenix](https://github.com/ryantm/agenix) and [agenix-rekey](https://github.com/oddlama/agenix-rekey) for per-machine rekeying
   - Password management with [KeePassXC](https://keepassxc.org/), [SSH agent integration](https://keepassxc.org/docs/KeePassXC_UserGuide#_ssh_agent_integration), and [Syncthing](https://syncthing.net/) sync
