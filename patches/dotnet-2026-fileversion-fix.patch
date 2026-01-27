@@ -1,0 +1,16 @@
+diff --git a/src/source-build-externals/src/azure-activedirectory-identitymodel-extensions-for-dotnet/build/common.props b/src/source-build-externals/src/azure-activedirectory-identitymodel-extensions-for-dotnet/build/common.props
+--- a/src/source-build-externals/src/azure-activedirectory-identitymodel-extensions-for-dotnet/build/common.props
++++ b/src/source-build-externals/src/azure-activedirectory-identitymodel-extensions-for-dotnet/build/common.props
+@@ -1,6 +1,11 @@
+ <Project>
+   <PropertyGroup>
+-    <FileVersion>$(WilsonCurrentVersion).$([System.DateTime]::Now.AddYears(-2019).Year)$([System.DateTime]::Now.ToString("MMdd"))</FileVersion>
++    <!-- Fix for 2026+ version overflow: the old formula (year-2019)*10000+MMdd exceeds UInt16 max (65535) in 2026.
++         New formula: 61232 + (year-2019)*416 + month*32 + day stays within bounds through 2029.
++         See: https://github.com/dotnet/dotnet/pull/4043 -->
++    <_WilsonYearOffset>$([MSBuild]::Subtract($([System.DateTime]::Now.Year), 2019))</_WilsonYearOffset>
++    <_WilsonRevision>$([MSBuild]::Add(61232, $([MSBuild]::Add($([MSBuild]::Multiply($(_WilsonYearOffset), 416)), $([MSBuild]::Add($([MSBuild]::Multiply($([System.DateTime]::Now.Month), 32)), $([System.DateTime]::Now.Day)))))))</_WilsonRevision>
++    <FileVersion>$(WilsonCurrentVersion).$(_WilsonRevision)</FileVersion>
+     <AssemblyVersion>$(WilsonCurrentVersion).0</AssemblyVersion>
+   </PropertyGroup>
+ </Project>

@@ -1,0 +1,580 @@
+# Vulnix CVE Whitelist
+# ====================
+#
+# WHITELIST KEY FORMAT:
+#   ["package"]         - Version-agnostic: use for FALSE POSITIVES (name collisions)
+#   ["package-1.2.3"]   - Version-specific: use for ACCEPTED RISK & BUNDLED DEPS
+#
+# WHY VERSION MATTERS:
+#   - False positives: CVEs affect DIFFERENT software with same name. Any version
+#     of our package is unaffected, so version-agnostic is correct.
+#   - Accepted risk: CVEs are REAL but we accept them. Version-specific ensures
+#     we're notified when package updates (fix may be available).
+#   - Bundled deps: Old library versions inside packages. Version-specific ensures
+#     we review when top-level package updates.
+#
+# ORGANIZATION: Entries organized by category and top-level package.
+# When a package updates, search for its name and review/remove its CVEs.
+#
+# TOML LIMITATION: Cannot have duplicate pname keys. When multiple packages
+# pull in the same vulnerable dep, all CVEs go in one entry with comments
+# showing which top-level package is responsible for which CVEs.
+
+
+################################################################################
+#                                                                              #
+#                        FALSE POSITIVES - BY TYPE                             #
+#                                                                              #
+################################################################################
+# These are NOT real vulnerabilities - the CVEs affect different software
+# that happens to share a name with packages in our system.
+
+
+################################################################################
+# HASKELL ECOSYSTEM: Package Name Collisions
+################################################################################
+# Haskell packages often share names with C/Rust/JS libraries.
+# The CVEs affect the OTHER software, not the Haskell package.
+
+
+#-------------------------------------------------------------------------------
+# PANDOC (document converter) - Haskell application
+# Pulls in: warp, zlib, many Haskell deps
+#-------------------------------------------------------------------------------
+
+# pandoc → warp-3.4.9 (web server framework)
+# CVEs affect Cloudflare WARP VPN client, not Haskell Warp
+["warp"]
+cve = [
+  "CVE-2022-2145",
+  "CVE-2022-2225",
+  "CVE-2022-3320",
+  "CVE-2022-3512",
+  "CVE-2022-4428",
+  "CVE-2022-4457",
+  "CVE-2023-0238",
+  "CVE-2023-0652",
+  "CVE-2023-0654",
+  "CVE-2023-1412",
+  "CVE-2023-1862",
+  "CVE-2023-2754",
+  "CVE-2025-0651",
+]
+comment = "CVEs (5.5-8.2 Med-High): Auth bypass, DoS, privesc in Cloudflare WARP VPN. Haskell warp-3.4.9 is unrelated web framework."
+
+# pandoc → zlib-0.7.1.1 (compression binding)
+# CVEs affect C zlib library, system zlib-1.3.1 is patched
+["zlib"]
+cve = ["CVE-2022-37434", "CVE-2023-45853", "CVE-2023-6992", "CVE-2026-22184"]
+comment = "CVEs (7.0-9.8 High-Crit): C zlib vulnerabilities. Haskell zlib-0.7.1.1 is FFI binding only - no C code, no untgz utility. System zlib-1.3.1 separately handled."
+
+
+#-------------------------------------------------------------------------------
+# RUST TOOLING (cargo, rustc) - pulls in Haskell deps via cargo-vendor
+# Pulls in: curl, idna
+#-------------------------------------------------------------------------------
+
+# cargo-vendor-dir → curl-0.4.46 (HTTP client binding)
+# CVEs affect libcurl C library, not Haskell binding
+["curl"]
+cve = [
+  "CVE-2022-27776",
+  "CVE-2022-27781",
+  "CVE-2022-27782",
+  "CVE-2022-32206",
+  "CVE-2022-32221",
+  "CVE-2022-35252",
+  "CVE-2022-43552",
+  "CVE-2023-28319",
+  "CVE-2023-28320",
+  "CVE-2023-28321",
+  "CVE-2023-28322",
+]
+comment = "CVEs (4.3-9.8 Med-Crit): Auth leak, use-after-free, HSTS bypass in libcurl C lib. Haskell curl-0.4.46 is FFI binding, unaffected."
+
+# cargo-vendor-dir → idna-0.5.0 (internationalized domain names)
+# CVE affects Rust idna crate from Servo, not Haskell idna
+["idna"]
+cve = ["CVE-2024-12224"]
+comment = "CVE-2024-12224 (7.5 High): Unicode domain spoofing in Rust idna crate (Servo). Haskell idna-0.5.0 is unrelated."
+
+
+#-------------------------------------------------------------------------------
+# HASKELL ECOSYSTEM: Other packages
+#-------------------------------------------------------------------------------
+
+# Various Haskell packages → dbus (D-Bus client binding)
+# CVEs affect C dbus-daemon/libdbus, not Haskell binding
+["dbus"]
+cve = ["CVE-2022-42010", "CVE-2022-42011", "CVE-2022-42012"]
+comment = "CVEs (6.5 Med): Crash via invalid type signatures in C dbus-daemon/libdbus. Haskell dbus-0.9.7 is unrelated client binding."
+
+# Various Haskell packages → network (networking library)
+# CVEs affect Fidelis Network security product
+["network"]
+cve = [
+  "CVE-2021-35047",
+  "CVE-2021-35048",
+  "CVE-2021-35049",
+  "CVE-2021-35050",
+  "CVE-2022-0486",
+  "CVE-2022-0997",
+  "CVE-2022-24388",
+  "CVE-2022-24389",
+  "CVE-2022-24390",
+  "CVE-2022-24391",
+  "CVE-2022-24392",
+  "CVE-2022-24393",
+  "CVE-2022-24394",
+]
+comment = "CVEs (6.1-9.8 Med-Crit): XSS, SQLi, RCE in Fidelis Network security appliance. Haskell network lib is unrelated."
+
+# Various Haskell packages → async (concurrency library)
+# CVE affects JavaScript npm async package
+["async"]
+cve = ["CVE-2021-43138"]
+comment = "CVE-2021-43138 (7.8 High): Prototype pollution in npm async package. Haskell async-2.2.5 is unrelated."
+
+# Various Haskell packages → Diff (diff library)
+# CVE affects Drupal CMS Diff module
+["Diff"]
+cve = ["CVE-2024-13278"]
+comment = "CVE-2024-13278 (6.5 Med): Access bypass in Drupal CMS Diff module. Haskell Diff lib is unrelated."
+
+# Various Haskell packages → yaml (YAML parser)
+# CVEs affect Go yaml.v2 library, not Haskell yaml
+["yaml"]
+cve = ["CVE-2022-3064", "CVE-2021-4235"]
+comment = "CVEs (5.5-7.5): DoS via large YAML in Go yaml.v2. Haskell yaml-0.11.11.2 is unrelated."
+
+# lapack-ffi Haskell binding
+# CVE fixed in underlying OpenBLAS
+["lapack-ffi"]
+cve = ["CVE-2021-4048"]
+comment = "CVE-2021-4048 (5.9 Med): Out-of-bounds read in OpenBLAS. Haskell FFI binding uses system OpenBLAS-0.3.30 (patched)."
+
+# hedgehog Haskell testing library
+# CVE affects dns-stats hedgehog (DNS statistics tool), not Haskell library
+["hedgehog"]
+cve = ["CVE-2021-4276"]
+comment = "CVE-2021-4276 (4.1 Low): SQL injection in dns-stats hedgehog (DNS tool). Haskell hedgehog-1.5 is unrelated testing library."
+
+# Haskell vault (mutable references library)
+# CVEs affect HashiCorp Vault secrets management, not Haskell vault
+["vault"]
+cve = [
+  "CVE-2021-27400",
+  "CVE-2024-2048",
+  "CVE-2024-2660",
+]
+comment = "CVEs (7.5-8.1 High): Auth bypass, secrets leak in HashiCorp Vault. Haskell vault-0.3.x is unrelated mutable references library."
+
+
+################################################################################
+# JAVA LIBRARY NAME COLLISIONS
+################################################################################
+# Java libraries share names with CLI tools or other software.
+
+# Java xz compression library
+# CVE affects xz/gzip command-line tools, not Java library
+["xz"]
+cve = ["CVE-2022-1271"]
+comment = "CVE-2022-1271 (8.8 High): Arbitrary file write in xz/gzip CLI zgrep. Java xz-1.9.jar is unrelated compression library."
+
+
+################################################################################
+# GO LIBRARY NAME COLLISIONS
+################################################################################
+# Go libraries share names with the Go compiler toolchain.
+
+# Go compiler/runtime
+# CVE affects github.com/ecies/go library, not Go compiler
+["go"]
+cve = ["CVE-2023-49292"]
+comment = "CVE-2023-49292 (4.9 Med): ECDH key recovery in github.com/ecies/go (ECIES library). Go compiler/runtime is unrelated."
+
+
+################################################################################
+# JENKINS PLUGIN COLLISIONS
+################################################################################
+# Jenkins plugins share names with CLI tools. CVEs for plugins don't affect CLIs.
+
+# System git CLI tool
+# CVEs affect Jenkins Git Plugin
+["git"]
+cve = [
+  "CVE-2021-21684",
+  "CVE-2022-30947",
+  "CVE-2022-36882",
+  "CVE-2022-36883",
+  "CVE-2022-36884",
+  "CVE-2022-38663",
+]
+comment = "CVEs (4.3-8.8 Med-High): CSRF, credential leak in Jenkins Git Plugin. System git CLI is unrelated."
+
+# xunit testing framework
+# CVE affects Jenkins xUnit plugin
+["xunit"]
+cve = ["CVE-2022-34181"]
+comment = "CVE-2022-34181 (8.0 High): XXE vulnerability in Jenkins xUnit plugin. .NET xUnit framework is unrelated."
+
+
+################################################################################
+# VS CODE EXTENSION COLLISIONS
+################################################################################
+# VS Code extensions share names with CLI tools.
+
+# ShellCheck CLI linter
+# CVE affects unofficial VS Code extension
+["shellcheck"]
+cve = ["CVE-2021-28794"]
+comment = "CVE-2021-28794 (8.8 High): RCE via VS Code ShellCheck extension auto-fix. CLI tool is unrelated."
+
+["ShellCheck"]
+cve = ["CVE-2021-28794"]
+comment = "CVE-2021-28794 (8.8 High): RCE via VS Code ShellCheck extension auto-fix. CLI tool is unrelated."
+
+
+################################################################################
+# DIFFERENT SOFTWARE - SAME NAME
+################################################################################
+# Completely unrelated software that happens to share a name.
+
+# rubygems CLI tool
+# CVE affects RubyGems.org WEBSITE, not the rubygems package manager CLI
+["rubygems"]
+cve = ["CVE-2022-36073"]
+comment = "CVE-2022-36073 (8.3 High): Account takeover via email change on RubyGems.org website. Local rubygems CLI tool is unaffected."
+
+# polkit PAM module (authentication)
+# CVE-2021-4034 (PwnKit) fixed in polkit 0.120+, we have 126
+# The "polkit-1.pam" derivation is the PAM config/module, not the daemon
+["polkit-1.pam"]
+cve = ["CVE-2021-4034"]
+comment = "CVE-2021-4034 (7.8 High): PwnKit privilege escalation. Fixed in polkit 0.120+, system has polkit-126."
+
+# dash shell (Debian Almquist Shell)
+# CVE affects Plotly Dash Python web framework
+["dash"]
+cve = ["CVE-2024-21485"]
+comment = "CVE-2024-21485 (6.5 Med): XSS in Plotly Dash Python framework. System dash-0.5.x is the Almquist shell, unrelated."
+
+# GStreamer (multimedia) → orc-0.4.41 (Oil Runtime Compiler)
+# CVE affects Apache ORC (columnar storage C++ library)
+["orc"]
+cve = ["CVE-2025-47436"]
+comment = "CVE-2025-47436 (7.5 High): DoS in Apache ORC columnar storage. GStreamer orc-0.4.41 (Oil Runtime Compiler) is unrelated."
+
+# ranger file manager (terminal)
+# CVE affects Apache Ranger (Java policy admin)
+["ranger"]
+cve = ["CVE-2024-55532"]
+comment = "CVE-2024-55532 (6.5 Med): Auth bypass in Apache Ranger (Java). Terminal file manager ranger is unrelated."
+
+# kitty GPU terminal emulator
+# CVEs affect KiTTY (Windows PuTTY fork 0.76.x), not kitty terminal (0.44.x)
+["kitty"]
+cve = [
+  "CVE-2023-48795",   # Terrapin SSH - affects KiTTY (PuTTY fork), not kitty terminal
+  "CVE-2024-23749",   # Command injection in KiTTY 0.76.1.13
+  "CVE-2024-25003",   # Stack buffer overflow in KiTTY 0.76.1.13
+  "CVE-2024-25004",   # Stack buffer overflow in KiTTY 0.76.1.13
+]
+comment = "CVEs (5.9-7.8): Vulnerabilities in KiTTY (Windows PuTTY fork 0.76.x). kitty-0.44.0 is unrelated GPU terminal emulator."
+
+# Google snappy compression
+# CVEs affect PHP knplabs/snappy PDF library
+["snappy"]
+cve = ["CVE-2023-28115", "CVE-2023-41330"]
+comment = "CVEs (9.8 Crit): RCE via PDF generation in PHP knplabs/snappy. Google snappy compression lib is unrelated."
+
+# libxml2 (XML parsing library)
+# CVE affects SourceCodester Simple To-Do List System (PHP web app)
+["libxml2"]
+cve = ["CVE-2025-63709"]
+comment = "CVE-2025-63709 (5.4 Med): XSS in SourceCodester Simple To-Do List System (PHP). libxml2 XML library is unrelated."
+
+# protobuf (Google Protocol Buffers)
+# CVEs affect Xinhu Rainrock RockOA (Chinese OA system)
+["protobuf"]
+cve = [
+  "CVE-2025-63737",
+  "CVE-2025-63738",
+  "CVE-2025-63739",
+]
+comment = "CVEs (6.1 Med): XSS in Xinhu Rainrock RockOA (Chinese OA system). Google protobuf is unrelated."
+
+
+################################################################################
+# PLATFORM/DISTRO SPECIFIC
+################################################################################
+# CVEs that only affect other platforms or distributions.
+
+# Discord desktop (Linux)
+# CVE is macOS-only Electron issue
+["discord"]
+cve = ["CVE-2024-23739"]
+comment = "CVE-2024-23739 (9.8 Crit): Electron fuse bypass allowing code injection (macOS only). Linux Discord unaffected."
+
+# accountsservice (system)
+# CVE is Ubuntu-specific
+["accountsservice"]
+cve = ["CVE-2023-3297"]
+comment = "CVE-2023-3297 (8.1 High): Use-after-free in Ubuntu accountsservice D-Bus patch. NixOS uses upstream, unaffected."
+
+# avahi (mDNS daemon)
+# CVE is Debian-specific script
+["avahi"]
+cve = ["CVE-2021-26720"]
+comment = "CVE-2021-26720 (7.8 High): Privilege escalation via Debian avahi-daemon-check-dns.sh. NixOS uses upstream, unaffected."
+
+# ImageMagick - upgraded to unstable (7.1.2-11) via overlay
+# Previous whitelist entry for CVE-2025-66628 removed - now fixed by version upgrade
+
+# Allegro 4.x vs 5.x - CVE is for Allegro 5.x image addon
+# lutris → allegro-4.4.3.1 (legacy game library)
+["allegro"]
+cve = ["CVE-2021-36489"]
+comment = "CVE-2021-36489 (6.5 Med): Buffer overflow in Allegro 5.x image addon. System has allegro-4.4.3.1, different codebase."
+
+# GCC compiler - CVE only affects AArch64 (ARM64) architecture
+# DISPUTED by GCC project as "missed hardening bug, not a vulnerability"
+["gcc"]
+cve = ["CVE-2023-4039"]
+comment = "CVE-2023-4039 (4.8 Med): Stack-protector bypass for VLAs on AArch64 only. DISPUTED by GCC project. x86_64 system unaffected."
+
+# glibc Power10 (powerpc64le) specific CVEs - x86_64 unaffected
+# strcmp/strncmp optimizations for Power10 corrupt vector registers
+["glibc"]
+cve = ["CVE-2025-5702", "CVE-2025-5745"]
+comment = "CVE-2025-5702/5745 (5.6 Med): strcmp/strncmp vector register corruption on Power10 (powerpc64le) only. x86_64 unaffected."
+
+
+################################################################################
+# ALREADY PATCHED VERSIONS
+################################################################################
+# CVEs fixed in the version we have installed.
+
+# Scientific computing → lapack (OpenBLAS with LAPACK ABI)
+# CVE fixed in OpenBLAS 0.3.18+, system has 0.3.30
+# Note: Version-agnostic here since CVE is fixed in our version
+["lapack"]
+cve = ["CVE-2021-4048"]
+comment = "CVE-2021-4048 (5.9 Medium): Out-of-bounds read in OpenBLAS. Fixed in 0.3.18+, we have 0.3.30."
+
+# CUPS printing system
+# CVE-2022-26691 fixed in CUPS 2.4.2, system has 2.4.15/2.4.16
+# Note: Version-agnostic here since CVE is fixed in our version
+["cups"]
+cve = ["CVE-2022-26691"]
+comment = "CVE-2022-26691 (6.7 Medium): Local privilege escalation via auth bypass. Fixed in 2.4.2+, we have 2.4.15/16."
+
+# Perl 5.40.0 - CVE already backported in nixpkgs
+# Patch applied: https://github.com/Perl/perl5/commit/87f42aa0e0096e9a346c9672aa3a0bd3bef8c1dd
+["perl-5.40.0"]
+cve = ["CVE-2024-56406"]
+comment = "CVE-2024-56406 (8.4 High): Heap overflow in tr// operator. Patch already backported to nixpkgs perl-5.40.0."
+
+# FFmpeg 8.0 - All 8 CVE fix commits VERIFIED as ancestors of n8.0 tag
+# Each fix commit individually verified via: git merge-base --is-ancestor <commit> n8.0
+#   CVE-2023-51791: fb54c89a0df3d63198678b17d64aef4dbb599109 (jpegxl_parser)
+#   CVE-2023-51793: 0ecc1f0e48930723d7a467761b66850811c23e62 (vf_weave)
+#   CVE-2023-51794: 50f0f8c53c818f73fe2d752708e2fa9d2a2d8a07 (af_stereowiden)
+#   CVE-2023-51795: ab0fdaedd1e7224f7e84ea22fcbfaa4ca75a6c06 (avf_showspectrum)
+#   CVE-2023-51796: 61e73851a33f0b4cb7662f8578a4695e77bd3c19 (f_reverse)
+#   CVE-2023-51797: 08bd2cbfeb34717d60ec62bcbaeb7996206df906 (avf_showwaves)
+#   CVE-2023-51798: 68146f06f852078866b3ef1564556e3a272920c7 (vf_minterpolate)
+#   CVE-2025-22921: 7f9c7f9849a2155224711f0ff57ecdac6e4bfb57 (jpeg2000dec)
+["ffmpeg-8.0"]
+cve = [
+  "CVE-2023-51791",
+  "CVE-2023-51793",
+  "CVE-2023-51794",
+  "CVE-2023-51795",
+  "CVE-2023-51796",
+  "CVE-2023-51797",
+  "CVE-2023-51798",
+  "CVE-2025-22921",
+]
+comment = "All 8 CVE fix commits verified as ancestors of n8.0 tag. NVD metadata incorrectly shows 8.0 as affected."
+
+# zlib 1.3.1 - CVE only affects untgz demo utility (contrib/untgz)
+# The untgz tool is not installed in NixOS - it's a demonstration program
+# CVSS 4.0 rates this 4.6 MEDIUM (local access, user interaction required)
+["zlib-1.3.1"]
+cve = ["CVE-2026-22184"]
+comment = "CVE-2026-22184 (9.8/4.6): Buffer overflow in untgz demo utility (contrib/). NixOS doesn't install untgz, only the core library."
+
+# Python 2.7 - EOL since Jan 2020, build-time only dependency
+# Used by: resholve → oildev (shell parser for xdg-utils, nix-direnv, bats)
+# NOT in runtime closure - only used during package builds
+#
+# FALSE POSITIVES (wrong software/version):
+#   CVE-2022-48565, CVE-2025-13836: Affect Python 3.x only
+#   CVE-2024-49050: Affects VS Code Python Extension
+#
+# ACCEPTED RISK (real CVEs, but build-time only with trusted inputs):
+#   All other CVEs - URL parsing, ReDoS, TLS issues not exploitable in build context
+["python-2.7.18.12"]
+cve = [
+  # False positives
+  "CVE-2022-48565",   # Python 3.6-3.9.1 only (plistlib XXE)
+  "CVE-2025-13836",   # Python 3.x only (HTTP response DoS)
+  "CVE-2024-49050",   # VS Code Python Extension, not Python language
+  # Accepted risk - build-time only, no upstream fixes (EOL)
+  "CVE-2024-9287",    # 7.8 High - venv activation script injection
+  "CVE-2025-49714",   # 7.8 High - tarfile extraction path traversal
+  "CVE-2022-0391",    # 7.5 High - urllib CRLF injection
+  "CVE-2022-45061",   # 7.5 High - IDNA DoS via decode_dns_labels
+  "CVE-2022-48560",   # 7.5 High - use-after-free via heappushpop
+  "CVE-2023-24329",   # 7.5 High - URL parsing blocklist bypass
+  "CVE-2023-36632",   # 7.5 High - ReDoS in email.utils.parseaddr
+  "CVE-2024-6232",    # 7.5 High - ReDoS in tarfile headers
+  "CVE-2024-7592",    # 7.5 High - ReDoS in http.cookies
+  "CVE-2022-26488",   # 7.0 High - Windows PATH search hijack
+  "CVE-2021-3733",    # 6.5 Med - ReDoS in urllib.request
+  "CVE-2022-48564",   # 6.5 Med - DoS via plistlib infinite loop
+  "CVE-2021-23336",   # 5.9 Med - web cache poisoning via urllib.parse
+  "CVE-2022-48566",   # 5.9 Med - timing side-channel in compare_digest
+  "CVE-2025-13837",   # 5.5 Med - HPACK bomb DoS
+  "CVE-2023-40217",   # 5.3 Med - TLS bypass via SSLSocket
+  "CVE-2025-12084",   # 5.3 Med - urllib URL parsing issue
+]
+comment = "Python 2.7 EOL (Jan 2020). Build-time only dep for resholve→oildev (shell parser). Not in runtime closure. CVEs not exploitable with trusted nixpkgs sources. Risk accepted 2026-01-18."
+until = "2026-07-18"
+
+# setuptools 44.0.0 - CVE affects newer setuptools, not this version
+# CVE-2025-47273 affects setuptools package_index module in versions with specific features
+["setuptools-44.0.0-source"]
+cve = ["CVE-2025-47273"]
+comment = "CVE-2025-47273 (8.8 High): Command injection in package_index. Needs verification if 44.0.0 is affected - likely false positive for this old version."
+
+
+################################################################################
+#                                                                              #
+#                         ACCEPTED RISK - USER APPROVED                        #
+#                                                                              #
+################################################################################
+# These are REAL vulnerabilities where the risk has been explicitly accepted.
+# Each entry requires user confirmation before being added.
+
+#-------------------------------------------------------------------------------
+# GIMP: gimp-3.0.4 → libilbm → libiff-0-unstable-2024-03-02
+# No upstream fix available (issue open since Aug 2020)
+#-------------------------------------------------------------------------------
+["libiff-0-unstable-2024-03-02"]
+cve = ["CVE-2021-32298"]
+comment = "CVE-2021-32298 (8.8 High): Global buffer overflow → code execution via crafted IFF files. GIMP → libilbm → libiff. No upstream fix. Risk accepted 2026-01-14."
+until = "2026-07-14"
+
+#-------------------------------------------------------------------------------
+# AVAHI: avahi-0.8 - CVE-2025-59529 has no upstream fix yet
+# Note: CVE-2025-68468, CVE-2025-68471, CVE-2025-68276 are auto-detected via patches
+# PR #808 is still in draft with build failures, awaiting stable fix
+#-------------------------------------------------------------------------------
+["avahi-0.8"]
+cve = ["CVE-2025-59529"]
+comment = "CVE-2025-59529 (5.5 Med): Simple protocol server ignores client limit → local DoS via FD exhaustion. No stable upstream fix yet (PR #808 in draft). Risk accepted 2026-01-18."
+until = "2026-04-18"
+
+#-------------------------------------------------------------------------------
+# GO BOOTSTRAP: go-1.22.12 - Bootstrap compiler for building Go
+# Used only during build to compile the actual Go compiler (go-1.24.x/1.25.x).
+# NOT in runtime closure - only used during package builds.
+# Runtime Go (1.24.11+) is not affected by these CVEs.
+#-------------------------------------------------------------------------------
+["go-1.22.12-linux-amd64-bootstrap"]
+cve = [
+  "CVE-2025-61729",   # 7.5 High - DoS via quadratic runtime in HostnameError
+  "CVE-2025-61727",   # 6.5 Med - Certificate validation bypass with wildcard SANs
+  "CVE-2025-0913",    # 5.5 Med - Symlink handling inconsistency in os.OpenFile
+]
+comment = "Go bootstrap compiler - build-time only, not in runtime closure. Used to compile go-1.24.11+ which has fixes. Not exploitable."
+
+["go-1.22.12-linux-386-bootstrap"]
+cve = [
+  "CVE-2025-61729",
+  "CVE-2025-61727",
+  "CVE-2025-0913",
+]
+comment = "Go bootstrap compiler (32-bit) - build-time only, not in runtime closure. Used to compile go-1.24.11+ which has fixes. Not exploitable."
+
+#-------------------------------------------------------------------------------
+# ASSIMP: assimp-6.0.2 - 3D model import library
+# Pulled in by: okular (KDE PDF viewer) → Qt → qt3d → assimp
+# CVE-2025-11277 is patched. These 2 CVEs have no upstream fix yet.
+# Local attack vector only - requires opening malicious 3D model files.
+#-------------------------------------------------------------------------------
+["assimp-6.0.2"]
+cve = [
+  "CVE-2025-11275",   # 5.3 Med - Heap buffer overflow in OpenDDL parser
+  "CVE-2025-11274",   # 3.3 Low - Resource allocation DoS in Q3DLoader
+]
+comment = "CVEs (3.3-5.3 Low-Med): Memory issues via malicious 3D files. okular→qt3d→assimp. Local attack only. No upstream fix. Risk accepted 2026-01-18."
+until = "2026-04-18"
+
+#-------------------------------------------------------------------------------
+# FONTFORGE: fontforge-20251009 - Build-time dependency for fonts
+# CVE-2025-15279 is patched. These 3 CVEs have no upstream fix yet.
+# Note: Only used during font builds (dejavu, liberation, etc.), not runtime.
+# Exploitation requires manually running fontforge and opening malicious files.
+#-------------------------------------------------------------------------------
+["fontforge-20251009"]
+cve = [
+  "CVE-2025-15276",   # 7.8 High - SFD deserialization → RCE (ZDI-CAN-28198)
+  "CVE-2025-15277",   # 7.8 High - SGI heap buffer overflow → RCE (ZDI-CAN-27920)
+  "CVE-2025-15278",   # 7.8 High - XBM integer overflow → RCE (ZDI-CAN-27865)
+]
+comment = "CVEs (7.8 High): RCE via malicious font files. Build-time only dep for fonts - not used interactively. No upstream fixes yet. Risk accepted 2026-01-18."
+until = "2026-04-18"
+
+
+################################################################################
+#                                                                              #
+#                    BUNDLED DEPENDENCIES - BY TOP-LEVEL PACKAGE               #
+#                                                                              #
+# These are older library versions bundled inside specifil packages.
+# Organized by the TOP-LEVEL PACKAGE that pulls them in.
+# When a package updates, review and remove its CVEs from this list.
+#
+# FFMPEG: Multiple packages bundle different versions. CVEs grouped by version
+# with comments showing which top-level package uses each version.
+
+
+################################################################################
+# FFMPEG - Bundled versions in various packages
+################################################################################
+# pname: ffmpeg (all versions share this)
+#
+# VERSION MAP:
+#   ffmpeg 7.1.2  → firefox-146.0.1, vlc-3.0.23 (media playback)
+#   ffmpeg 8.0    → system (current, no whitelist needed)
+#
+# When updating a package, remove ONLY the CVEs for its ffmpeg version.
+#
+# NOTE: Spotify removed 2026-01-14 - replaced with spotify-player (uses librespot,
+# no bundled ffmpeg). The following CVEs were removed with Spotify:
+#   CVE-2022-3109, CVE-2022-3341, CVE-2022-48434, CVE-2023-6601, CVE-2023-6602,
+#   CVE-2023-6603, CVE-2023-6604, CVE-2023-6605, CVE-2024-31578, CVE-2024-7272,
+#   CVE-2025-1373, CVE-2025-1594
+################################################################################
+
+["ffmpeg-7.1.2"]
+cve = [
+  #---------------------------------------------------------------------------
+  # FIREFOX + VLC: firefox-146.0.1, vlc-3.0.23 → ffmpeg-7.1.2
+  # Remove these when Firefox/VLC update to newer ffmpeg
+  #---------------------------------------------------------------------------
+  "CVE-2023-51791",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51793",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51794",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51795",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51796",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51797",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2023-51798",     # 7.8 High - heap overflow via MOV - firefox, vlc
+  "CVE-2025-22921",     # 6.5 Med - DoS via crafted media - firefox, vlc
+]
+comment = "CVEs (6.5-7.8 Med-High): Memory corruption, DoS via crafted media in ffmpeg-7.1.2 bundled by Firefox/VLC."
+until = "2026-07-01"
+
+

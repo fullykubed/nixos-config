@@ -31,12 +31,6 @@
       };
     };
 
-    # Bubblewrap wrapper utilities
-    nix-bwrapper = {
-      url = "github:Naxdy/nix-bwrapper";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # System-wide theming
     stylix = {
       url = "github:nix-community/stylix/release-25.11";
@@ -61,7 +55,6 @@
       agenix,
       agenix-rekey,
       flake-utils,
-      nix-bwrapper,
       stylix,
       ...
     }:
@@ -104,10 +97,6 @@
         # brscan5 Brother scanner driver (modules/utility/brother-scanner)
         brscan5 = "1.3.1-0";
         brscan5Hash = "sha256-0UMbXMBlyiZI90WG5FWEP2mIZEBsxXd11dtgtyuSDnY=";
-
-        # ImageMagick override (overlay below)
-        imagemagick = "7.1.2-3";
-        imagemagickSrcHash = "sha256-L4apUdF1VJXSVqWAyjYFG/4qDJoJ0ObmSOpd90kqXsU=";
       };
 
       # =========================================================================
@@ -125,22 +114,10 @@
               };
             })
 
-            # Global ImageMagick downgrade to fix gscan2pdf issues
-            # See: https://github.com/NixOS/nixpkgs/issues/355168#issuecomment-3418603081
-            (_: prev: {
-              imagemagick = prev.imagemagick.overrideAttrs (_: {
-                version = versions.imagemagick;
-                src = prev.fetchFromGitHub {
-                  owner = "ImageMagick";
-                  repo = "ImageMagick";
-                  tag = versions.imagemagick;
-                  hash = versions.imagemagickSrcHash;
-                };
-              });
-            })
+            # Security patches for CVEs not yet in nixpkgs
+            (import ./patches)
 
             agenix-rekey.overlays.default
-            nix-bwrapper.overlays.default
           ];
         });
 

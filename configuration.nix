@@ -47,6 +47,7 @@
     ./modules/common/scripts
     ./modules/common/video-editor
     ./modules/common/security
+    ./modules/common/vulnix-scanner
     ./modules/common/graphics
     ./modules/common/systemd
     ./modules/common/home
@@ -61,8 +62,8 @@
     ./modules/common/passwords
     ./modules/common/image-editor
     ./modules/common/transcription
-    ./modules/common/imagemagick
     ./modules/common/btop
+    ./modules/common/away-notify
 
     # Our segemented modules
     ./backups/default.nix

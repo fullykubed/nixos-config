@@ -1,0 +1,19 @@
+Fix uninitialized variable in glTF2 import test
+
+The shadingMode variable was declared but not initialized. If material->Get()
+fails, shadingMode would be used uninitialized in the subsequent EXPECT_EQ.
+This triggers -Werror=maybe-uninitialized with certain compiler configurations.
+
+Initialize to aiShadingMode_Flat as a safe default.
+
+--- a/test/unit/utglTF2ImportExport.cpp
++++ b/test/unit/utglTF2ImportExport.cpp
+@@ -76,7 +76,7 @@ class utglTF2ImportExport : public ::testing::Test {
+         const aiMaterial *material = scene->mMaterials[0];
+
+         // This Material should be a PBR
+-        aiShadingMode shadingMode;
++        aiShadingMode shadingMode = aiShadingMode_Flat;
+         EXPECT_EQ(aiReturn_SUCCESS, material->Get(AI_MATKEY_SHADING_MODEL, shadingMode));
+         EXPECT_EQ(aiShadingMode_PBR_BRDF, shadingMode);
+
