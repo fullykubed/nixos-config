@@ -273,6 +273,10 @@
         };
 
         home.file = {
+          ".claude/CLAUDE.md" = {
+            source = ./CLAUDE.md;
+          };
+
           ".claude/skills" = {
             source = ./skills;
             recursive = true;
