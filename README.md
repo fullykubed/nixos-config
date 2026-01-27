@@ -1,57 +1,43 @@
-# Jack's NixOS Configuration
+# Personal [NixOS](https://nixos.org/) Configuration
 
-Personal NixOS configuration for multiple machines using Nix flakes, Home Manager, and declarative system management.
+Personal NixOS configuration for multiple machines using Nix flakes, [Home Manager](https://nix-community.github.io/home-manager/), and declarative system management.
+
+## Philosophy
+
+- **Declarative everything** - The entire system is version-controlled and reproducible
+- **Modular composition** - Independent, reusable modules over monolithic configuration
+- **Security by default** - Hardened kernel, YubiKey integration, sandboxed applications
+- **Centralized versioning** - All external dependencies defined in one place
+- **Keyboard-driven** - Sway, Neovim, and other TUIs (complements my [custom keyboard config](https://github.com/fullykubed/glove80))
 
 ## Features
 
-- **Multi-machine support** - Configurations for desktop workstations and mini PC
-- **Modular architecture** - Reusable components across systems
-- **Home Manager integration** - User environment and dotfiles management
-- **Secure boot** - Lanzaboote integration for UEFI secure boot
-- **Secret management** - Encrypted secrets using agenix with per-machine rekeying
-- **Wayland desktop** - Sway window manager with modern Wayland stack
-- **Development ready** - Pre-configured development tools and environments
-
-## Quick Start
-
-### System Rebuild
-
-```bash
-# Quick rebuild and switch (uses current hostname, with --fast)
-./modules/common/scripts/scripts/un.sh
-
-# Rebuild boot configuration only
-./modules/common/scripts/scripts/un.sh --boot
-# or
-./modules/common/scripts/scripts/un.sh -b
-
-# Update flake inputs and rebuild
-./modules/common/scripts/scripts/un.sh --update
-# or
-./modules/common/scripts/scripts/un.sh -u
-
-# Build without network access (offline mode)
-./modules/common/scripts/scripts/un.sh --offline
-# or
-./modules/common/scripts/scripts/un.sh -o
-
-# Manual rebuild for specific systems
-sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-tower
-sudo nixos-rebuild switch --fast --flake /etc/nixos#fullykubed-mini-pc
-```
-
-### Development
-
-```bash
-# Format all Nix files
-nix fmt
-
-# Enter development shell
-nix develop
-
-# Rekey secrets after modification
-nix run .#agenix-rekey
-```
+- **Multi-machine support** - Shared modules with machine-specific overrides
+- **Security**
+  - Secure boot with [Lanzaboote](https://github.com/nix-community/lanzaboote)
+  - Kernel hardening inspired by [nix-mineral](https://github.com/cynicsketch/nix-mineral)
+  - Application sandboxing with [nix-bwrapper](https://github.com/Naxdy/nix-bwrapper)
+  - Encrypted secrets with [agenix](https://github.com/ryantm/agenix) and [agenix-rekey](https://github.com/oddlama/agenix-rekey) for per-machine rekeying
+  - Password management with [KeePassXC](https://keepassxc.org/), [SSH agent integration](https://keepassxc.org/docs/KeePassXC_UserGuide#_ssh_agent_integration), and [Syncthing](https://syncthing.net/) sync
+  - [doas](https://github.com/Duncaen/OpenDoas) replacement for sudo with YubiKey authentication
+- **Desktop**
+  - [Sway](https://swaywm.org/) tiling Wayland compositor
+  - [Waybar](https://github.com/Alexays/Waybar) status bar
+  - [WezTerm](https://wezfurlong.org/wezterm/) terminal
+  - [SwayNC](https://github.com/ErikReider/SwayNotificationCenter) notification center
+  - [Tridactyl](https://github.com/tridactyl/tridactyl) for vim-like browser control
+- **Development**
+  - [Neovim](https://neovim.io/) with Kickstart-based configuration
+  - [tmux](https://github.com/tmux/tmux) terminal multiplexer
+  - [Zsh](https://www.zsh.org/) shell
+  - Custom Git settings for different development contexts
+- **AI**
+  - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) sandboxed with bubblewrap and given custom skills, commands, agents, and [MCP](https://modelcontextprotocol.io/) servers
+  - `q`, `qq`, `qqq` shell aliases for quick AI queries from the terminal
+  - [voxtype](https://github.com/fullykubed/voxtype) for push-to-talk transcription to control agents
+  - [workmux](https://github.com/fullykubed/workmux) for agent multiplexing with tmux
+- **Theming** - System-wide styling with [Stylix](https://github.com/danth/stylix)
+- **Storage** - [ZFS](https://openzfs.org/) filesystem with encryption and automated snapshots
 
 ## Repository Structure
 
@@ -61,94 +47,25 @@ nix run .#agenix-rekey
 ├── configuration.nix         # Base system configuration
 ├── devices/                  # Machine-specific configurations
 ├── modules/
-│   ├── common/              # Module configurations shared across all installs
-│   └── utility/            # Hardware-specific utilities
-├── home-manager/           # User environment configuration
-│   ├── default.nix        # Home Manager entry point
-│   └── nvim/             # Neovim configuration
-├── secrets/               # Encrypted secrets (agenix)
-    ├── *.age             # Age-encrypted secrets
-│   └── rekeyed/          # Per-machine encrypted secrets
-└── yubikeys/             # Public keys for secret encryption
+│   ├── common/              # Shared modules across all systems
+│   └── utility/             # Hardware-specific utilities
+├── backups/                 # ZFS backup configuration
+├── secrets/                 # Encrypted secrets (agenix)
+├── yubikeys/                # Public keys for secret encryption
+└── docs/                    # Documentation
 ```
 
-## Configured Machines
+## Documentation
 
-* `fullykubed-mini-pc`: Intel-based mini PC workstation
-* `fullykubed-tower`: AMD-based desktop workstation
-
-## Key Components
-
-### Desktop Environment
-- **Window Manager**: Sway (Wayland compositor)
-- **Status Bar**: Waybar
-- **Application Launcher**: Rofi (Wayland fork)
-- **Terminal**: Alacritty
-- **Notifications**: SwayNC (Sway Notification Center)
-
-### Development Tools
-- **Editor**: Neovim (Kickstart-based configuration)
-- **Version Control**: Git with GPG signing
-- **Languages**: Go, Rust, Python, Node.js
-- **Shell**: Zsh with Oh My Zsh
-- **Terminal Multiplexer**: Zellij
-
-### System Features
-- **Audio**: PipeWire with WirePlumber
-- **Bluetooth**: Full stack with audio support
-- **Networking**: NetworkManager
-- **Containers**: Docker and Podman
-- **Virtualization**: QEMU/KVM with virt-manager
-
-## Secret Management
-
-This configuration uses [agenix](https://github.com/ryantm/agenix) for managing encrypted secrets:
-
-1. Secrets are stored encrypted in `secrets/`
-2. Each machine has its own public key in `yubikeys/`
-3. Secrets are automatically rekeyed for each machine
-4. Decrypted at runtime into `/run/agenix/`
-
-To add a new secret:
-```bash
-# Create and edit secret
-agenix -e secrets/new-secret.age
-
-# Rekey for all machines
-nix run .#agenix-rekey
-```
-
-## Customization
-
-### Adding a New Module
-
-1. Create module file in `modules/common/` or `modules/utility/`
-2. Import in `configuration.nix`
-3. Follow the standard module pattern:
-```nix
-{ config, pkgs, lib, ... }: {
-  # Module configuration
-}
-```
-
-### Adding a New Machine
-
-1. Create device configuration in `devices/`
-2. Add nixosConfiguration in `flake.nix`
-3. Add public key to `yubikeys/` for secret management
-4. Run `nix run .#agenix-rekey` to rekey secrets
-
-## Deployment
-
-The `un.sh` script (located in `modules/common/scripts/scripts/`) handles deployment:
-
-1. Copies configuration to `/etc/nixos`
-2. Runs `nixos-rebuild switch` with appropriate flags
-3. Automatically uses the current hostname for the flake target
+- [Commands](docs/commands.md) - System rebuild commands
+- [Deployment](docs/deployment.md) - Building and deploying configurations
+- [Adding Modules](docs/adding-modules.md) - Creating new configuration modules
+- [Adding Machines](docs/adding-machines.md) - Configuring new systems
+- [Secret Management](docs/secrets.md) - Managing encrypted secrets with agenix
 
 ## License
 
-Personal configuration - feel free to use as reference or inspiration for your own NixOS setup.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Resources
 
