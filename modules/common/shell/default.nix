@@ -223,7 +223,7 @@
             "fancy-ctrl-z"
           ];
         };
-        initExtra = ''
+        initContent = ''
           # fzf-tab configuration
           # Use tmux popup for completion menu if in tmux
           zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
