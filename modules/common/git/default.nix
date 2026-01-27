@@ -72,6 +72,7 @@ in
       aiCommit # Generate commit messages with Claude AI
       aiReword # Rewrite commit messages with Claude AI
       aiRebase # Rebase with Claude Code conflict resolution
+      mergiraf # Syntax-aware git merge driver
     ];
 
     programs = {
@@ -95,6 +96,11 @@ in
         ignores = [
           ".claude/prds/" # Ignore Claude Code PRD files in all repos
           ".claude/settings.local.json" # Ignore local Claude Code settings
+        ];
+
+        # Use mergiraf for syntax-aware merge conflict resolution
+        attributes = [
+          "* merge=mergiraf"
         ];
 
         settings.alias = {
@@ -124,6 +130,10 @@ in
 
               merge = {
                 conflictstyle = "zdiff3"; # Show the original code in conflicts
+                mergiraf = {
+                  name = "mergiraf";
+                  driver = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L";
+                };
               };
 
               commit = {
