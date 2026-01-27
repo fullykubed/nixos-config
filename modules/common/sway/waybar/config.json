@@ -14,6 +14,7 @@
     "sway/window"
   ],
   "modules-right": [
+    "custom/systemd-failed",
     "custom/voxtype",
     "idle_inhibitor",
     "pulseaudio",
@@ -173,5 +174,14 @@
     "return-type": "json",
     "format": "{}",
     "tooltip": true
+  },
+  "custom/systemd-failed": {
+    "exec": "waybar-systemd-failed",
+    "exec-if": "which waybar-systemd-failed",
+    "return-type": "json",
+    "format": "{}",
+    "escape": true,
+    "interval": 30,
+    "on-click": "swaymsg exec 'wezterm start --always-new-process --class systemd-manager -- doas systemd-manager-tui'"
   }
 }

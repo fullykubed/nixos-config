@@ -79,6 +79,10 @@ in
     ];
   };
 
+  environment.systemPackages = [
+    scripts
+  ];
+
   environment.sessionVariables = {
     # Used for the notifications daemon settings
     SWAY_NOTIFICATION_OUTPUT = getMonitorByNum 2; # Middle monitor
