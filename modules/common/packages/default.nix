@@ -31,11 +31,6 @@
     deskflow
 
     ################################
-    ##  Doc Editors
-    ################################
-    libreoffice
-
-    ################################
     ##  Parsers
     ################################
     jq # JSON parser
@@ -123,12 +118,6 @@
     libusb1 # for programming usb devices
 
     ################################
-    ##  Windows Emulation
-    ################################
-    wineWowPackages.waylandFull
-    winetricks
-
-    ################################
     ##  Password and secrets management
     ################################
     gnupg # GPL OpenPGP implementation
@@ -157,13 +146,6 @@
     ##  File sharing
     ################################
     croc # CLI for secure p2p file sharing
-
-    ################################
-    ##  Gaming
-    ################################
-    unstable.lutris
-    gamemode
-    gamescope
 
     ################################
     ## Databases

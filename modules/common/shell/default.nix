@@ -4,8 +4,6 @@
   programs.zsh.enable = true;
 
   environment.systemPackages = with pkgs; [
-    kitty # terminal
-
     bat # "Better" cat
     eza # "Better" ls written in rust
     dut # Extremely performant disk usage analyzer
