@@ -178,6 +178,15 @@
       };
 
       ####################################
+      ## Shell Completion - Carapace
+      ####################################
+      carapace = {
+        enable = true;
+        enableBashIntegration = true;
+        enableZshIntegration = true;
+      };
+
+      ####################################
       ## Better ls - Eza
       ####################################
       eza = {
@@ -198,6 +207,7 @@
       ####################################
       zsh = {
         enable = true;
+        enableCompletion = false; # Carapace handles completions
         autosuggestion.enable = true;
         syntaxHighlighting.enable = true;
         oh-my-zsh = {
