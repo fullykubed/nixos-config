@@ -30,24 +30,15 @@ in
         StandardOutput = "journal";
         StandardError = "journal";
         ExecStart = pkgs.writeShellScript "vulnix-scan" ''
-          # Scan system packages
+          # Scan system packages (includes home-manager when used as NixOS module)
           echo "Scanning system packages..."
           ${pkgs.vulnix}/bin/vulnix --system -w ${whitelist}
-          SYSTEM_EXIT=$?
+          EXIT_CODE=$?
 
-          # Scan home-manager profile (located in user's local state directory)
-          echo "Scanning home-manager profile..."
-          ${pkgs.vulnix}/bin/vulnix ${config.homeDir}/.local/state/nix/profiles/home-manager -w ${whitelist}
-          HM_EXIT=$?
-
-          # Fail if either scan found vulnerabilities (exit code 2)
-          if [ $SYSTEM_EXIT -eq 2 ] || [ $HM_EXIT -eq 2 ]; then
+          if [ $EXIT_CODE -eq 2 ]; then
             echo "Vulnerabilities found!"
             exit 1
-          fi
-
-          # Propagate other errors
-          if [ $SYSTEM_EXIT -ne 0 ] || [ $HM_EXIT -ne 0 ]; then
+          elif [ $EXIT_CODE -ne 0 ]; then
             echo "Scan error occurred"
             exit 1
           fi
