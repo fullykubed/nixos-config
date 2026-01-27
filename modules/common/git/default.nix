@@ -77,6 +77,7 @@ in
 
     programs = {
       zsh.shellAliases = {
+        gs = "git status"; # [G]it [S]tatus
         gc = "git-clone-for-worktree";
         gca = "ai-commit"; # [G]it [C]ommit [A]I
         gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
@@ -205,6 +206,7 @@ in
               };
 
               advice = {
+                statusHints = false; # Disables parenthetical hints in git status
                 resolveConflict = false;
                 pushUpdateRejected = false; # Disables all push-related hints
                 addEmptyPathspec = false;
