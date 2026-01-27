@@ -14,6 +14,7 @@ in
   environment.systemPackages = with pkgs; [
     firefox-fhs # Firefox in isolated FHS environment
     chromium
+    unstable.chawan # Text-mode web browser with modern web standards support
   ];
 
   home-manager.users.${config.username} = {
