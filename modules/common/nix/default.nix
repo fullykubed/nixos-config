@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 {
 
   environment.systemPackages = [
@@ -17,7 +17,6 @@
     # Ensure the cpu doesn't get blasted
     daemonCPUSchedPolicy = "idle";
     settings = {
-      max-jobs = 16;
       # Increase download buffer size to prevent warnings (1GB)
       download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
 
@@ -35,12 +34,30 @@
       accept-flake-config = true; # Auto-accept flake.nix nixConfig settings
       warn-dirty = false; # Don't warn about dirty git trees
       use-xdg-base-directories = true;
+
+      # Debugging - keep failed build directories for inspection
+      keep-failed = true;
+
+      # Build resource limits
+      max-jobs = 8;
+      cores = config.cpuCount - 1;
+      keep-build-log = true;
+      log-lines = 100;
     };
   };
 
   systemd = {
     # Add WakeSystem to the auto-generated nix-gc timer
     timers.nix-gc.timerConfig.WakeSystem = true;
+
+    # Nix daemon resource limits
+    services.nix-daemon.serviceConfig = {
+      MemoryMax = "32G";
+      MemoryHigh = "30G";
+      AllowedCPUs = "0-${toString (config.cpuCount - 2)}"; # Leave 1 core free
+      Nice = 19; # Lowest CPU priority
+      OOMScoreAdjust = 1000; # Kill nix builds first when OOM occurs
+    };
 
     # Nix store optimization service
     services.nix-store-optimise = {
