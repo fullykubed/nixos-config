@@ -212,6 +212,16 @@ cve = [
 ]
 comment = "CVEs (4.3-8.8 Med-High): CSRF, credential leak in Jenkins Git Plugin. System git CLI is unrelated."
 
+# System subversion CLI tool (Apache SVN)
+# CVEs affect Jenkins Subversion Plugin (org.jenkins-ci.plugins:subversion)
+["subversion"]
+cve = [
+  "CVE-2021-21698",
+  "CVE-2022-29046",
+  "CVE-2022-29048",
+]
+comment = "CVEs (4.3-7.5 Med-High): Path traversal, XSS, CSRF in Jenkins Subversion Plugin. Apache SVN CLI (subversion-1.14.5) is unrelated."
+
 # xunit testing framework
 # CVE affects Jenkins xUnit plugin
 ["xunit"]
