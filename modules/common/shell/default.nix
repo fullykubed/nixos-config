@@ -205,9 +205,16 @@
       ####################################
       zsh = {
         enable = true;
-        enableCompletion = false; # Carapace handles completions
+        enableCompletion = true; # Required for fzf-tab
         autosuggestion.enable = true;
         syntaxHighlighting.enable = true;
+        plugins = [
+          {
+            name = "fzf-tab";
+            src = pkgs.zsh-fzf-tab;
+            file = "share/fzf-tab/fzf-tab.plugin.zsh";
+          }
+        ];
         oh-my-zsh = {
           enable = true;
           plugins = [
@@ -216,6 +223,30 @@
             "fancy-ctrl-z"
           ];
         };
+        initExtra = ''
+          # fzf-tab configuration
+          # Use tmux popup for completion menu if in tmux
+          zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
+
+          # Preview directory contents
+          zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'
+          zstyle ':fzf-tab:complete:z:*' fzf-preview 'eza -1 --color=always $realpath'
+
+          # Preview file contents
+          zstyle ':fzf-tab:complete:*:*' fzf-preview 'bat --color=always --style=numbers --line-range=:100 $realpath 2>/dev/null || eza -1 --color=always $realpath 2>/dev/null || echo $realpath'
+
+          # Disable sort for git checkout (show recent branches first)
+          zstyle ':completion:*:git-checkout:*' sort false
+
+          # Set descriptions format
+          zstyle ':completion:*:descriptions' format '[%d]'
+
+          # Set list-colors for colored completions
+          zstyle ':completion:*' list-colors ''${(s.:.)LS_COLORS}
+
+          # Switch groups with < and >
+          zstyle ':fzf-tab:*' switch-group '<' '>'
+        '';
       };
 
       ####################################
