@@ -73,6 +73,8 @@
 
         cargoHash = versions.workmuxCargoHash;
 
+        nativeBuildInputs = [ pkgs.git ];
+
         meta = with pkgs.lib; {
           description = "CLI tool combining git worktrees and tmux for parallel development";
           homepage = "https://github.com/raine/workmux";
