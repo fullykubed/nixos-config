@@ -1,6 +1,6 @@
-# Personal [NixOS](https://nixos.org/) Configuration
+# Personal NixOS Configuration
 
-Personal NixOS configuration for multiple machines using Nix flakes, [Home Manager](https://nix-community.github.io/home-manager/), and declarative system management.
+Personal [NixOS](https://nixos.org/) configuration for multiple machines using [Nix flakes](https://nixos.wiki/wiki/Flakes), [Home Manager](https://nix-community.github.io/home-manager/), and declarative system management. Uses [Determinate Nix](https://github.com/DeterminateSystems/nix) for improved performance.
 
 ## Philosophy
 
