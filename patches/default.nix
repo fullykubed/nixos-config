@@ -305,9 +305,9 @@ hardeningExclusions
   # See: https://github.com/avahi/avahi/security/advisories
   avahi = prev.avahi.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-68468.patch
-      ./CVE-2025-68471.patch
-      ./CVE-2025-68276.patch
+      ./cves/CVE-2025-68468.patch
+      ./cves/CVE-2025-68471.patch
+      ./cves/CVE-2025-68276.patch
     ];
   });
 
@@ -315,7 +315,7 @@ hardeningExclusions
   # See: https://nvd.nist.gov/vuln/detail/CVE-2025-64524
   cups-filters = prev.cups-filters.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-64524.patch
+      ./cves/CVE-2025-64524.patch
     ];
   });
 
@@ -328,8 +328,8 @@ hardeningExclusions
   #   See: https://nvd.nist.gov/vuln/detail/CVE-2025-67269
   gpsd = prev.gpsd.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-67268.patch
-      ./CVE-2025-67269.patch
+      ./cves/CVE-2025-67268.patch
+      ./cves/CVE-2025-67269.patch
     ];
   });
 
@@ -357,8 +357,8 @@ hardeningExclusions
   #   See: https://nvd.nist.gov/vuln/detail/CVE-2025-68972
   gnupg = prev.gnupg.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-68973.patch
-      ./CVE-2025-68972.patch
+      ./cves/CVE-2025-68973.patch
+      ./cves/CVE-2025-68972.patch
     ];
   });
 
@@ -403,8 +403,8 @@ hardeningExclusions
   # See: https://nvd.nist.gov/vuln/detail/CVE-2025-68617
   fluidsynth = prev.fluidsynth.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-68617.patch
-      ./CVE-2025-68617-2.patch
+      ./cves/CVE-2025-68617.patch
+      ./cves/CVE-2025-68617-2.patch
     ];
   });
 
@@ -414,8 +414,8 @@ hardeningExclusions
   # See: https://nvd.nist.gov/vuln/detail/CVE-2025-15279
   fontforge = prev.fontforge.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-15279.patch
-      ./CVE-2025-15279-2.patch
+      ./cves/CVE-2025-15279.patch
+      ./cves/CVE-2025-15279-2.patch
     ];
   });
 
@@ -425,9 +425,9 @@ hardeningExclusions
   # CVE-2025-46394 (CVSS 3.2 Low): Filename hiding via terminal escape sequences in tar
   busybox = prev.busybox.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-60876.patch
-      ./CVE-2025-46394.patch
-      ./CVE-2025-46394-2.patch
+      ./cves/CVE-2025-60876.patch
+      ./cves/CVE-2025-46394.patch
+      ./cves/CVE-2025-46394-2.patch
     ];
   });
 
@@ -439,9 +439,9 @@ hardeningExclusions
   binutils-unwrapped = prev.binutils-unwrapped.overrideAttrs (old: {
     nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ prev.flex ];
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-1153.patch
-      ./CVE-2025-3198.patch
-      ./CVE-2025-8225.patch
+      ./cves/CVE-2025-1153.patch
+      ./cves/CVE-2025-3198.patch
+      ./cves/CVE-2025-8225.patch
     ];
   });
 
@@ -524,8 +524,8 @@ hardeningExclusions
   # See: https://nvd.nist.gov/vuln/detail/CVE-2025-11277
   assimp = prev.assimp.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
-      ./CVE-2025-11277.patch
-      ./assimp-fix-uninitialized-shadingMode.patch # Fix test code triggering -Werror=maybe-uninitialized
+      ./cves/CVE-2025-11277.patch
+      ./fixes/assimp-fix-uninitialized-shadingMode.patch # Fix test code triggering -Werror=maybe-uninitialized
     ];
   });
 
@@ -592,12 +592,12 @@ hardeningExclusions
     _dotnetFinal: dotnetPrev: {
       vmr_8_0 = dotnetPrev.vmr_8_0.overrideAttrs (old: {
         patches = (old.patches or [ ]) ++ [
-          ./dotnet-2026-fileversion-fix.patch
+          ./fixes/dotnet-2026-fileversion-fix.patch
         ];
       });
       vmr_9_0 = dotnetPrev.vmr_9_0.overrideAttrs (old: {
         patches = (old.patches or [ ]) ++ [
-          ./dotnet-2026-fileversion-fix.patch
+          ./fixes/dotnet-2026-fileversion-fix.patch
         ];
       });
     }
