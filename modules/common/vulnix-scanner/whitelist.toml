@@ -199,6 +199,12 @@ comment = "CVE-2023-49292 (4.9 Med): ECDH key recovery in github.com/ecies/go (E
 ################################################################################
 # Jenkins plugins share names with CLI tools. CVEs for plugins don't affect CLIs.
 
+# Mercurial VCS (version control system)
+# CVE affects Jenkins Mercurial Plugin, not Mercurial VCS CLI
+["mercurial"]
+cve = ["CVE-2022-43410"]
+comment = "CVE-2022-43410 (5.3 Med): Info disclosure in Jenkins Mercurial Plugin webhook. Mercurial VCS (hg) is unrelated."
+
 # System git CLI tool
 # CVEs affect Jenkins Git Plugin
 ["git"]
