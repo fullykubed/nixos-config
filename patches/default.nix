@@ -597,6 +597,27 @@ hardeningExclusions
   git = prev.git.overrideAttrs { doInstallCheck = false; };
   gitFull = prev.gitFull.overrideAttrs { doInstallCheck = false; };
 
+  # ===========================================================================
+  # libavif 1.3.0 dependency chain fix
+  # ===========================================================================
+  # CVE-2025-48174 (4.5-9.1): Integer overflow in makeRoom (stream.c)
+  # CVE-2025-48175 (4.5-6.5): Integer overflows in avifImageRGBToYUV (reformat.c)
+  # Fixed in libavif 1.3.0, but some packages may have stale builds with 1.2.1
+  #
+  # Force gd and libgphoto2 to rebuild with the fixed libavif.
+  # Dependency chain: SwayNotificationCenter → gvfs → libgphoto2 → gd → libavif
+  # ===========================================================================
+
+  # gd: Force rebuild with fixed libavif 1.3.0
+  gd = prev.gd.override {
+    inherit (final) libavif;
+  };
+
+  # libgphoto2: Force rebuild with our patched gd
+  libgphoto2 = prev.libgphoto2.override {
+    inherit (final) gd;
+  };
+
   # Dotnet VMR: Fix 2026 FileVersion overflow in azure-activedirectory-identitymodel-extensions
   # Bug: Original formula (year-2019)*10000+MMdd produces 70101+ in 2026, exceeding UInt16 max (65535)
   # Error: CS7035 "The specified version string '7.1.2.70120' does not conform to the recommended format"
