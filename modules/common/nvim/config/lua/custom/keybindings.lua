@@ -93,6 +93,29 @@ vim.keymap.set("n", "<C-Left>", "<cmd>vertical resize -2<CR>", { desc = "Decreas
 vim.keymap.set("n", "<C-Right>", "<cmd>vertical resize +2<CR>", { desc = "Increase window width" })
 
 -------------------------------------------------------------------
+-- PRD Keymaps
+-------------------------------------------------------------------
+
+-- Open last edited PRD file
+vim.keymap.set("n", "<leader>sp", function()
+  local prd_dir = vim.fn.getcwd() .. "/.prd"
+  if vim.fn.isdirectory(prd_dir) == 1 then
+    -- Find the most recently modified .md file in .prd directory
+    local files = vim.fn.globpath(prd_dir, "*.md", false, true)
+    if #files > 0 then
+      table.sort(files, function(a, b)
+        return vim.fn.getftime(a) > vim.fn.getftime(b)
+      end)
+      vim.cmd("edit " .. vim.fn.fnameescape(files[1]))
+    else
+      vim.notify("No PRD files found in .prd/", vim.log.levels.WARN)
+    end
+  else
+    vim.notify("No .prd directory found in project", vim.log.levels.WARN)
+  end
+end, { desc = "[S]earch [P]RD (last edited)" })
+
+-------------------------------------------------------------------
 -- Pager Mode Keymaps
 -------------------------------------------------------------------
 
