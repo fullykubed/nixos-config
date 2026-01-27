@@ -43,6 +43,11 @@
 
         cargoHash = versions.voxtypeCargoHash;
 
+        nativeCheckInputs = with pkgs; [
+          bash # shell needed for post-processor tests
+          coreutils # echo needed for test_whitespace_trimming
+        ];
+
         nativeBuildInputs = with pkgs; [
           pkg-config
           cmake
