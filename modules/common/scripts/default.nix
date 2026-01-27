@@ -24,7 +24,6 @@ let
   };
 in
 {
-
   environment.systemPackages = [
     scripts
   ];

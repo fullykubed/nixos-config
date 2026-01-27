@@ -1,4 +1,9 @@
-_: {
+{ pkgs, ... }:
+{
+
+  environment.systemPackages = [
+    pkgs.nix-output-monitor # Better build progress display (nom)
+  ];
 
   nix = {
     # Configure automatic package garbage collection
@@ -15,9 +20,21 @@ _: {
       max-jobs = 16;
       # Increase download buffer size to prevent warnings (1GB)
       download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
-      # Determinate Systems cache
-      extra-substituters = [ "https://install.determinate.systems" ];
-      extra-trusted-public-keys = [ "cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM=" ];
+
+      # Binary caches for faster builds (avoid compiling common packages)
+      extra-substituters = [
+        "https://install.determinate.systems"
+        "https://nix-community.cachix.org"
+      ];
+      extra-trusted-public-keys = [
+        "cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM="
+        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+      ];
+
+      # Performance settings
+      accept-flake-config = true; # Auto-accept flake.nix nixConfig settings
+      warn-dirty = false; # Don't warn about dirty git trees
+      use-xdg-base-directories = true;
     };
   };
 
