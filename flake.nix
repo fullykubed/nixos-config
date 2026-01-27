@@ -188,6 +188,10 @@
                   sharedModules = [ stylix.homeModules.stylix ];
                   users.${config.username} = {
                     home.stateVersion = "22.11";
+
+                    # Disable manual generation to avoid builtins.toFile warning
+                    # See: https://github.com/nix-community/home-manager/issues/7935
+                    manual.manpages.enable = false;
                   };
                 };
               }
