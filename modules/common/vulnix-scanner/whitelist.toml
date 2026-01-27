@@ -539,11 +539,6 @@ until = "2026-04-18"
 #
 # FFMPEG: Multiple packages bundle different versions. CVEs grouped by version
 # with comments showing which top-level package uses each version.
-
-
-################################################################################
-# FFMPEG - Bundled versions in various packages
-################################################################################
 # pname: ffmpeg (all versions share this)
 #
 # VERSION MAP:

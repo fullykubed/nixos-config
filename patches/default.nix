@@ -493,6 +493,20 @@ hardeningExclusions
     nativeBuildInputs = replaceYasmWithNasm old.nativeBuildInputs;
   });
 
+  # libavif: AV1 image format library
+  # Must use our nasm-based libaom, otherwise pulls in yasm via:
+  # graphviz → gd → libavif → libaom → yasm
+  libavif = prev.libavif.override {
+    inherit (final) libaom;
+  };
+
+  # libheif: HEIF/AVIF image format library
+  # Must use our nasm-based libaom, otherwise pulls in yasm via:
+  # imagemagick → libheif → libaom → yasm
+  libheif = prev.libheif.override {
+    inherit (final) libaom;
+  };
+
   # libgcrypt: Skip t-kdf test that aborts with our custom stdenv
   #
   # The t-kdf test fails on "ARGON2 test vector 0" with SIGABRT due to interactions
