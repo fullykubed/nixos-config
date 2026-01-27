@@ -52,5 +52,6 @@ return flatten_plugins(
   require("custom.plugins.trouble"),
   require("custom.plugins.lazygit"),
   require("custom.plugins.which-key"),
-  require("custom.plugins.baleia")
+  require("custom.plugins.baleia"),
+  require("custom.plugins.hmts")
 )
