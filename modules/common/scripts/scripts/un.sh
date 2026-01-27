@@ -33,6 +33,7 @@ NixOS rebuild script with performance-optimized defaults.
 
 Options:
   -b, --boot        Rebuild boot configuration only
+  -j, --jobs N      Set max concurrent derivation builds (default: system setting)
   -o, --offline     Build without network access (use local store only)
   -u, --update      Update flake inputs before rebuilding
   -h, --help        Show this help message
@@ -153,14 +154,27 @@ run_nixos_rebuild() {
   local use_nom="$4"
   local impure_mode="$5"
   shift 5
-  local build_flags=("$@")
+
+  # Split args on "--" separator: nix_flags -- rebuild_flags
+  local nix_flags=()
+  local rebuild_flags=()
+  local past_separator=false
+  for arg in "$@"; do
+    if [[ "$arg" == "--" ]]; then
+      past_separator=true
+    elif [[ "$past_separator" == true ]]; then
+      rebuild_flags+=("$arg")
+    else
+      nix_flags+=("$arg")
+    fi
+  done
 
   # In impure mode, build as user (who owns the repo) then switch as root
   # This avoids git ownership issues when running doas
   if [[ "$impure_mode" == true ]]; then
-    run_nixos_rebuild_split "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${build_flags[@]}"
+    run_nixos_rebuild_split "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}"
   else
-    run_nixos_rebuild_direct "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${build_flags[@]}"
+    run_nixos_rebuild_direct "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}" "${rebuild_flags[@]}"
   fi
 }
 
@@ -171,14 +185,14 @@ run_nixos_rebuild_direct() {
   local hostname="$3"
   local use_nom="$4"
   shift 4
-  local build_flags=("$@")
+  local all_flags=("$@")
 
   if [[ "$use_nom" == true ]] && command -v nom &>/dev/null; then
     info "Using nix-output-monitor for progress display..."
-    doas nixos-rebuild "$rebuild_cmd" "${build_flags[@]}" --flake "$flake_path#$hostname" |& nom
+    doas nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname" |& nom
   else
     [[ "$use_nom" == true ]] && warn_nom_missing
-    doas nixos-rebuild "$rebuild_cmd" "${build_flags[@]}" --flake "$flake_path#$hostname"
+    doas nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname"
   fi
 }
 
@@ -189,7 +203,7 @@ run_nixos_rebuild_split() {
   local hostname="$3"
   local use_nom="$4"
   shift 4
-  local build_flags=("$@")
+  local nix_flags=("$@")
 
   local flake_attr="$flake_path#nixosConfigurations.$hostname.config.system.build.toplevel"
 
@@ -198,15 +212,15 @@ run_nixos_rebuild_split() {
   # Build with nom for visual progress (if available)
   if [[ "$use_nom" == true ]] && command -v nom &>/dev/null; then
     info "Using nix-output-monitor for progress display..."
-    nix build --no-link "$flake_attr" |& nom
+    nix build --no-link "${nix_flags[@]}" "$flake_attr" |& nom
   else
     [[ "$use_nom" == true ]] && warn_nom_missing
-    nix build --no-link "$flake_attr"
+    nix build --no-link "${nix_flags[@]}" "$flake_attr"
   fi
 
   # Get the output path (instant since already built, suppress warnings)
   local system_path
-  system_path=$(nix build --print-out-paths --no-link "$flake_attr" 2>/dev/null)
+  system_path=$(nix build --print-out-paths --no-link "${nix_flags[@]}" "$flake_attr" 2>/dev/null)
 
   if [[ -z "$system_path" ]]; then
     error "Build failed - no output path"
@@ -247,6 +261,7 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
       -b|--boot)       BOOT_MODE=true ;;
+      -j|--jobs)       shift; MAX_JOBS="$1" ;;
       -o|--offline)    OFFLINE_MODE=true ;;
       -u|--update)     UPDATE_MODE=true ;;
       -i|--impure)     IMPURE_MODE=true ;;
@@ -277,6 +292,7 @@ main() {
   UPDATE_MODE=false
   IMPURE_MODE=true
   USE_NOM=true
+  MAX_JOBS=""
 
   parse_args "$@"
   validate_options
@@ -316,19 +332,20 @@ main() {
     info "Rebuilding and switching configuration for: $hostname"
   fi
 
-  # Build flags array
-  local build_flags=(--accept-flake-config)
+  # Build flags (work with both nix build and nixos-rebuild)
+  local nix_flags=()
+  [[ "$OFFLINE_MODE" == true ]] && nix_flags+=(--offline) && info "Building in offline mode"
+  [[ "$IMPURE_MODE" == true ]] && nix_flags+=(--impure)
+  [[ -n "$MAX_JOBS" ]] && nix_flags+=(--max-jobs "$MAX_JOBS") && info "Max concurrent builds: $MAX_JOBS"
 
-  [[ "$OFFLINE_MODE" == true ]] && build_flags+=(--offline) && info "Building in offline mode"
-  [[ "$IMPURE_MODE" == true ]] && build_flags+=(--impure)
-
-  # Add --no-reexec for faster switch (when not updating)
+  # Additional flags for nixos-rebuild only
+  local rebuild_flags=(--accept-flake-config)
   if [[ "$BOOT_MODE" == false ]] && [[ "$UPDATE_MODE" == false ]] && [[ "$OFFLINE_MODE" == false ]]; then
-    build_flags+=(--no-reexec)
+    rebuild_flags+=(--no-reexec)
   fi
 
   # Execute rebuild
-  run_nixos_rebuild "$rebuild_cmd" "$flake_path" "$hostname" "$USE_NOM" "$IMPURE_MODE" "${build_flags[@]}"
+  run_nixos_rebuild "$rebuild_cmd" "$flake_path" "$hostname" "$USE_NOM" "$IMPURE_MODE" "${nix_flags[@]}" -- "${rebuild_flags[@]}"
 }
 
 main "$@"
