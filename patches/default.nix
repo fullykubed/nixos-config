@@ -407,16 +407,35 @@ hardeningExclusions
     };
   };
 
-  # ImageMagick 7.1.2-11 from unstable - security update from 7.1.2-10
-  # Fixes multiple CVEs including:
-  #   CVE-2025-66628 (7.5 High): TIM decoder integer overflow (32-bit)
-  #   CVE-2025-62171 (Med): BMP decoder integer overflow (32-bit)
-  #   CVE-2025-55154 (High): MNG memory corruption
-  # See: https://github.com/ImageMagick/ImageMagick/security/advisories
+  # ImageMagick security patches (nixpkgs has 7.1.2-12, we need fixes from 7.1.2-13)
   # NOTE: Override to use our patched openexr (eliminates openexr 3.3.5 CVEs)
-  imagemagick = final.unstable.imagemagick.override {
-    inherit (final) openexr;
-  };
+  #
+  # CVEs fixed by patches (all from 7.1.2-13):
+  #   CVE-2026-23876 (CVSS 9.8 Critical): Heap buffer overflow in XBM decoder
+  #     Remote code execution via malicious XBM image files
+  #     See: https://nvd.nist.gov/vuln/detail/CVE-2026-23876
+  #   CVE-2026-22770 (CVSS 6.5 Medium): Use-after-free in BilateralBlurImage
+  #     Invalid pointer release when memory allocation fails
+  #     See: https://nvd.nist.gov/vuln/detail/CVE-2026-22770
+  #   CVE-2026-23874 (CVSS 5.5 Medium): Stack overflow in MSL processor
+  #     Infinite recursion in ProcessMSLScript when writing to MSL format
+  #     See: https://nvd.nist.gov/vuln/detail/CVE-2026-23874
+  #
+  # CVEs fixed by version upgrade (7.1.2-12 in nixpkgs):
+  #   CVE-2025-68618 (5.3 Med): SVG depth limit DoS
+  #   CVE-2025-69204 (5.3 Med): WriteSVGImage integer overflow DoS
+  #   CVE-2025-68950 (4.0 Med): MVG circular reference stack overflow DoS
+  imagemagick =
+    (final.unstable.imagemagick.override {
+      inherit (final) openexr;
+    }).overrideAttrs
+      (old: {
+        patches = (old.patches or [ ]) ++ [
+          ./cves/CVE-2026-23876.patch
+          ./cves/CVE-2026-22770.patch
+          ./cves/CVE-2026-23874.patch
+        ];
+      });
 
   # Perl 5.42.0 from unstable - fixes CVE-2024-56406
   # CVE-2024-56406 (8.4 High): Heap buffer overflow in tr// operator
