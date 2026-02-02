@@ -400,7 +400,12 @@ hardeningExclusions
   # - CVE-2025-10934: PSP File Parsing Heap-based Buffer Overflow
   # All allow remote code execution via crafted image files
   # Fixed in GIMP 3.0.6, using unstable which has this version
-  inherit (final.unstable) gimp;
+  # NOTE: Override gegl to use our patched openexr (eliminates openexr_2 CVEs)
+  gimp = final.unstable.gimp.override {
+    gegl = final.unstable.gegl.override {
+      inherit (final) openexr;
+    };
+  };
 
   # ImageMagick 7.1.2-11 from unstable - security update from 7.1.2-10
   # Fixes multiple CVEs including:
@@ -408,7 +413,10 @@ hardeningExclusions
   #   CVE-2025-62171 (Med): BMP decoder integer overflow (32-bit)
   #   CVE-2025-55154 (High): MNG memory corruption
   # See: https://github.com/ImageMagick/ImageMagick/security/advisories
-  inherit (final.unstable) imagemagick;
+  # NOTE: Override to use our patched openexr (eliminates openexr 3.3.5 CVEs)
+  imagemagick = final.unstable.imagemagick.override {
+    inherit (final) openexr;
+  };
 
   # Perl 5.42.0 from unstable - fixes CVE-2024-56406
   # CVE-2024-56406 (8.4 High): Heap buffer overflow in tr// operator
