@@ -347,6 +347,13 @@ comment = "CVE-2021-26720 (7.8 High): Privilege escalation via Debian avahi-daem
 # ImageMagick - upgraded to unstable (7.1.2-11) via overlay
 # Previous whitelist entry for CVE-2025-66628 removed - now fixed by version upgrade
 
+# libmpeg2 from SourceForge (libmpeg2.sourceforge.net)
+# CVE affects Ittiam libmpeg2 (Android/AOSP), not this library
+# gst-plugins-ugly → libmpeg2-0.5.1 (SourceForge MPEG-2 decoder)
+["libmpeg2"]
+cve = ["CVE-2022-37416"]
+comment = "CVE-2022-37416 (6.5 Med): memcpy overlap in Ittiam libmpeg2 (Android). NixOS has libmpeg2-0.5.1 from SourceForge - different software."
+
 # Allegro 4.x vs 5.x - CVE is for Allegro 5.x image addon
 # lutris → allegro-4.4.3.1 (legacy game library)
 ["allegro"]
