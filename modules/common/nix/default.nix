@@ -9,7 +9,7 @@
     # Configure automatic package garbage collection
     gc = {
       automatic = true;
-      dates = "*-*-* 00:00:00"; # Midnight daily
+      dates = "monthly"; # First of each month
       persistent = true;
       options = "--delete-older-than 7d"; # Keep 7 days for rollback
     };
@@ -75,7 +75,7 @@
       description = "Nix Store Optimization Timer";
       wantedBy = [ "timers.target" ];
       timerConfig = {
-        OnCalendar = "*-*-* 00:15:00"; # 15 minutes after midnight (after GC)
+        OnCalendar = "*-*-01 00:15:00"; # 15 minutes after GC on first of month
         Persistent = true;
         WakeSystem = true;
       };
