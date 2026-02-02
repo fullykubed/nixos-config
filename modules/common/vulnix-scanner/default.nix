@@ -16,9 +16,9 @@ in
   # Make wrapped vulnix available system-wide (wrapper takes priority)
   environment.systemPackages = [ vulnix-wrapped ];
 
-  # Shell alias for quick CVE scanning
+  # Shell alias for quick CVE scanning (runtime closure only)
   home-manager.users.${config.username}.home.shellAliases = {
-    cve = "vulnix --system";
+    cve = "vulnix --system --closure";
   };
 
   systemd = {
@@ -30,9 +30,9 @@ in
         StandardOutput = "journal";
         StandardError = "journal";
         ExecStart = pkgs.writeShellScript "vulnix-scan" ''
-          # Scan system packages (includes home-manager when used as NixOS module)
+          # Scan runtime closure only (excludes build-time dependencies)
           echo "Scanning system packages..."
-          ${pkgs.vulnix}/bin/vulnix --system -w ${whitelist}
+          ${pkgs.vulnix}/bin/vulnix --system --closure -w ${whitelist}
           EXIT_CODE=$?
 
           if [ $EXIT_CODE -eq 2 ]; then
