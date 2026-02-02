@@ -588,4 +588,37 @@ cve = [
 comment = "CVEs (6.5-7.8 Med-High): Memory corruption, DoS via crafted media in ffmpeg-7.1.2 bundled by Firefox/VLC."
 until = "2026-07-01"
 
+#-------------------------------------------------------------------------------
+# YASM: yasm-1.3.0 - x86 assembler (abandonware, last release 2014)
+# Pulled in by: signal-desktop, drawio → electron → chromium → ffmpeg → yasm
+# Electron bundles its own Chromium build which uses yasm for x86 assembly.
+# System packages use nasm (via overlay), but Electron's bundled deps bypass this.
+# CVEs are all DoS via malformed assembly files - not exploitable through Electron.
+#-------------------------------------------------------------------------------
+["yasm-1.3.0"]
+cve = [
+  "CVE-2021-33454",     # 5.5 Med - NULL ptr deref in yasm_expr_get_intnum
+  "CVE-2021-33455",     # 5.5 Med - NULL ptr deref in yasm_expr_simplify
+  "CVE-2021-33456",     # 5.5 Med - NULL ptr deref in yasm_expr_simplify
+  "CVE-2021-33457",     # 5.5 Med - NULL ptr deref in yasm_section_bcs_first
+  "CVE-2021-33458",     # 5.5 Med - NULL ptr deref in bc_finalize_common
+  "CVE-2021-33459",     # 5.5 Med - NULL ptr deref in yasm__xstrdup
+  "CVE-2021-33460",     # 5.5 Med - NULL ptr deref in memset
+  "CVE-2021-33461",     # 5.5 Med - NULL ptr deref in hash lookup
+  "CVE-2021-33462",     # 5.5 Med - NULL ptr deref in hash lookup (2)
+  "CVE-2021-33463",     # 5.5 Med - NULL ptr deref in NASM preprocessor
+  "CVE-2021-33464",     # 5.5 Med - NULL ptr deref in expand_smacro
+  "CVE-2021-33465",     # 5.5 Med - NULL ptr deref in coff_section_data
+  "CVE-2021-33466",     # 5.5 Med - NULL ptr deref in bc_reserve_common
+  "CVE-2021-33467",     # 5.5 Med - NULL ptr deref in gas_bc_set_regval
+  "CVE-2021-33468",     # 5.5 Med - NULL ptr deref in nasm_objfmt
+  "CVE-2023-30402",     # 5.5 Med - heap overflow via crafted file
+  "CVE-2023-31972",     # 5.5 Med - heap overflow via crafted file
+  "CVE-2023-31973",     # 5.5 Med - heap overflow via crafted file
+  "CVE-2023-31974",     # 5.5 Med - heap overflow via crafted file
+  "CVE-2023-51258",     # 5.5 Med - memory leak via crafted file
+  "CVE-2023-31975",     # 3.3 Low - memory leak via crafted file
+]
+comment = "CVEs (3.3-5.5 Low-Med): DoS/memory issues via malformed assembly files. Bundled by Electron (signal-desktop, drawio). Build-time assembler only - not exploitable through Electron apps. Yasm is abandonware (2014); system uses nasm via overlay."
+
 
