@@ -668,6 +668,17 @@ hardeningExclusions
     ];
   });
 
+  # ===========================================================================
+  # jq 1.8.1 - force all packages to use non-vulnerable version
+  # ===========================================================================
+  # Eliminates jq 1.7.1 from build-time dependency closure
+  # CVE-2024-23337 (4.3 Med): Integer overflow at index 2147483647 → DoS
+  # CVE-2024-53427 (8.1 High): Stack buffer overflow in decNumberCopy → RCE
+  # CVE-2025-48060 (7.5 High): Heap buffer overflow in jv_string_vfmt
+  # All fixed in jq 1.8+
+  # Affected packages (build-time): xdg-utils, firefox, glslang, dotnet-vmr, etc.
+  # ===========================================================================
+  inherit (final.unstable) jq;
   # Dotnet VMR: Fix 2026 FileVersion overflow in azure-activedirectory-identitymodel-extensions
   # Bug: Original formula (year-2019)*10000+MMdd produces 70101+ in 2026, exceeding UInt16 max (65535)
   # Error: CS7035 "The specified version string '7.1.2.70120' does not conform to the recommended format"
