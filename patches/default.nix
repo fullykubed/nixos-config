@@ -724,4 +724,18 @@ hardeningExclusions
     ];
   });
 
+  # glibc security patch
+  # CVE-2026-0915 (CVSS 7.5 High / 5.3 Med adjusted): Stack contents leak to DNS resolver
+  # Calling getnetbyaddr/getnetbyaddr_r with NSS DNS backend and zero-valued network
+  # leaks uninitialized stack bytes in the DNS query. Could aid ASLR bypass.
+  # Attack complexity is high (rare API call + network-adjacent attacker).
+  # Affects glibc 2.0 through 2.42, fixed in 2.43.
+  # Backported from: https://sourceware.org/git/?p=glibc.git;h=e56ff82d5034ec66c6a78f517af6faa427f65b0b
+  # See: https://nvd.nist.gov/vuln/detail/CVE-2026-0915
+  glibc = prev.glibc.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      ./cves/CVE-2026-0915.patch
+    ];
+  });
+
 }
