@@ -645,6 +645,21 @@ hardeningExclusions
     inherit (final) gd;
   };
 
+  # libpng security patches (both fixed in 1.6.54)
+  # CVE-2026-22801 (CVSS 6.8 Medium): Integer truncation in png_write_image_* causes
+  #   heap buffer over-read with negative/large row strides. Affects 1.6.26-1.6.53.
+  #   See: https://nvd.nist.gov/vuln/detail/CVE-2026-22801
+  # CVE-2026-22695 (CVSS 6.1 Medium): Heap buffer over-read in png_image_finish_read
+  #   when processing interlaced 16-bit PNGs with 8-bit output. Regression from
+  #   CVE-2025-65018 fix. Affects 1.6.51-1.6.53.
+  #   See: https://nvd.nist.gov/vuln/detail/CVE-2026-22695
+  libpng = prev.libpng.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      ./cves/CVE-2026-22801.patch
+      ./cves/CVE-2026-22695.patch
+    ];
+  });
+
   # Dotnet VMR: Fix 2026 FileVersion overflow in azure-activedirectory-identitymodel-extensions
   # Bug: Original formula (year-2019)*10000+MMdd produces 70101+ in 2026, exceeding UInt16 max (65535)
   # Error: CS7035 "The specified version string '7.1.2.70120' does not conform to the recommended format"
