@@ -320,6 +320,13 @@ cve = [
 ]
 comment = "CVEs (6.1 Med): XSS in Xinhu Rainrock RockOA (Chinese OA system). Google protobuf is unrelated."
 
+# libmicrohttpd (GNU HTTP server library)
+# CVEs affect libmicrohttpd_ws.so (experimental WebSocket component)
+# NixOS only builds libmicrohttpd.so (core library) - no --enable-experimental
+["libmicrohttpd"]
+cve = ["CVE-2025-59777", "CVE-2025-62689"]
+comment = "CVEs (7.5 High): NULL ptr deref + heap overflow in libmicrohttpd_ws.so (experimental WebSocket). NixOS builds only libmicrohttpd.so without --enable-experimental. Unaffected."
+
 
 ################################################################################
 # PLATFORM/DISTRO SPECIFIC
