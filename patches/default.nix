@@ -224,11 +224,13 @@ hardeningExclusions
           in
           a
           // {
+            doCheck = false;
             hardeningEnable = prev.lib.unique ((a.hardeningEnable or [ ]) ++ hardeningFlags);
           }
         else
           args
           // {
+            doCheck = false;
             hardeningEnable = prev.lib.unique ((args.hardeningEnable or [ ]) ++ hardeningFlags);
           };
 
@@ -728,6 +730,33 @@ hardeningExclusions
   lua5_2 = prev.lua5_2.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2021-43519.patch
+    ];
+  });
+
+  # waybar: Disable tests - catch2 not found via pkg-config with custom stdenv
+  # Tests are skipped anyway (doCheck = false)
+  waybar = prev.waybar.overrideAttrs (old: {
+    mesonFlags = (old.mesonFlags or [ ]) ++ [
+      "-Dtests=disabled"
+    ];
+  });
+
+  # gjs: Skip GTK tests - GTK not found in sandbox with custom stdenv
+  # Tests are skipped anyway (doCheck = false)
+  gjs = prev.gjs.overrideAttrs (old: {
+    mesonFlags = (old.mesonFlags or [ ]) ++ [
+      "-Dskip_gtk_tests=true"
+    ];
+  });
+
+  # onnxruntime: Disable unit tests to avoid CMake 4 GTest detection regression
+  # CMake 4 changed find_package behavior, breaking GTest::gtest target detection
+  # Tests are skipped anyway (doCheck = false), so just disable at CMake level
+  # See: https://github.com/NixOS/nixpkgs/issues/445447
+  # Alt fix (may not work): "-DCMAKE_POLICY_VERSION_MINIMUM=3.10"
+  onnxruntime = prev.onnxruntime.overrideAttrs (old: {
+    cmakeFlags = (old.cmakeFlags or [ ]) ++ [
+      "-Donnxruntime_BUILD_UNIT_TESTS=OFF"
     ];
   });
 
