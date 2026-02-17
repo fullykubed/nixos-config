@@ -703,4 +703,23 @@ hardeningExclusions
     ];
   });
 
+  # libsndfile security patches (3 CVEs patched, 1 has no upstream fix)
+  # CVE-2025-52194 (CVSS 7.5 High): Buffer overflow in IRCAM header parsing
+  #   Memory corruption/potential RCE via malformed IRCAM audio files
+  #   See: https://nvd.nist.gov/vuln/detail/CVE-2025-52194
+  # CVE-2024-50612 (CVSS 5.5 Medium): Out-of-bounds read in OGG Vorbis
+  #   DoS via segfault when processing malformed OGG files
+  #   See: https://nvd.nist.gov/vuln/detail/CVE-2024-50612
+  # CVE-2025-56226 (CVSS 5.3 Medium): Memory leak in MP3 encoder init
+  #   Resource exhaustion via repeated encoding operations
+  #   See: https://nvd.nist.gov/vuln/detail/CVE-2025-56226
+  # NOTE: CVE-2024-50613 (6.5 Med) has no upstream fix - whitelisted separately
+  libsndfile = prev.libsndfile.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      ./cves/CVE-2025-52194.patch
+      ./cves/CVE-2024-50612.patch
+      ./cves/CVE-2025-56226.patch
+    ];
+  });
+
 }

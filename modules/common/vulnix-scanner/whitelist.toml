@@ -558,6 +558,17 @@ cve = [
 comment = "CVEs (7.8 High): RCE via malicious font files. Build-time only dep for fonts - not used interactively. No upstream fixes yet. Risk accepted 2026-01-18."
 until = "2026-04-18"
 
+#-------------------------------------------------------------------------------
+# LIBSNDFILE: libsndfile-1.2.2 - Audio file I/O library
+# CVE-2025-52194, CVE-2024-50612, CVE-2025-56226 are patched via overlay.
+# CVE-2024-50613 has no upstream fix yet (issue #1034 open since Aug 2024).
+# Reachable assertion in MP3 encoder - requires user interaction to trigger.
+#-------------------------------------------------------------------------------
+["libsndfile-1.2.2"]
+cve = ["CVE-2024-50613"]
+comment = "CVE-2024-50613 (6.5 Med): Reachable assertion in mpeg_l3_encoder_close causes DoS via malformed WAV→MP3 conversion. Requires user interaction (encoding malicious file). No upstream fix. Risk accepted 2026-02-02."
+until = "2026-05-02"
+
 
 ################################################################################
 #                                                                              #
