@@ -37,6 +37,7 @@
 
       # Debugging - keep failed build directories for inspection
       keep-failed = true;
+      keep-going = true; # Continue building other derivations if one fails
 
       # Build resource limits
       max-jobs = 8;
