@@ -362,7 +362,7 @@ hardeningExclusions
     ];
   });
 
-  # GEGL: Rebuild with OpenEXR 3.3.6 instead of legacy openexr_2 (2.5.10)
+  # GEGL: Rebuild with OpenEXR 3.4.4 instead of legacy openexr_2 (2.5.10)
   # This eliminates openexr_2 from the system, fixing 11 CVEs:
   #   CVE-2023-5841 (9.1 Crit): Heap buffer overflow in deep scanline parsing
   #   CVE-2021-23169 (8.8 High): Heap buffer overflow → RCE
@@ -373,8 +373,9 @@ hardeningExclusions
   #   CVE-2021-3598, CVE-2021-3605 (5.5 Med): Out-of-bounds reads
   #   CVE-2024-31047 (3.3 Low): Local DoS
   # gegl 0.4.48+ supports OpenEXR 3.x (fixed: https://gitlab.gnome.org/GNOME/gegl/-/issues/284)
+  # NOTE: gegl expects openexr_2 parameter name; map our modern openexr to it
   gegl = prev.gegl.override {
-    inherit (final) openexr;
+    openexr_2 = final.openexr;
   };
 
   # GnuPG security patches (both fixed in 2.4.9)
@@ -405,7 +406,7 @@ hardeningExclusions
   # NOTE: Override gegl to use our patched openexr (eliminates openexr_2 CVEs)
   gimp = final.unstable.gimp.override {
     gegl = final.unstable.gegl.override {
-      inherit (final) openexr;
+      openexr_2 = final.openexr;
     };
   };
 
@@ -461,17 +462,6 @@ hardeningExclusions
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2025-68617.patch
       ./cves/CVE-2025-68617-2.patch
-    ];
-  });
-
-  # FontForge CVE-2025-15279 (CVSS 7.8 High): Heap buffer overflow in BMP RLE decompression
-  # Allows RCE via malicious BMP file. Build-time dependency for fonts (dejavu, liberation, etc.)
-  # Other CVEs (15276, 15277, 15278) have no upstream fix yet - whitelisted separately
-  # See: https://nvd.nist.gov/vuln/detail/CVE-2025-15279
-  fontforge = prev.fontforge.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [
-      ./cves/CVE-2025-15279.patch
-      ./cves/CVE-2025-15279-2.patch
     ];
   });
 
@@ -617,6 +607,16 @@ hardeningExclusions
     });
   };
 
+  # mss (python-mss): Disable install checks - tests require X11 display unavailable in sandbox
+  # Multiple tests try to open X11 displays (:0, :99) which fail in Nix sandbox
+  python313 = prev.python313.override {
+    packageOverrides = _pyfinal: pyprev: {
+      mss = pyprev.mss.overrideAttrs {
+        doInstallCheck = false;
+      };
+    };
+  };
+
   # Deno: Skip os.cpus() test that fails in sandbox due to CPU count mismatch
   # The test compares two methods of getting CPU count which can differ in sandboxed builds
   # Test expects 15 CPUs but sandbox reports 16
@@ -673,21 +673,6 @@ hardeningExclusions
   libgphoto2 = prev.libgphoto2.override {
     inherit (final) gd;
   };
-
-  # libpng security patches (both fixed in 1.6.54)
-  # CVE-2026-22801 (CVSS 6.8 Medium): Integer truncation in png_write_image_* causes
-  #   heap buffer over-read with negative/large row strides. Affects 1.6.26-1.6.53.
-  #   See: https://nvd.nist.gov/vuln/detail/CVE-2026-22801
-  # CVE-2026-22695 (CVSS 6.1 Medium): Heap buffer over-read in png_image_finish_read
-  #   when processing interlaced 16-bit PNGs with 8-bit output. Regression from
-  #   CVE-2025-65018 fix. Affects 1.6.51-1.6.53.
-  #   See: https://nvd.nist.gov/vuln/detail/CVE-2026-22695
-  libpng = prev.libpng.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [
-      ./cves/CVE-2026-22801.patch
-      ./cves/CVE-2026-22695.patch
-    ];
-  });
 
   # ===========================================================================
   # jq 1.8.1 - force all packages to use non-vulnerable version
@@ -769,20 +754,6 @@ hardeningExclusions
   jbig2dec = prev.jbig2dec.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2023-46361.patch
-    ];
-  });
-
-  # glibc security patch
-  # CVE-2026-0915 (CVSS 7.5 High / 5.3 Med adjusted): Stack contents leak to DNS resolver
-  # Calling getnetbyaddr/getnetbyaddr_r with NSS DNS backend and zero-valued network
-  # leaks uninitialized stack bytes in the DNS query. Could aid ASLR bypass.
-  # Attack complexity is high (rare API call + network-adjacent attacker).
-  # Affects glibc 2.0 through 2.42, fixed in 2.43.
-  # Backported from: https://sourceware.org/git/?p=glibc.git;h=e56ff82d5034ec66c6a78f517af6faa427f65b0b
-  # See: https://nvd.nist.gov/vuln/detail/CVE-2026-0915
-  glibc = prev.glibc.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [
-      ./cves/CVE-2026-0915.patch
     ];
   });
 
