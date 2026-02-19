@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 # Clone a repository as a bare clone and create a worktree for the default branch
+#
+# Creates the following directory layout:
+#   <directory>/
+#   ├── .bare/            # Bare git repository
+#   ├── .envrc            # direnv config for GIT_DIR/GIT_WORK_TREE
+#   └── <default_branch>/ # Worktree for the default branch (e.g., main/)
+#
+#   I like this directory structure for the following reasons:
+#   
+#   - All the worktrees are created in sibling directories of one another and all
+#     stored in a master directory for the repo / project
+#
+#   - Git commands run from the master directory will be automatically applied against
+#     default branch's worktree.
 
 set -e
 
@@ -9,17 +23,24 @@ if [[ -z "$1" ]]; then
 fi
 
 repository_url="$1"
-directory="${2:-$(basename "$repository_url" .git)}"
+# Use absolute path so GIT_DIR remains valid after cd
+directory="$(realpath -m "${2:-$(basename "$repository_url" .git)}")"
 
+# Clone as bare repo into a hidden .bare directory
 git clone --bare "$repository_url" "$directory/.bare"
-export GIT_DIR="$directory/.bare" 
+export GIT_DIR="$(realpath "$directory/.bare")"
 
+# Enable fetching all branches (bare clones don't do this by default)
 git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+
 cd "$directory"
 
+# Create a worktree for the default branch so that we have a starting point
 default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
 git worktree add "$default_branch"
 
+# Generate .envrc for direnv to set git environment variablesi
+# This enables git commands to be run from the project root
 cat > .envrc << EOF
 # Only set GIT env vars when loaded directly, not via source_up
 if [[ "\$DIRENV_DIR" == "\$PWD" ]]; then
@@ -28,6 +49,8 @@ if [[ "\$DIRENV_DIR" == "\$PWD" ]]; then
 fi
 EOF
 
+# Automatically allow our newly generated direnv
 direnv allow
 
+# Start a detached tmux session for this project
 tmux new-session -d -s "$directory" -c "$PWD"
