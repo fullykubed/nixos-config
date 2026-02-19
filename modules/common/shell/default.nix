@@ -179,7 +179,7 @@
       ## Shell Completion - Carapace
       ####################################
       carapace = {
-        enable = true;
+        enable = false;
         enableBashIntegration = true;
         enableZshIntegration = true;
       };
