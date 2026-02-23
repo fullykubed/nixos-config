@@ -18,7 +18,7 @@
     ####################################
     ## Aliases
     ####################################
-    home.shellAliases = {
+    programs.zsh.shellAliases = {
 
       # For replacing grep with rg
       grep = "rg -uu";

@@ -33,7 +33,7 @@
       };
     };
 
-    home.shellAliases = {
+    programs.zsh.shellAliases = {
       e = "ranger";
     };
   };

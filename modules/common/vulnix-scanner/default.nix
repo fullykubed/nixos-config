@@ -17,7 +17,7 @@ in
   environment.systemPackages = [ vulnix-wrapped ];
 
   # Shell alias for quick CVE scanning (runtime closure only)
-  home-manager.users.${config.username}.home.shellAliases = {
+  home-manager.users.${config.username}.programs.zsh.shellAliases = {
     cve = "vulnix --system --closure";
   };
 

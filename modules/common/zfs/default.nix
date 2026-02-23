@@ -118,7 +118,7 @@ in
 
   home-manager.users.${config.username} = {
     # Custom scripts for debugging zfs issues
-    home.shellAliases = {
+    programs.zsh.shellAliases = {
       # For monitoring disk usage
       zio = "watch -n 1 zpool iostat -lvy 1 1";
 
