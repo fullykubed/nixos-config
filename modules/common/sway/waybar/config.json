@@ -15,6 +15,7 @@
   ],
   "modules-right": [
     "custom/systemd-failed",
+    "custom/builders",
     "custom/voxtype",
     "idle_inhibitor",
     "pulseaudio",
@@ -183,5 +184,12 @@
     "escape": true,
     "interval": 30,
     "on-click": "swaymsg exec 'wezterm start --always-new-process --class systemd-manager -- doas systemd-manager-tui'"
+  },
+  "custom/builders": {
+    "exec": "waybar-builders",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 60,
+    "tooltip": true
   }
 }

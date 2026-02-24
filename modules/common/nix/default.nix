@@ -20,15 +20,7 @@
       # Increase download buffer size to prevent warnings (1GB)
       download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
 
-      # Binary caches for faster builds (avoid compiling common packages)
-      extra-substituters = [
-        "https://install.determinate.systems"
-        "https://nix-community.cachix.org"
-      ];
-      extra-trusted-public-keys = [
-        "cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM="
-        "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
-      ];
+      # Binary caches configured in flake.nix (cacheModule) shared with builder image
 
       # Performance settings
       accept-flake-config = true; # Auto-accept flake.nix nixConfig settings
@@ -40,10 +32,13 @@
       keep-going = true; # Continue building other derivations if one fails
 
       # Build resource limits
-      max-jobs = 8;
+      max-jobs = (config.cpuCount + 3) / 4;
       cores = config.cpuCount - 1;
       keep-build-log = true;
       log-lines = 100;
+
+      # Parallel copy operations to/from remote builders and substituters
+      max-substitution-jobs = 32;
     };
   };
 

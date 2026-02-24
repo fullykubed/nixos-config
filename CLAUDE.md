@@ -10,6 +10,7 @@ Guidance for Claude Code when working with this NixOS configuration repository.
 - [docs/adding-modules.md](docs/adding-modules.md) - Creating new configuration modules
 - [docs/adding-machines.md](docs/adding-machines.md) - Configuring new systems
 - [docs/secrets.md](docs/secrets.md) - Secret management with agenix
+- [docs/remote-builders/](docs/remote-builders/) - Dynamic Hetzner Cloud builders and binary cache
 - [modules/common/README.md](modules/common/README.md) - Comprehensive module reference (60+ modules)
 
 ## Security & Vulnerability Management

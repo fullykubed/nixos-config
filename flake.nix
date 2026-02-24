@@ -42,6 +42,13 @@
       url = "github:cachix/git-hooks.nix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # S3-compatible binary cache
+    niks3 = {
+      url = "github:Mic92/niks3";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -56,6 +63,7 @@
       agenix-rekey,
       flake-utils,
       stylix,
+      niks3,
       ...
     }:
     let
@@ -100,6 +108,48 @@
       };
 
       # =========================================================================
+      # Shared Binary Cache Configuration
+      # =========================================================================
+      cacheModule = {
+        nix.settings = {
+          extra-substituters = [
+            "https://install.determinate.systems"
+            "https://nix-community.cachix.org"
+            "https://nixos-cache.panfactumcf.com?priority=42" # niks3 binary cache
+          ];
+          extra-trusted-public-keys = [
+            "cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM="
+            "nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs="
+            "cache-1:L8UZuJh5BeVhxU06bO4iT0OkWSvKO7/nFV1XuOwt9ak=" # niks3 signing key
+          ];
+        };
+      };
+
+      # =========================================================================
+      # Custom Packages Overlay
+      # =========================================================================
+      customPackagesOverlay = final: _prev: {
+        hcloud-upload-image = final.buildGoModule rec {
+          pname = "hcloud-upload-image";
+          version = "1.3.0";
+          src = final.fetchFromGitHub {
+            owner = "apricote";
+            repo = "hcloud-upload-image";
+            rev = "v${version}";
+            hash = "sha256-1u9tpzciYjB/EgBI81pg9w0kez7hHZON7+AHvfKW7k0=";
+          };
+          vendorHash = "sha256-IdOAUBPg0CEuHd2rdc7jOlw0XtnAhr3PVPJbnFs2+x4=";
+          env.GOWORK = "off";
+          subPackages = [ "." ];
+          ldflags = [
+            "-s"
+            "-w"
+            "-X main.version=${version}"
+          ];
+        };
+      };
+
+      # =========================================================================
       # Overlays
       # =========================================================================
       overlays =
@@ -113,6 +163,14 @@
                 config.allowUnfree = true;
               };
             })
+
+            # niks3 binary cache CLI
+            (_: _: {
+              niks3-cli = niks3.packages.${system}.default;
+            })
+
+            # Custom packages
+            customPackagesOverlay
 
             # Security patches for CVEs not yet in nixpkgs
             (import ./patches)
@@ -129,6 +187,9 @@
         nixpkgs.lib.nixosSystem {
           inherit system;
           modules = [
+
+            # Shared binary cache configuration
+            cacheModule
 
             # Load the Determinate module
             determinate.nixosModules.default
@@ -170,6 +231,10 @@
                     # See: https://github.com/nix-community/home-manager/issues/7935
                     manual.manpages.enable = false;
                   };
+                  users.root = {
+                    home.stateVersion = "22.11";
+                    manual.manpages.enable = false;
+                  };
                 };
               }
             )
@@ -202,13 +267,96 @@
         userFlake = self;
         inherit (self) nixosConfigurations;
       };
+
+      # Builder image using native nixpkgs make-disk-image
+      packages.x86_64-linux.builder-image =
+        let
+          pkgs = import nixpkgs { system = "x86_64-linux"; };
+          builderSystem = nixpkgs.lib.nixosSystem {
+            system = "x86_64-linux";
+            modules = [
+              cacheModule
+              determinate.nixosModules.default
+              ./builders/image.nix
+              # Make niks3 CLI available
+              {
+                nixpkgs.overlays = [
+                  (_: _: {
+                    niks3-cli = niks3.packages.x86_64-linux.default;
+                  })
+                ];
+              }
+              # Root filesystem for disk image
+              {
+                fileSystems."/" = {
+                  device = "/dev/disk/by-label/nixos";
+                  fsType = "ext4";
+                  autoResize = true;
+                };
+              }
+            ];
+          };
+        in
+        pkgs.callPackage "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+          inherit pkgs;
+          inherit (pkgs) lib;
+          inherit (builderSystem) config;
+          format = "raw";
+          diskSize = "auto";
+          additionalSpace = "2G";
+          partitionTableType = "efi";
+          copyChannel = false;
+          label = "nixos";
+          postVM = ''
+            ${pkgs.zstd}/bin/zstd -6 --rm -f $diskImage -o $out/nixos.img.zst
+          '';
+        };
+
+      # Cache server image using native nixpkgs make-disk-image
+      packages.x86_64-linux.cache-image =
+        let
+          pkgs = import nixpkgs { system = "x86_64-linux"; };
+          cacheSystem = nixpkgs.lib.nixosSystem {
+            system = "x86_64-linux";
+            modules = [
+              cacheModule
+              niks3.nixosModules.default
+              ./cache/image.nix
+              # Root filesystem for disk image
+              {
+                fileSystems."/" = {
+                  device = "/dev/disk/by-label/nixos";
+                  fsType = "ext4";
+                  autoResize = true;
+                };
+              }
+            ];
+          };
+        in
+        pkgs.callPackage "${nixpkgs}/nixos/lib/make-disk-image.nix" {
+          inherit pkgs;
+          inherit (pkgs) lib;
+          inherit (cacheSystem) config;
+          format = "raw";
+          diskSize = "auto";
+          additionalSpace = "4G";
+          partitionTableType = "efi";
+          copyChannel = false;
+          label = "nixos";
+          postVM = ''
+            ${pkgs.zstd}/bin/zstd -6 --rm -f $diskImage -o $out/nixos.img.zst
+          '';
+        };
     }
     // flake-utils.lib.eachDefaultSystem (
       system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          overlays = [ agenix-rekey.overlays.default ];
+          overlays = [
+            customPackagesOverlay
+            agenix-rekey.overlays.default
+          ];
         };
         nixfmt = pkgs.treefmt.withConfig {
           runtimeInputs = [ pkgs.nixfmt-rfc-style ];
@@ -249,12 +397,8 @@
             nixfmt
             pkgs.agenix-rekey
             pkgs.gitleaks
-            (pkgs.writeShellScriptBin "un" (
-              # Remove the shebang line since writeShellScriptBin adds its own
-              builtins.replaceStrings [ "#!/usr/bin/env bash\n" ] [ "" ] (
-                builtins.readFile ./modules/common/scripts/scripts/un.sh
-              )
-            ))
+            pkgs.hcloud
+            pkgs.hcloud-upload-image
           ]
           ++ self.checks.${system}.pre-commit-check.enabledPackages;
 

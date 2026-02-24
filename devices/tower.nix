@@ -121,4 +121,6 @@
   ## Misc Hardware Settings
   ######################################
   powerManagement.cpuFreqGovernor = "performance";
+
+  cpuCount = 32;
 }

@@ -21,6 +21,15 @@ info()  { echo ":: $*"; }
 warn()  { echo ":: Warning: $*" >&2; }
 error() { echo ":: Error: $*" >&2; exit 1; }
 
+# Run a command as the original (non-root) user
+as_user() {
+  if [[ -n "${DOAS_USER:-}" ]]; then
+    runuser -u "$DOAS_USER" -- "$@"
+  else
+    "$@"
+  fi
+}
+
 # ------------------------------------------------------------------------------
 # Help Text
 # ------------------------------------------------------------------------------
@@ -32,11 +41,13 @@ Usage: $SCRIPT_NAME [OPTIONS]
 NixOS rebuild script with performance-optimized defaults.
 
 Options:
-  -b, --boot        Rebuild boot configuration only
-  -j, --jobs N      Set max concurrent derivation builds (default: system setting)
-  -o, --offline     Build without network access (use local store only)
-  -u, --update      Update flake inputs before rebuilding
-  -h, --help        Show this help message
+  -b, --boot            Rebuild boot configuration only
+  -B, --builders N      Use N regular remote builders (0 to disable all, default: all configured)
+  -P, --big-builders N  Use N big-parallel remote builders (default: all configured)
+  -j, --jobs N          Set max concurrent derivation builds (default: 1)
+  -o, --offline         Build without network access (use local store only)
+  -u, --update          Update flake inputs before rebuilding
+  -h, --help            Show this help message
 
 Options to disable defaults:
   --no-impure, --copy  Copy config to $NIXOS_CONFIG_DIR instead of building directly
@@ -51,6 +62,8 @@ Examples:
   $SCRIPT_NAME --no-nom      # Fast rebuild without nom
   $SCRIPT_NAME --copy        # Copy to $NIXOS_CONFIG_DIR first (old behavior)
   $SCRIPT_NAME -u -b         # Update flake inputs and rebuild boot config
+  $SCRIPT_NAME -B 3 -P 1     # Use 3 regular + 1 big-parallel builder
+  $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
 EOF
 }
 
@@ -95,12 +108,16 @@ find_repo_root() {
   fi
 
   # Method 4: Common locations
-  local dir
-  for dir in "$HOME/repos/nixos-config" "$HOME/nixos-config"; do
-    if is_nixos_config_repo "$dir"; then
-      echo "$dir"
-      return 0
-    fi
+  local search_homes=("$HOME")
+  [[ -n "${DOAS_USER:-}" ]] && search_homes+=("$(eval echo "~$DOAS_USER")")
+  local home dir
+  for home in "${search_homes[@]}"; do
+    for dir in "$home/repos/nixos-config" "$home/nixos-config"; do
+      if is_nixos_config_repo "$dir"; then
+        echo "$dir"
+        return 0
+      fi
+    done
   done
 
   return 1
@@ -112,11 +129,11 @@ find_repo_root() {
 
 init_git_repo_for_flake() {
   local target_dir="$1"
-  doas git -C "$target_dir" init -q
-  doas git -C "$target_dir" config user.email "nixos-rebuild@localhost"
-  doas git -C "$target_dir" config user.name "nixos-rebuild"
-  doas git -C "$target_dir" add -A
-  doas git -C "$target_dir" commit --no-gpg-sign -q -m "nixos-rebuild snapshot"
+  git -C "$target_dir" init -q
+  git -C "$target_dir" config user.email "nixos-rebuild@localhost"
+  git -C "$target_dir" config user.name "nixos-rebuild"
+  git -C "$target_dir" add -A
+  git -C "$target_dir" commit --no-gpg-sign -q -m "nixos-rebuild snapshot"
 }
 
 # ------------------------------------------------------------------------------
@@ -128,16 +145,16 @@ copy_config_to_nixos_dir() {
 
   info "Copying configuration to $NIXOS_CONFIG_DIR..."
 
-  doas rm -rf "$NIXOS_CONFIG_DIR"
-  doas mkdir -p "$NIXOS_CONFIG_DIR"
+  rm -rf "$NIXOS_CONFIG_DIR"
+  mkdir -p "$NIXOS_CONFIG_DIR"
 
   if git -C "$repo_root" rev-parse --git-dir &>/dev/null; then
     # Fast path: use git archive
-    git -C "$repo_root" archive --format=tar HEAD | doas tar -xf - -C "$NIXOS_CONFIG_DIR"
+    git -C "$repo_root" archive --format=tar HEAD | tar -xf - -C "$NIXOS_CONFIG_DIR"
   else
     # Fallback: plain copy
-    doas cp -r "$repo_root/." "$NIXOS_CONFIG_DIR/"
-    doas rm -rf "$NIXOS_CONFIG_DIR/.git" "$NIXOS_CONFIG_DIR/.direnv" "$NIXOS_CONFIG_DIR/.idea"
+    cp -r "$repo_root/." "$NIXOS_CONFIG_DIR/"
+    rm -rf "$NIXOS_CONFIG_DIR/.git" "$NIXOS_CONFIG_DIR/.direnv" "$NIXOS_CONFIG_DIR/.idea"
   fi
 
   init_git_repo_for_flake "$NIXOS_CONFIG_DIR"
@@ -169,8 +186,7 @@ run_nixos_rebuild() {
     fi
   done
 
-  # In impure mode, build as user (who owns the repo) then switch as root
-  # This avoids git ownership issues when running doas
+  # In impure mode, build as user then activate as root
   if [[ "$impure_mode" == true ]]; then
     run_nixos_rebuild_split "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}"
   else
@@ -189,14 +205,14 @@ run_nixos_rebuild_direct() {
 
   if [[ "$use_nom" == true ]] && command -v nom &>/dev/null; then
     info "Using nix-output-monitor for progress display..."
-    doas nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname" |& nom
+    nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname" --log-format internal-json -v |& nom --json
   else
     [[ "$use_nom" == true ]] && warn_nom_missing
-    doas nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname"
+    nixos-rebuild "$rebuild_cmd" "${all_flags[@]}" --flake "$flake_path#$hostname"
   fi
 }
 
-# Build as user, switch as root (for impure mode where user owns the repo)
+# Build then switch (for impure mode)
 run_nixos_rebuild_split() {
   local rebuild_cmd="$1"
   local flake_path="$2"
@@ -207,40 +223,39 @@ run_nixos_rebuild_split() {
 
   local flake_attr="$flake_path#nixosConfigurations.$hostname.config.system.build.toplevel"
 
-  info "Building as user (to avoid git ownership issues)..."
+  info "Building as ${DOAS_USER:-$(whoami)}..."
 
-  # Build with nom for visual progress (if available)
+  # Build as the original user (nix daemon handles the actual building)
   if [[ "$use_nom" == true ]] && command -v nom &>/dev/null; then
     info "Using nix-output-monitor for progress display..."
-    nix build --no-link "${nix_flags[@]}" "$flake_attr" |& nom
+    as_user nix build --no-link "${nix_flags[@]}" "$flake_attr" --log-format internal-json -v |& nom --json
   else
     [[ "$use_nom" == true ]] && warn_nom_missing
-    nix build --no-link "${nix_flags[@]}" "$flake_attr"
+    as_user nix build --no-link "${nix_flags[@]}" "$flake_attr"
   fi
 
   # Get the output path (instant since already built, suppress warnings)
   local system_path
-  system_path=$(nix build --print-out-paths --no-link "${nix_flags[@]}" "$flake_attr" 2>/dev/null)
+  system_path=$(as_user nix build --print-out-paths --no-link "${nix_flags[@]}" "$flake_attr" 2>/dev/null)
 
   if [[ -z "$system_path" ]]; then
     error "Build failed - no output path"
   fi
 
   info "Build complete: $system_path"
-  info "Activating configuration as root..."
+  info "Activating configuration..."
 
-  # Activate as root
   case "$rebuild_cmd" in
     switch)
-      doas nix-env -p /nix/var/nix/profiles/system --set "$system_path"
-      doas "$system_path/bin/switch-to-configuration" switch
+      nix-env -p /nix/var/nix/profiles/system --set "$system_path"
+      "$system_path/bin/switch-to-configuration" switch
       ;;
     boot)
-      doas nix-env -p /nix/var/nix/profiles/system --set "$system_path"
-      doas "$system_path/bin/switch-to-configuration" boot
+      nix-env -p /nix/var/nix/profiles/system --set "$system_path"
+      "$system_path/bin/switch-to-configuration" boot
       ;;
     test)
-      doas "$system_path/bin/switch-to-configuration" test
+      "$system_path/bin/switch-to-configuration" test
       ;;
     *)
       error "Unknown rebuild command: $rebuild_cmd"
@@ -261,6 +276,8 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
       -b|--boot)       BOOT_MODE=true ;;
+      -B|--builders)   shift; BUILDER_COUNT="$1" ;;
+      -P|--big-builders) shift; BIG_BUILDER_COUNT="$1" ;;
       -j|--jobs)       shift; MAX_JOBS="$1" ;;
       -o|--offline)    OFFLINE_MODE=true ;;
       -u|--update)     UPDATE_MODE=true ;;
@@ -292,10 +309,22 @@ main() {
   UPDATE_MODE=false
   IMPURE_MODE=true
   USE_NOM=true
-  MAX_JOBS=""
+  MAX_JOBS="1"
+  BUILDER_COUNT=""      # Empty = use all configured builders
+  BIG_BUILDER_COUNT=""  # Empty = use all configured big builders
 
   parse_args "$@"
   validate_options
+
+  # Re-exec as root upfront so privileged operations don't prompt mid-build
+  if [[ $EUID -ne 0 ]]; then
+    exec doas "$0" "$@"
+  fi
+
+  # Allow git to access user-owned repositories when running as root
+  export GIT_CONFIG_COUNT=1
+  export GIT_CONFIG_KEY_0=safe.directory
+  export GIT_CONFIG_VALUE_0='*'
 
   # Find repository root
   local repo_root
@@ -305,7 +334,7 @@ main() {
   # Update flake inputs if requested
   if [[ "$UPDATE_MODE" == true ]]; then
     info "Updating flake inputs..."
-    nix flake update --flake "$repo_root"
+    as_user nix flake update --flake "$repo_root"
   fi
 
   # Determine flake path
@@ -336,7 +365,55 @@ main() {
   local nix_flags=()
   [[ "$OFFLINE_MODE" == true ]] && nix_flags+=(--offline) && info "Building in offline mode"
   [[ "$IMPURE_MODE" == true ]] && nix_flags+=(--impure)
-  [[ -n "$MAX_JOBS" ]] && nix_flags+=(--max-jobs "$MAX_JOBS") && info "Max concurrent builds: $MAX_JOBS"
+  nix_flags+=(--max-jobs "$MAX_JOBS")
+  [[ "$MAX_JOBS" != "1" ]] && info "Max concurrent builds: $MAX_JOBS"
+
+  # Handle builders flags (-B for regular, -P for big-parallel)
+  if [[ -n "$BUILDER_COUNT" ]] || [[ -n "$BIG_BUILDER_COUNT" ]]; then
+    if [[ "${BUILDER_COUNT:-}" == "0" ]] && [[ -z "$BIG_BUILDER_COUNT" ]]; then
+      # -B 0 with no -P: disable all remote builders
+      nix_flags+=(--builders "")
+      info "Remote builders disabled"
+    else
+      local builder_list=""
+
+      # Generate regular builder entries (no big-parallel feature)
+      local regular_n="${BUILDER_COUNT:-}"
+      if [[ -n "$regular_n" ]] && [[ "$regular_n" -gt 0 ]]; then
+        for i in $(seq 1 "$regular_n"); do
+          if [[ -n "$builder_list" ]]; then
+            builder_list+="; "
+          fi
+          builder_list+="ssh://remotebuild@builder-$i x86_64-linux /root/.ssh/builder-key 4 1 nixos-test,kvm,benchmark"
+        done
+      fi
+
+      # Generate big-parallel builder entries (mandatoryFeatures=big-parallel)
+      local big_n="${BIG_BUILDER_COUNT:-}"
+      if [[ -n "$big_n" ]] && [[ "$big_n" -gt 0 ]]; then
+        for i in $(seq 1 "$big_n"); do
+          if [[ -n "$builder_list" ]]; then
+            builder_list+="; "
+          fi
+          builder_list+="ssh://remotebuild@big-builder-$i x86_64-linux /root/.ssh/builder-key 1 1 nixos-test,big-parallel,kvm,benchmark big-parallel"
+        done
+      fi
+
+      if [[ -z "$builder_list" ]]; then
+        nix_flags+=(--builders "")
+        info "Remote builders disabled"
+      else
+        nix_flags+=(--builders "$builder_list")
+        local msg=""
+        [[ -n "$regular_n" ]] && [[ "$regular_n" -gt 0 ]] && msg="${regular_n} regular"
+        if [[ -n "$big_n" ]] && [[ "$big_n" -gt 0 ]]; then
+          [[ -n "$msg" ]] && msg+=" + "
+          msg+="${big_n} big-parallel"
+        fi
+        info "Using ${msg} builder(s)"
+      fi
+    fi
+  fi
 
   # Additional flags for nixos-rebuild only
   local rebuild_flags=(--accept-flake-config)

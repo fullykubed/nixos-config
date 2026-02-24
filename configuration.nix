@@ -64,6 +64,8 @@
     ./modules/common/transcription
     ./modules/common/btop
     ./modules/common/away-notify
+    ./modules/common/remote-builders
+    ./modules/common/binary-cache
 
     # Our segemented modules
     ./backups/default.nix
