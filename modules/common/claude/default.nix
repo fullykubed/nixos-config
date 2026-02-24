@@ -177,6 +177,38 @@
         };
       };
 
+      claudeSkillScripts = pkgs.stdenv.mkDerivation {
+        pname = "claude-skill-scripts";
+        version = "1.0.0";
+
+        src = ./skills/Skill/scripts;
+
+        buildInputs = [
+          pkgs.bash
+          pkgs.yq-go
+          pkgs.jq
+        ];
+
+        installPhase = ''
+          mkdir -p $out/bin
+
+          substitute $src/list-skills.sh "$out/bin/claude-Skill-list-skills" \
+            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+            --replace "@jq@" "${pkgs.jq}/bin/jq"
+          chmod +x "$out/bin/claude-Skill-list-skills"
+
+          substitute $src/skill-info.sh "$out/bin/claude-Skill-skill-info" \
+            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+            --replace "@jq@" "${pkgs.jq}/bin/jq"
+          chmod +x "$out/bin/claude-Skill-skill-info"
+
+          substitute ${./skills/Skill/hooks/validate-skill.sh} "$out/bin/claude-Skill-validate-skill" \
+            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
+            --replace "@jq@" "${pkgs.jq}/bin/jq"
+          chmod +x "$out/bin/claude-Skill-validate-skill"
+        '';
+      };
+
       claudeTaskScripts = pkgs.stdenv.mkDerivation {
         pname = "claude-task-scripts";
         version = "1.0.0";
@@ -368,6 +400,10 @@
                         type = "command";
                         command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
                       }
+                      {
+                        type = "command";
+                        command = "${claudeSkillScripts}/bin/claude-Skill-validate-skill";
+                      }
                     ];
                   }
                 ];
@@ -399,6 +435,7 @@
       environment.systemPackages = [
         claudeNotifyHook
         claudeTaskScripts
+        claudeSkillScripts
         claude-code-sandboxed
         ccusage
       ];
