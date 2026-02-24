@@ -8,7 +8,7 @@ YQ="@yq@"
 JQ="@jq@"
 
 usage() {
-    echo "Usage: claude-get-task <prd-name> <task-name>"
+    echo "Usage: claude-PRD-get-task <prd-name> <task-name>"
     echo ""
     echo "Returns JSON with full task details including status, spec path, and dependencies."
     echo ""
@@ -48,6 +48,7 @@ LOG_FILE="${PRD_DIR}/log.md"
 
 # Check if PRD directory exists
 if [[ ! -d "$PRD_DIR" ]]; then
+    # shellcheck disable=SC2016 # $name/$prd are jq variables, not shell
     $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "PRD directory not found"}'
     exit 0
@@ -55,6 +56,7 @@ fi
 
 # Check if tasks file exists
 if [[ ! -f "$TASKS_FILE" ]]; then
+    # shellcheck disable=SC2016
     $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "tasks.yaml not found"}'
     exit 0
@@ -89,6 +91,7 @@ TASK_JSON=$($YQ -o=json "
 
 # Check if task was found
 if [[ "$TASK_JSON" == "null" || -z "$TASK_JSON" ]]; then
+    # shellcheck disable=SC2016
     $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "Task not found in tasks.yaml"}'
     exit 0
@@ -111,6 +114,7 @@ if [[ -n "$SPEC_PATH" && -f "$SPEC_PATH" ]]; then
 fi
 
 # Add additional context to the task JSON
+# shellcheck disable=SC2016
 echo "$TASK_JSON" | $JQ \
     --arg prd_name "$PRD_NAME" \
     --arg prd_path "$PRD_FILE" \

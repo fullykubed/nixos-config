@@ -6,7 +6,7 @@ set -euo pipefail
 YQ="@yq@"
 
 usage() {
-    echo "Usage: claude-research-status <prd-name>"
+    echo "Usage: claude-PRD-research-status <prd-name>"
     echo ""
     echo "Returns JSON with research question counts by status and total."
     echo "A question is 'complete' if it has an answer, 'draft' otherwise."

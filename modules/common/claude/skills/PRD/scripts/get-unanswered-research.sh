@@ -6,7 +6,7 @@ set -euo pipefail
 YQ="@yq@"
 
 usage() {
-    echo "Usage: claude-get-unanswered-research <prd-name>"
+    echo "Usage: claude-PRD-get-unanswered-research <prd-name>"
     echo ""
     echo "Returns JSON array of unanswered research questions."
     echo "Each question includes 'text' and 'mode' fields."

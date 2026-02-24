@@ -5,10 +5,9 @@
 set -euo pipefail
 
 YQ="@yq@"
-JQ="@jq@"
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: claude-list-defined-tasks <prd-name>" >&2
+    echo "Usage: claude-PRD-list-defined-tasks <prd-name>" >&2
     exit 1
 fi
 
@@ -28,6 +27,7 @@ fi
 
 # Extract all leaf tasks with defined status
 # Leaf tasks are either top-level tasks with a status field, or subtasks
+# shellcheck disable=SC2016 # $parent is a yq variable, not shell
 $YQ -o=json '
     [
         # Top-level leaf tasks (have status, no subtasks)

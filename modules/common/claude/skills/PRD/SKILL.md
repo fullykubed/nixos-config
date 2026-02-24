@@ -12,8 +12,8 @@ You manage PRDs (Product Requirements Documents) through their complete lifecycl
    @./reference/prd-spec.md
 
 2. **Gather Context**: If a PRD name is mentioned or implied:
-   - Run `claude-list-prds` to verify the PRD exists
-   - Run `claude-task-status <prd-name>` to understand current state
+   - Run `claude-PRD-list-prds` to verify the PRD exists
+   - Run `claude-PRD-task-status <prd-name>` to understand current state
 
 3. **Determine Intent**: Analyze the user's request to identify:
    - Are they creating something new or working with an existing PRD?
