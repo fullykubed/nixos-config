@@ -1,0 +1,8 @@
+# Table of Contents — docs/
+
+- **commands.md** - Documents the `un.sh` rebuild script with options for quick rebuild, boot-only, flake updates, and offline builds.
+- **deployment.md** - Explains the deployment script that copies configuration to /etc/nixos and runs nixos-rebuild with appropriate flags.
+- **adding-modules.md** - Instructions for creating new NixOS modules in the common or utility directories following the standard module pattern.
+- **adding-machines.md** - Quick guide for adding new machines: create device config, add to flake.nix, add yubikey, and rekey secrets.
+- **secrets.md** - Describes agenix-based secret management with per-machine rekeying and runtime decryption.
+- **remote-builders/** - Documentation for the dynamic Hetzner Cloud builder system covering setup, usage, binary caching, and troubleshooting.

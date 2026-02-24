@@ -1,4 +1,3 @@
 # Configured Machines
 
-* `fullykubed-mini-pc`: Intel-based mini PC workstation
-* `fullykubed-tower`: AMD-based desktop workstation
+See [TOC.md](TOC.md) for a listing of all device configurations.

@@ -124,8 +124,4 @@ Key properties:
 
 ## Sub-documents
 
-- [Builder Tiers & Configuration](builders.md) — tiers, scheduling, costs, image updates
-- [Binary Cache](binary-cache.md) — how it works, upload queue, cache server, management, secrets
-- [Initial Setup](setup.md) — Hetzner account, secrets, deploy, image upload
-- [Usage](usage.md) — building with remote builders, CLI, waybar status
-- [Troubleshooting](troubleshooting.md) — diagnosing builder and cache issues
+See [TOC.md](TOC.md) for a listing of all documents in this directory.

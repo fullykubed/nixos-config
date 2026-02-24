@@ -44,30 +44,11 @@ Personal [NixOS](https://nixos.org/) configuration for multiple machines using [
 
 ## Repository Structure
 
-```
-.
-├── flake.nix                 # Main flake entry point
-├── configuration.nix         # Base system configuration
-├── devices/                  # Machine-specific configurations
-├── modules/
-│   ├── common/              # Shared modules across all systems
-│   └── utility/             # Hardware-specific utilities
-├── patches/                 # Security patches overlay
-│   ├── cves/                # CVE fix patches
-│   └── fixes/               # Non-CVE build fixes
-├── backups/                 # ZFS backup configuration
-├── secrets/                 # Encrypted secrets (agenix)
-├── yubikeys/                # Public keys for secret encryption
-└── docs/                    # Documentation
-```
+See [TOC.md](TOC.md) for a full listing of all files and directories.
 
 ## Documentation
 
-- [Commands](docs/commands.md) - System rebuild commands
-- [Deployment](docs/deployment.md) - Building and deploying configurations
-- [Adding Modules](docs/adding-modules.md) - Creating new configuration modules
-- [Adding Machines](docs/adding-machines.md) - Configuring new systems
-- [Secret Management](docs/secrets.md) - Managing encrypted secrets with agenix
+See [docs/TOC.md](docs/TOC.md) for a full listing of available documentation.
 
 ## License
 
