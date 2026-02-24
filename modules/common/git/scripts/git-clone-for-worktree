@@ -43,7 +43,7 @@ git worktree add "$default_branch"
 # This enables git commands to be run from the project root
 cat > .envrc << EOF
 # Only set GIT env vars when loaded directly, not via source_up
-if [[ "\$DIRENV_DIR" == "\$PWD" ]]; then
+if [[ "\$DIRENV_DIR" == "-\$PWD" ]]; then
   export GIT_DIR="\$PWD/.bare/worktrees/$default_branch"
   export GIT_WORK_TREE="\$PWD/$default_branch"
 fi
