@@ -66,6 +66,7 @@
     ./modules/common/away-notify
     ./modules/common/remote-builders
     ./modules/common/binary-cache
+    ./modules/common/tailscale
 
     # Our segemented modules
     ./backups/default.nix

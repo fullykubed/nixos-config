@@ -19,6 +19,8 @@ _: {
     # Forward DNS requests to dnscrypt-proxy2
     nameservers = [ "127.0.0.1" ];
 
+    nftables.enable = true;
+
     firewall = {
       enable = true;
 
