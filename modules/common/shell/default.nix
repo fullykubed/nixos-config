@@ -250,9 +250,9 @@
       };
 
       ####################################
-      ## Command Not Found
+      ## Command Not Found (nix-index)
       ####################################
-      command-not-found.enable = true;
+      nix-index.enable = true;
     };
   };
 }

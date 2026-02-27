@@ -55,6 +55,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Pre-built nix-index database (replaces command-not-found)
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -71,6 +77,7 @@
       stylix,
       niks3,
       bun2nix,
+      nix-index-database,
       ...
     }:
     let
@@ -250,6 +257,9 @@
                 };
               }
             )
+
+            # Pre-built nix-index database (replaces command-not-found)
+            nix-index-database.nixosModules.nix-index
 
             # Secrets integrations
             agenix.nixosModules.default
