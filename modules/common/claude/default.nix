@@ -278,6 +278,8 @@
           chmod +x "$out/bin/claude-PRD-get-unanswered-research"
         '';
       };
+
+      devBrowser = pkgs.callPackage ./dev-browser { };
     in
     {
       home-manager.users.${config.username} = {
@@ -438,6 +440,7 @@
         claudeSkillScripts
         claude-code-sandboxed
         ccusage
+        devBrowser
       ];
 
       age.secrets = {

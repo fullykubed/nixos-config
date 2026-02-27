@@ -49,6 +49,12 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Bun to Nix converter for Bun projects
+    bun2nix = {
+      url = "github:nix-community/bun2nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
   };
 
   outputs =
@@ -64,6 +70,7 @@
       flake-utils,
       stylix,
       niks3,
+      bun2nix,
       ...
     }:
     let
@@ -167,6 +174,11 @@
             # niks3 binary cache CLI
             (_: _: {
               niks3-cli = niks3.packages.${system}.default;
+            })
+
+            # bun2nix CLI tool with hook and fetchBunDeps for Bun projects
+            (_: _: {
+              bun2nix-cli = bun2nix.packages.${system}.default;
             })
 
             # Custom packages
