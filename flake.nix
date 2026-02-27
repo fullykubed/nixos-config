@@ -242,7 +242,10 @@
                 home-manager = {
                   useGlobalPkgs = true;
                   useUserPackages = true;
-                  sharedModules = [ stylix.homeModules.stylix ];
+                  sharedModules = [
+                    stylix.homeModules.stylix
+                    nix-index-database.homeModules.nix-index
+                  ];
                   users.${config.username} = {
                     home.stateVersion = "22.11";
 
