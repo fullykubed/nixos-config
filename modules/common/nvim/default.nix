@@ -55,6 +55,7 @@
         # Neovim essentials
         tree-sitter
         sqlite
+        imagemagick # Required by snacks.nvim for non-PNG image format conversion
 
         # Formatters
         stylua

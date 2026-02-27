@@ -312,6 +312,8 @@
                 set-option -ga terminal-features ",wezterm:usstyle"
                 set-option -ga terminal-overrides ",*:Tc"
 
+                set -gq allow-passthrough on
+
                 set -g focus-events on
 
                 setw -g monitor-activity on
