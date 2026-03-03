@@ -7,7 +7,6 @@
 - **README.md** - Project overview documenting the multi-machine NixOS setup with emphasis on declarative configuration, modular composition, and security features.
 - **CONTRIBUTING.md** - Development guidelines covering the direnv-based dev environment, testing changes with build commands, and pre-commit hooks.
 - **LICENSE** - Project license file.
-- **CLAUDE.md** - Instructions for Claude Code AI assistant when working in this repository.
 - **.envrc** - Direnv configuration that loads the Nix development environment automatically when entering the repository.
 - **gitleaks.toml** - Configuration for the gitleaks secret scanning tool with allowed false-positive patterns.
 - **.gitignore** - Excludes IDE files, Nix build artifacts, direnv state, and generated pre-commit configuration.
