@@ -66,6 +66,7 @@ in
     };
 
     home.packages = with pkgs; [
+      gh # Official GitHub CLI
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
       gitCloneForWorktree # Clone repos for worktree workflows

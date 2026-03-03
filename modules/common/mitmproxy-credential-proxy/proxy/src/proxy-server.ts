@@ -22,62 +22,41 @@ function forwardRequest(
   clearSocket: tls.TLSSocket,
 ): void {
   const modified = injectCredentials(raw, mapping);
+  const requestLine = modified.split("\r\n")[0];
 
-  const headerEnd = modified.indexOf("\r\n\r\n");
-  if (headerEnd === -1) {
-    log.warn(`Malformed HTTP request from ${host}`);
+  const upstream = tls.connect({ host, port, servername: host }, () => {
+    upstream.write(modified);
+  });
+
+  let firstChunk = true;
+  upstream.on("data", (chunk: Buffer) => {
+    if (firstChunk) {
+      firstChunk = false;
+      const head = chunk.toString("utf-8", 0, Math.min(chunk.length, 128));
+      const match = head.match(/^HTTP\/\d\.\d (\d{3})/);
+      if (match) {
+        const status = parseInt(match[1], 10);
+        if (status === 401 || status === 403) {
+          log.warn(`Auth failed: ${requestLine} -> ${status}`);
+        } else {
+          log.debug(`${requestLine} -> ${status}`);
+        }
+      }
+    }
+    clearSocket.write(chunk);
+  });
+
+  upstream.on("end", () => clearSocket.end());
+  upstream.on("error", (err) => {
+    log.error(`Upstream error for ${requestLine} (${host}:${port}):`, err.message);
+    clearSocket.write("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n");
     clearSocket.end();
-    return;
-  }
+  });
 
-  const headerSection = modified.slice(0, headerEnd);
-  const body = modified.slice(headerEnd + 4);
-  const lines = headerSection.split("\r\n");
-  const [method, path] = lines[0].split(" ");
-
-  const headers = new Headers();
-  for (let i = 1; i < lines.length; i++) {
-    const colonIdx = lines[i].indexOf(":");
-    if (colonIdx === -1) continue;
-    const name = lines[i].slice(0, colonIdx).trim();
-    const value = lines[i].slice(colonIdx + 1).trim();
-    const lower = name.toLowerCase();
-    if (lower === "host" || lower === "connection" || lower === "proxy-connection") continue;
-    headers.set(name, value);
-  }
-
-  const url = `https://${host}${port === 443 ? "" : `:${port}`}${path}`;
-
-  const fetchOptions: RequestInit = {
-    method,
-    headers,
-    redirect: "manual",
-  };
-  if (body.length > 0 && method !== "GET" && method !== "HEAD") {
-    fetchOptions.body = body;
-  }
-
-  fetch(url, fetchOptions)
-    .then(async (resp) => {
-      let response = `HTTP/1.1 ${resp.status} ${resp.statusText}\r\n`;
-      resp.headers.forEach((value, name) => {
-        if (name.toLowerCase() === "transfer-encoding") return;
-        response += `${name}: ${value}\r\n`;
-      });
-
-      const respBody = Buffer.from(await resp.arrayBuffer());
-      response += `content-length: ${respBody.length}\r\n`;
-      response += "\r\n";
-
-      clearSocket.write(response);
-      clearSocket.write(respBody);
-      clearSocket.end();
-    })
-    .catch((err) => {
-      log.error(`Fetch error for ${url}:`, err.message);
-      clearSocket.write("HTTP/1.1 502 Bad Gateway\r\nContent-Length: 0\r\n\r\n");
-      clearSocket.end();
-    });
+  clearSocket.on("error", (err) => {
+    log.debug(`Client socket error during forward to ${host}:`, err.message);
+    upstream.destroy();
+  });
 }
 
 export function createProxyServer(

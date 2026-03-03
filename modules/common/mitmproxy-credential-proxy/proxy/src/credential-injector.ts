@@ -10,21 +10,33 @@ export function injectCredentials(
     const secret = readFileSync(mapping.secret_path, "utf-8").trim();
     const value = `${mapping.value_prefix}${secret}`;
 
-    // Insert the header after the first line (request line)
     const lineEnd = rawRequest.indexOf("\r\n");
     if (lineEnd === -1) return rawRequest;
 
-    const injected =
-      rawRequest.slice(0, lineEnd + 2) +
-      `${mapping.header}: ${value}\r\n` +
-      rawRequest.slice(lineEnd + 2);
-
-    // Extract method and path for logging
     const requestLine = rawRequest.slice(0, lineEnd);
+    const rest = rawRequest.slice(lineEnd + 2);
+
+    // Remove any existing header with the same name so it doesn't
+    // overwrite the injected one when Headers.set() processes them
+    const headerPattern = new RegExp(
+      `^${mapping.header}:.*\\r\\n`,
+      "gim",
+    );
+    const cleaned = rest.replace(headerPattern, "");
+
+    const injected =
+      requestLine +
+      "\r\n" +
+      `${mapping.header}: ${value}\r\n` +
+      cleaned;
+
     log.info(`${requestLine} -> injected ${mapping.header}`);
     return injected;
   } catch (e) {
-    log.warn(`Failed to read secret for ${mapping.domain}:`, e);
+    log.error(
+      `Failed to read secret for ${mapping.domain} from ${mapping.secret_path} — ` +
+      `requests to this domain will not be authenticated: ${e instanceof Error ? e.message : e}`,
+    );
     return rawRequest;
   }
 }

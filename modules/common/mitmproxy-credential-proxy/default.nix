@@ -9,7 +9,7 @@ let
     {
       domain = "api.github.com";
       header = "Authorization";
-      value_prefix = "Bearer ";
+      value_prefix = "token ";
       secret_path = config.age.secrets.github-token.path;
     }
   ];
@@ -17,12 +17,14 @@ let
   credentialConfig = pkgs.writeText "credential-mappings.json" (builtins.toJSON credentialMappings);
 
   credentialProxy = pkgs.callPackage ./proxy { };
+
+  stateDir = "/var/lib/mitmproxy-credential-proxy";
 in
 {
   users.users.mitmproxy-credential-proxy = {
     isSystemUser = true;
     group = "mitmproxy-credential-proxy";
-    home = "/var/lib/mitmproxy-credential-proxy";
+    home = stateDir;
   };
 
   users.groups.mitmproxy-credential-proxy = { };
@@ -30,6 +32,11 @@ in
   age.secrets = {
     github-token = {
       rekeyFile = ../../../secrets/github-token.age;
+      mode = "0400";
+      owner = "mitmproxy-credential-proxy";
+    };
+    credential-proxy-ca-key = {
+      rekeyFile = ../../../secrets/credential-proxy-ca-key.age;
       mode = "0400";
       owner = "mitmproxy-credential-proxy";
     };
@@ -45,6 +52,12 @@ in
       User = "mitmproxy-credential-proxy";
       Group = "mitmproxy-credential-proxy";
       StateDirectory = "mitmproxy-credential-proxy";
+      ExecStartPre = pkgs.writeShellScript "credential-proxy-setup-ca" ''
+        cp ${./ca-cert.pem} ${stateDir}/mitmproxy-ca-cert.pem
+        cp ${config.age.secrets.credential-proxy-ca-key.path} ${stateDir}/ca-key.pem
+        chmod 644 ${stateDir}/mitmproxy-ca-cert.pem
+        chmod 600 ${stateDir}/ca-key.pem
+      '';
       ExecStart = "${credentialProxy}/bin/credential-proxy";
       Restart = "on-failure";
       RestartSec = 5;
@@ -52,7 +65,11 @@ in
 
     environment = {
       CREDENTIAL_PROXY_CONFIG = "${credentialConfig}";
-      CREDENTIAL_PROXY_STATE_DIR = "/var/lib/mitmproxy-credential-proxy";
+      CREDENTIAL_PROXY_STATE_DIR = stateDir;
     };
   };
+
+  security.pki.certificateFiles = [
+    ./ca-cert.pem
+  ];
 }

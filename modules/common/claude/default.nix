@@ -47,6 +47,26 @@
           "--dir"
           "/home/jack"
 
+          # Environment variables (set at bwrap level so all child processes inherit)
+          "--setenv"
+          "HTTP_PROXY"
+          "http://127.0.0.1:8080"
+          "--setenv"
+          "HTTPS_PROXY"
+          "http://127.0.0.1:8080"
+          "--setenv"
+          "http_proxy"
+          "http://127.0.0.1:8080"
+          "--setenv"
+          "https_proxy"
+          "http://127.0.0.1:8080"
+          "--setenv"
+          "GH_TOKEN"
+          "proxy-injected"
+          "--setenv"
+          "SHELL"
+          "${pkgs.bashInteractive}/bin/bash"
+
           "--ro-bind-try"
           "\${HOME}/.gitconfig"
           "\${HOME}/.gitconfig"
@@ -74,12 +94,6 @@
           "--ro-bind-try"
           "\${HOME}/.profile"
           "\${HOME}/.profile"
-          "--ro-bind-try"
-          "\${HOME}/.zshrc"
-          "\${HOME}/.zshrc"
-          "--ro-bind-try"
-          "\${HOME}/.zshenv"
-          "\${HOME}/.zshenv"
 
           "--bind-try"
           "\${HOME}/repos"
@@ -286,14 +300,7 @@
       devBrowser = pkgs.callPackage ./dev-browser { };
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
-        export HTTP_PROXY="http://127.0.0.1:8080"
-        export HTTPS_PROXY="http://127.0.0.1:8080"
-        export http_proxy="http://127.0.0.1:8080"
-        export https_proxy="http://127.0.0.1:8080"
-        export GH_TOKEN="proxy-injected"
-        export NODE_EXTRA_CA_CERTS="/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
-        export REQUESTS_CA_BUNDLE="/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
-        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
+        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions --yes "$@"
       '';
     in
     {
