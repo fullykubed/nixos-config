@@ -1,5 +1,8 @@
 # Personal NixOS Configuration
 
+> [!WARNING]
+> This is my personal NixOS configuration and is provided for example purposes only. It is tailored to my specific hardware, workflow, and preferences. Use at your own risk — copying this configuration directly is unlikely to work without significant adaptation.
+
 Personal [NixOS](https://nixos.org/) configuration for multiple machines using [Nix flakes](https://nixos.wiki/wiki/Flakes), [Home Manager](https://nix-community.github.io/home-manager/), and declarative system management. Uses [Determinate Nix](https://github.com/DeterminateSystems/nix) for improved performance.
 
 ## Philosophy
