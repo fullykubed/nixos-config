@@ -45,7 +45,9 @@ REGULAR_HOURLY_COST="0.0268"
 BIG_HOURLY_COST="0.0950"
 
 # Base SSH options (host key verification added dynamically per IP)
-SSH_BASE_OPTS=(-i /root/.ssh/builder-key -p 3098)
+# -F /dev/null: skip user/system SSH config to avoid failures when HOME points
+# to a home-manager-managed ~/.ssh/config owned by nobody (Nix store).
+SSH_BASE_OPTS=(-F /dev/null -i /root/.ssh/builder-key -p 3098)
 SSH_OPTS=() # populated by setup_host_verification
 
 # Temporary known hosts file for host key verification
