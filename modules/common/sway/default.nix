@@ -390,8 +390,6 @@ in
           # make sway and gtk play nicely together (icons and themes)
           exec_always configure-gtk
 
-          # start swaync (notification center)
-          exec_always swaync
         '';
       };
   };
