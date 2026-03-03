@@ -195,147 +195,60 @@
         };
       };
 
-      claudeSkillScripts = pkgs.stdenv.mkDerivation {
-        pname = "claude-skill-scripts";
+      claudeShellScripts = pkgs.stdenv.mkDerivation {
+        pname = "claude-shell-scripts";
         version = "1.0.0";
 
-        src = ./skills/Skill/scripts;
+        src = ./scripts;
 
-        buildInputs = [
-          pkgs.bash
-          pkgs.yq-go
-          pkgs.jq
-        ];
+        buildInputs = [ pkgs.bash ];
 
         installPhase = ''
           mkdir -p $out/bin
 
-          substitute $src/list-skills.sh "$out/bin/claude-Skill-list-skills" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-Skill-list-skills"
+          substitute $src/una.sh $out/bin/claude-una \
+            --replace "@hostname@" "${pkgs.hostname}/bin/hostname" \
+            --replace "@home@" "/home/${config.username}"
+          chmod +x $out/bin/claude-una
 
-          substitute $src/skill-info.sh "$out/bin/claude-Skill-skill-info" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-Skill-skill-info"
+          cp $src/q.sh $out/bin/claude-q
+          chmod +x $out/bin/claude-q
 
-          substitute ${./skills/Skill/hooks/validate-skill.sh} "$out/bin/claude-Skill-validate-skill" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-Skill-validate-skill"
+          cp $src/qq.sh $out/bin/claude-qq
+          chmod +x $out/bin/claude-qq
+
+          cp $src/qqq.sh $out/bin/claude-qqq
+          chmod +x $out/bin/claude-qqq
         '';
       };
-
-      claudeTaskScripts = pkgs.stdenv.mkDerivation {
-        pname = "claude-task-scripts";
-        version = "1.0.0";
-
-        src = ./skills/PRD/scripts;
-
-        buildInputs = [
-          pkgs.bash
-          pkgs.yq-go
-          pkgs.jq
-          pkgs.check-jsonschema
-        ];
-
-        installPhase = ''
-          mkdir -p $out/bin $out/share/claude
-
-          cp ${./skills/PRD/schemas/tasks.schema.json} $out/share/claude/tasks.schema.json
-          cp ${./skills/PRD/schemas/research.schema.json} $out/share/claude/research.schema.json
-
-          substitute $src/task-status.sh "$out/bin/claude-PRD-task-status" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-          chmod +x "$out/bin/claude-PRD-task-status"
-
-          substitute $src/update-task-status.sh "$out/bin/claude-PRD-update-task-status" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-          chmod +x "$out/bin/claude-PRD-update-task-status"
-
-          substitute ${./hooks/validate-tasks.sh} "$out/bin/claude-PRD-validate-tasks" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
-            --replace "@schema-path@" "$out/share/claude/tasks.schema.json" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-validate-tasks"
-
-          substitute $src/list-prds.sh "$out/bin/claude-PRD-list-prds" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-list-prds"
-
-          substitute $src/research-status.sh "$out/bin/claude-PRD-research-status" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-          chmod +x "$out/bin/claude-PRD-research-status"
-
-          substitute ${./hooks/validate-research.sh} "$out/bin/claude-PRD-validate-research" \
-            --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
-            --replace "@schema-path@" "$out/share/claude/research.schema.json" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-validate-research"
-
-          substitute $src/list-prd-draft-tasks.sh "$out/bin/claude-PRD-list-draft-tasks" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-list-draft-tasks"
-
-          substitute $src/list-defined-tasks.sh "$out/bin/claude-PRD-list-defined-tasks" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-list-defined-tasks"
-
-          substitute $src/get-task.sh "$out/bin/claude-PRD-get-task" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq"
-          chmod +x "$out/bin/claude-PRD-get-task"
-
-          substitute $src/get-unanswered-research.sh "$out/bin/claude-PRD-get-unanswered-research" \
-            --replace "@yq@" "${pkgs.yq-go}/bin/yq"
-          chmod +x "$out/bin/claude-PRD-get-unanswered-research"
-        '';
-      };
-
-      devBrowser = pkgs.callPackage ./dev-browser { };
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
         exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions --yes "$@"
       '';
+
+      claudeSkill = pkgs.callPackage ./skills/Skill { };
+
+      claudePRD = pkgs.callPackage ./skills/PRD { };
+
+      claudeDevBrowser = pkgs.callPackage ./skills/DevBrowser { };
+
+      claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
     in
     {
       home-manager.users.${config.username} = {
         programs.zsh = {
           shellAliases = {
             cc = "claude-wrapper";
-            q = "noglob _q";
-            qq = "noglob _qq";
-            qqq = "noglob _qqq";
+            una = "claude-una";
+            q = "noglob claude-q";
+            qq = "noglob claude-qq";
+            qqq = "noglob claude-qqq";
           };
-
-          initContent = ''
-            _q() {
-              claude -p --dangerously-skip-permissions --model opus --tools "" --allowedTools "WebSearch" --system-prompt "You answer questions concisely for terminal output. Use WebSearch to find current information when needed. Format responses in markdown, keeping them under 50 lines. Be direct and factual. Include sources when citing specific facts." "$*" | glow
-            }
-
-            _qq() {
-              claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__get_code_context_exa" --system-prompt "You are a code assistant. Use the mcp__exa__get_code_context_exa tool to find relevant code examples, API documentation, and library usage patterns. Return concise, practical answers under 50 lines. Focus on working code examples. Format with markdown code blocks." "$*" | glow
-            }
-
-            _qqq() {
-              claude -p --dangerously-skip-permissions --model sonnet --tools "" --allowedTools "mcp__exa__deep_researcher_start,mcp__exa__deep_researcher_check" --system-prompt "You are a research assistant. Use mcp__exa__deep_researcher_start to begin research, then poll with mcp__exa__deep_researcher_check until complete. Synthesize findings into a concise summary under 80 lines. Include key citations. Format with markdown." "$*" | glow
-            }
-          '';
         };
 
         home.file = {
           ".claude/CLAUDE.md" = {
             source = ./CLAUDE.md;
-          };
-
-          ".claude/skills" = {
-            source = ./skills;
-            recursive = true;
           };
 
           ".claude/commands" = {
@@ -345,11 +258,6 @@
 
           ".claude/specs" = {
             source = ./specs;
-            recursive = true;
-          };
-
-          ".claude/agents" = {
-            source = ./agents;
             recursive = true;
           };
 
@@ -412,29 +320,15 @@
                   }
                 ];
 
-                PostToolUse = [
-                  {
-                    matcher = "Edit|Write";
-                    hooks = [
-                      {
-                        type = "command";
-                        command = "${claudeTaskScripts}/bin/claude-PRD-validate-research";
-                      }
-                      {
-                        type = "command";
-                        command = "${claudeTaskScripts}/bin/claude-PRD-validate-tasks";
-                      }
-                      {
-                        type = "command";
-                        command = "${claudeSkillScripts}/bin/claude-Skill-validate-skill";
-                      }
-                    ];
-                  }
-                ];
+                PostToolUse = claudePRD.hooks.PostToolUse ++ claudeSkill.hooks.PostToolUse;
               };
             };
           };
-        };
+        }
+        // claudeSkill.homeFiles
+        // claudePRD.homeFiles
+        // claudeDevBrowser.homeFiles
+        // claudeNixOSBuild.homeFiles;
 
         home.activation.injectExaMcpKey = {
           after = [ "writeBoundary" ];
@@ -458,12 +352,14 @@
 
       environment.systemPackages = [
         claudeNotifyHook
-        claudeTaskScripts
-        claudeSkillScripts
+        claudeShellScripts
+        claudePRD.package
+        claudeSkill.package
+        claudeDevBrowser.package
+        claudeNixOSBuild.package
         claude-code-sandboxed
         claude-wrapper
         ccusage
-        devBrowser
       ];
 
       age.secrets = {

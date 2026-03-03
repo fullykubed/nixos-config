@@ -9,6 +9,7 @@ Every skill follows this directory layout:
 ```
 <SkillName>/                # PascalCase directory name
 ├── SKILL.md                # Required: Main skill definition
+├── default.nix             # System-level only: Nix packaging and home-manager integration
 ├── workflows/              # Required: At least one workflow
 │   ├── <Workflow1>.md      # PascalCase workflow files
 │   └── <Workflow2>.md
@@ -18,8 +19,10 @@ Every skill follows this directory layout:
 │   └── *.sh
 ├── schemas/                # Optional: JSON schemas for validation
 │   └── *.schema.json
-└── hooks/                  # Optional: Validation hooks
-    └── *.sh
+├── hooks/                  # Optional: Validation hooks
+│   └── *.sh
+└── agents/                 # Optional: Custom subagent definitions
+    └── *.md
 ```
 
 ## SKILL.md Format
@@ -171,12 +174,119 @@ set -euo pipefail
 
 ### Nix Integration (System-level skills only)
 
-System-level skill scripts must be registered in `modules/common/claude/default.nix`:
+**No hardcoded user paths.** Any reference to the current user's home directory, username, or other user-specific values MUST use `@placeholder@` substitution (e.g., `@home@`) and be resolved at build time from the NixOS config. Never hardcode `/home/<username>` in scripts or markdown files. The main module passes these values via `callPackage` arguments (e.g., `homeDir = "/home/${config.username}"`), and the skill's `default.nix` substitutes them into both scripts and documentation at build time.
 
-1. Create a derivation that builds the scripts with `substitute` for dependency injection
-2. Add the derivation to `environment.systemPackages`
+Each system-level skill that needs Nix packaging owns a `default.nix` in its skill directory. The file returns an attrset with up to three fields:
 
-Follow the `claudeSkillScripts` or `claudeTaskScripts` pattern in `default.nix` as a reference.
+| Field | Required | Description |
+|-------|----------|-------------|
+| `package` | If scripts exist | The `mkDerivation` that builds CLI scripts |
+| `hooks` | If hooks exist | Claude Code hook entries (e.g., `hooks.PostToolUse`) |
+| `homeFiles` | Yes | home-manager `home.file` entries that deploy skill files to `~/.claude/` |
+
+The main `modules/common/claude/default.nix` imports each skill via `callPackage` and merges their exports:
+
+```nix
+# In the let block:
+claudeMySkill = pkgs.callPackage ./skills/MySkill { };
+
+# homeFiles merged into home.file with //:
+home.file = { /* global entries */ }
+  // claudeMySkill.homeFiles;
+
+# hooks concatenated:
+PostToolUse = claudeMySkill.hooks.PostToolUse ++ ...;
+
+# package added to systemPackages:
+environment.systemPackages = [ claudeMySkill.package ... ];
+```
+
+#### Skill `default.nix` patterns
+
+**Skill with scripts, hooks, and agents** (e.g., PRD):
+
+```nix
+{ pkgs, ... }:
+let
+  package = pkgs.stdenv.mkDerivation {
+    pname = "claude-<skillname>-scripts";
+    version = "1.0.0";
+    src = ./scripts;
+    buildInputs = [ pkgs.bash pkgs.yq-go pkgs.jq ];
+    installPhase = ''
+      mkdir -p $out/bin
+      substitute $src/my-script.sh "$out/bin/claude-<SkillName>-my-script" \
+        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+      chmod +x "$out/bin/claude-<SkillName>-my-script"
+    '';
+  };
+in
+{
+  inherit package;
+  hooks.PostToolUse = [
+    {
+      matcher = "Edit|Write";
+      hooks = [
+        { type = "command"; command = "${package}/bin/claude-<SkillName>-validate"; }
+      ];
+    }
+  ];
+  homeFiles = {
+    ".claude/skills/<SkillName>" = { source = ./.; recursive = true; };
+    ".claude/agents/my-agent.md" = { source = ./agents/my-agent.md; };
+  };
+}
+```
+
+**Skill with user-path substitution in docs** (e.g., NixOSBuild):
+
+```nix
+{ pkgs, homeDir, ... }:
+let
+  skillDocs = pkgs.stdenv.mkDerivation {
+    pname = "claude-<skillname>-docs";
+    version = "1.0.0";
+    src = ./.;
+    installPhase = ''
+      mkdir -p $out
+      cp -r . $out/
+      rm -f $out/default.nix
+      find $out -name '*.md' -exec sed -i 's|@home@|${homeDir}|g' {} +
+    '';
+  };
+in
+{
+  homeFiles = {
+    ".claude/skills/<SkillName>" = { source = skillDocs; recursive = true; };
+  };
+}
+```
+
+Markdown files use `@home@` as a placeholder for the user's home directory. The `callPackage` call passes `homeDir` from the NixOS config:
+
+```nix
+claudeMySkill = pkgs.callPackage ./skills/MySkill { homeDir = "/home/${config.username}"; };
+```
+
+#### Registering in the main `default.nix`
+
+After creating the skill's `default.nix`, add it to `modules/common/claude/default.nix`:
+
+1. Add a `callPackage` (or `import` for skills without packages) in the `let` block
+2. Merge `homeFiles` into `home.file` with `//`
+3. If the skill has hooks, concatenate them into the relevant hook list
+4. If the skill has a package, add it to `environment.systemPackages`
+
+#### Agents
+
+Skills can include custom subagent definitions in an `agents/` subdirectory. These are deployed to `~/.claude/agents/` via `homeFiles` so Claude Code discovers them globally:
+
+```nix
+homeFiles = {
+  ".claude/skills/MySkill" = { source = ./.; recursive = true; };
+  ".claude/agents/my-agent.md" = { source = ./agents/my-agent.md; };
+};
+```
 
 ## Reference Document Conventions
 
@@ -194,6 +304,6 @@ Follow the `claudeSkillScripts` or `claudeTaskScripts` pattern in `default.nix` 
 ## Hook Conventions
 
 - Hooks are shell scripts that run automatically (e.g., PostToolUse)
-- Place in `hooks/` directory
-- Register in `default.nix` settings JSON under the appropriate hook event
-- Must exit 0 on success, non-zero on validation failure
+- Place in `hooks/` directory within the skill
+- For system-level skills, export hook entries in the skill's `default.nix` under `hooks.<EventName>` — the main module merges them into `settings.json`
+- Must exit 0 on success; output a JSON `{"decision": "block", "reason": "..."}` to block an action

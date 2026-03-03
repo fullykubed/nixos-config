@@ -34,9 +34,9 @@ Identify what the user wants to change:
 | **Modify workflow** | Change steps in an existing workflow | `workflows/<Name>.md` |
 | **Update routing** | Change trigger words or decision tree | `SKILL.md` |
 | **Add reference** | Add a new reference document | `reference/<name>.md`, `SKILL.md` reference section |
-| **Add script** | Add a new CLI tool | `scripts/<name>.sh`, `default.nix` (if system-level) |
-| **Rename skill** | Change the skill's name | All files (directory rename + content updates) |
-| **Change tier** | Move between repo-level and system-level | Directory move + `default.nix` changes |
+| **Add script** | Add a new CLI tool | `scripts/<name>.sh`, skill's `default.nix` (if system-level) |
+| **Rename skill** | Change the skill's name | All files (directory rename + content updates + `default.nix` paths) |
+| **Change tier** | Move between repo-level and system-level | Directory move + skill's `default.nix` + main `default.nix` |
 
 If the update type is unclear, ask the user to clarify.
 
@@ -106,12 +106,13 @@ Follow the appropriate section below based on update type.
 1. **Create the script** at `<skill-path>/scripts/<name>.sh`
 2. **Follow conventions**:
    - `#!/usr/bin/env bash` and `set -euo pipefail`
-   - Use `@tool@` substitution patterns
+   - Repository-level: use tools directly from `PATH`
+   - System-level: use `@tool@` substitution patterns
    - Output JSON for machine-readable results
    - Include usage message on wrong arguments
-3. **For system-level skills**: Update `default.nix`:
-   - Add `substitute` command in the appropriate derivation's `installPhase`
-   - Ensure the derivation is in `environment.systemPackages`
+3. **For system-level skills**: Update the skill's `default.nix`:
+   - Add `substitute` command in the `package` derivation's `installPhase`
+   - If this is the first script, create the `package` derivation and register it in the main `default.nix` `environment.systemPackages`
 4. **Document the script** in the skill's `reference/cli-tools.md`
 
 #### 3F. Rename Skill
@@ -120,21 +121,33 @@ Follow the appropriate section below based on update type.
 2. **Update SKILL.md** front matter: `name` field
 3. **Update all internal references** (workflow links, `@` references)
 4. **Update script names** if they follow `claude-<SkillName>-*` pattern
-5. **For system-level skills**: Update `default.nix` derivation paths
+5. **For system-level skills**:
+   - Update the skill's `default.nix`: `homeFiles` paths, `pname`, script output names
+   - Update `modules/common/claude/default.nix`: `callPackage` path and binding name
 6. **Search for external references** to the old name in CLAUDE.md or other skills
 
 #### 3G. Change Tier
 
 **Promoting to system-level (repo → system):**
 1. Move `<repo>/.claude/skills/<Name>/` → `modules/common/claude/skills/<Name>/`
-2. Add script derivation to `default.nix` (if scripts exist)
-3. Add derivation to `environment.systemPackages`
-4. Remove from repo-level `.claude/skills/`
+2. Create a `default.nix` in the skill directory following the Skill Specification's Nix Integration patterns:
+   - Export `homeFiles` (always required)
+   - Export `package` if the skill has scripts (convert scripts to use `@tool@` substitution)
+   - Export `hooks` if the skill has validation hooks
+3. Register the skill in `modules/common/claude/default.nix`:
+   - Add `callPackage` (or `import`) in the `let` block
+   - Merge `homeFiles` into `home.file`
+   - Concatenate hooks (if any)
+   - Add package to `environment.systemPackages` (if any)
+4. Move any agent files into the skill's `agents/` directory and add them to `homeFiles`
+5. Remove from repo-level `.claude/skills/`
 
 **Demoting to repo-level (system → repo):**
 1. Move `modules/common/claude/skills/<Name>/` → `.claude/skills/<Name>/`
-2. Remove derivation from `default.nix`
-3. Remove from `environment.systemPackages`
+2. Remove the skill's `default.nix` (not used at repo level)
+3. Remove `callPackage`/`import`, `homeFiles` merge, hooks, and package from `modules/common/claude/default.nix`
+4. Move any agents from the skill's `agents/` back to `.claude/agents/`
+5. Convert scripts from `@tool@` substitution to direct `PATH` usage
 
 ### 4. Validate Consistency
 
@@ -153,7 +166,7 @@ Present the changes:
 
 1. List files that were created, modified, or deleted
 2. Summarize what changed and why
-3. Note if `default.nix` needs to be rebuilt (`nixos-rebuild switch`)
+3. Note if the skill's `default.nix` or the main `default.nix` was modified (requires `nixos-rebuild switch`)
 4. Suggest testing the updated skill
 
 ## Guidelines

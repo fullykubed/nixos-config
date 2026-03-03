@@ -191,12 +191,39 @@ If the skill needs CLI tools for querying state or performing operations:
 
 **Do NOT use `@tool@` substitution in repository-level scripts** - they are not built by Nix and the patterns will not be resolved.
 
-**For system-level skills only:** Register scripts in `modules/common/claude/default.nix`:
-- Create a derivation following the `claudeSkillScripts` or `claudeTaskScripts` pattern
-- Use `substitute` to replace `@tool@` patterns with pinned Nix store paths
-- Add the derivation to `environment.systemPackages`
+### 10. Create `default.nix` (system-level skills only)
 
-### 10. Validate the Skill
+Every system-level skill MUST have a `default.nix` in its skill directory. Read the "Nix Integration" section in @./reference/skill-spec.md for the full specification and patterns.
+
+The `default.nix` exports an attrset with:
+
+| Field | When needed | Description |
+|-------|-------------|-------------|
+| `package` | Skill has scripts or hooks | `mkDerivation` that builds CLI scripts with `substitute` |
+| `hooks` | Skill has validation hooks | Hook entries (e.g., `hooks.PostToolUse`) referencing built scripts |
+| `homeFiles` | Always | home-manager entries deploying skill files to `~/.claude/` |
+
+**Minimal `default.nix`** (no scripts):
+```nix
+_: {
+  homeFiles = {
+    ".claude/skills/<SkillName>" = {
+      source = ./.;
+      recursive = true;
+    };
+  };
+}
+```
+
+**With scripts and hooks**, use the PRD or Skill skill's `default.nix` as a reference.
+
+After creating the skill's `default.nix`, register it in `modules/common/claude/default.nix`:
+1. Add a `callPackage` (or `import` for package-less skills) in the `let` block
+2. Merge `homeFiles` into `home.file` with `//`
+3. Concatenate hooks into the relevant hook list (if any)
+4. Add `package` to `environment.systemPackages` (if any)
+
+### 11. Validate the Skill
 
 Before completing, verify:
 
@@ -207,15 +234,16 @@ Before completing, verify:
 5. **Reference files** linked via `@` syntax exist
 6. **Scripts** (if any) are executable and use the correct pattern for their tier
 7. **No circular references** between workflows
+8. **`default.nix`** (system-level only) exports `homeFiles` and is registered in the main module
 
-### 11. Confirm with User
+### 12. Confirm with User
 
 Present the completed skill to the user:
 
 1. Show the directory structure created
 2. Summarize each workflow's purpose
 3. List any CLI tools that were created
-4. Note if `default.nix` changes are needed (system-level skills)
+4. Note `default.nix` integration status (system-level skills)
 5. Suggest testing the skill by invoking it
 
 ## Guidelines

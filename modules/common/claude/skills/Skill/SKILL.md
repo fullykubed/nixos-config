@@ -51,7 +51,10 @@ You manage Claude Code skills through their complete lifecycle. Based on the use
 │       └── hooks/                     # Validation hooks (optional)
 │           └── *.sh
 └── modules/common/claude/skills/      # System-level skills (NixOS module)
-    └── <SkillName>/                   # Same structure as above
+    └── <SkillName>/                   # Same structure as above, plus:
+        ├── default.nix                # Nix packaging: exports { package, hooks, homeFiles }
+        └── agents/                    # Custom subagents (deployed to ~/.claude/agents/)
+            └── *.md
 ```
 
 ## Skill Tiers
