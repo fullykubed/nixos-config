@@ -223,7 +223,7 @@
       };
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
-        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions --yes "$@"
+        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
       '';
 
       claudeSkill = pkgs.callPackage ./skills/Skill { };
@@ -264,6 +264,7 @@
           ".claude/settings.json" = {
             force = true;
             text = builtins.toJSON {
+              skipDangerousModePermissionPrompt = true;
               statusLine = {
                 type = "command";
                 command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
