@@ -17,17 +17,18 @@ You automatically build the NixOS system and fix build errors in an iterative lo
    git -C @home@/repos/nixos-config/main worktree list
    ```
 
-3. **Select Workflow**: This skill has a single workflow — Build.
+3. **Select Workflow**: Route to the appropriate workflow based on the user's intent (see Workflow Routing table below).
 
-4. **Execute Workflow**: Report to the user "Running Build for `<hostname>` from worktree `<worktree>`..." You MUST read the workflow document completely before proceeding. Since this is a system-level skill, read it relative to this SKILL.md file: `./workflows/Build.md`
+4. **Execute Workflow**: Report to the user which workflow is running and for which hostname/worktree. You MUST read the selected workflow document completely before proceeding. Since this is a system-level skill, read it relative to this SKILL.md file: `./workflows/<WorkflowName>.md`
 
-5. **Report Results**: The workflow handles its own reporting (see step 8 in the workflow).
+5. **Report Results**: The workflow handles its own reporting.
 
 ## Workflow Routing
 
 | Workflow | Trigger Words | When to Use |
 |----------|---------------|-------------|
 | [Build](./workflows/Build.md) | "build", "deploy", "fix build", "auto fix", "build errors", "nix build", "rebuild", "fix errors" | User wants to build the NixOS system and automatically fix any build errors that occur |
+| [ReviewAutofixes](./workflows/ReviewAutofixes.md) | "review", "approve", "review fixes", "approve fixes", "review autofixes", "check fixes" | User wants to review accumulated autofixes — does not block the Build workflow; this is an on-demand review of previously applied fixes |
 
 ## Reference
 
