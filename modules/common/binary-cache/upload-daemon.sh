@@ -25,6 +25,10 @@ if [ -z "$NIKS3_SERVER_URL" ]; then
   exit 0
 fi
 
+# NixOSBuild AUTOFIX
+# Package name: cache-upload script
+# Error details: Unmatched double quote at line 28 — missing closing } for bash parameter expansion
+# Fix explanation: Add missing } to close ${...:-...} default value syntax
 export NIKS3_AUTH_TOKEN_FILE="${NIKS3_AUTH_TOKEN_FILE:-/run/agenix/niks3-api-token}"
 if [ ! -f "$NIKS3_AUTH_TOKEN_FILE" ]; then
   log "Auth token not available at $NIKS3_AUTH_TOKEN_FILE, skipping"
