@@ -6,3 +6,4 @@
 - **adding-machines.md** - Quick guide for adding new machines: create device config, add to flake.nix, add yubikey, and rekey secrets.
 - **secrets.md** - Describes agenix-based secret management with per-machine rekeying and runtime decryption.
 - **remote-builders/** - Documentation for the dynamic Hetzner Cloud builder system covering setup, usage, binary caching, and troubleshooting.
+- **claude-architecture.md** - Comprehensive architecture reference for Claude Code integration: sandbox, credential proxy, skills, MCP servers, hooks, shell integration, configuration hierarchy, and secrets.
