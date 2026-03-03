@@ -22,6 +22,7 @@
     ./modules/common/sshd
     ./modules/common/secrets
     ./modules/common/yubikey
+    ./modules/common/mitmproxy-credential-proxy
     ./modules/common/global-options
     ./modules/common/syncthing
     ./modules/common/containers

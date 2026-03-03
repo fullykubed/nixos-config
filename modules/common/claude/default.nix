@@ -111,6 +111,10 @@
           "--bind-try"
           "\${HOME}/.kube"
           "\${HOME}/.kube"
+
+          "--ro-bind-try"
+          "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
+          "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
         ];
       };
 
@@ -280,12 +284,23 @@
       };
 
       devBrowser = pkgs.callPackage ./dev-browser { };
+
+      claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
+        export HTTP_PROXY="http://127.0.0.1:8080"
+        export HTTPS_PROXY="http://127.0.0.1:8080"
+        export http_proxy="http://127.0.0.1:8080"
+        export https_proxy="http://127.0.0.1:8080"
+        export GH_TOKEN="proxy-injected"
+        export NODE_EXTRA_CA_CERTS="/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
+        export REQUESTS_CA_BUNDLE="/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
+        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
+      '';
     in
     {
       home-manager.users.${config.username} = {
         programs.zsh = {
           shellAliases = {
-            cc = "claude --dangerously-skip-permissions";
+            cc = "claude-wrapper";
             q = "noglob _q";
             qq = "noglob _qq";
             qqq = "noglob _qqq";
@@ -439,6 +454,7 @@
         claudeTaskScripts
         claudeSkillScripts
         claude-code-sandboxed
+        claude-wrapper
         ccusage
         devBrowser
       ];

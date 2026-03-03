@@ -397,6 +397,15 @@
             };
           };
         };
+        checkBunVersions = pkgs.writeShellApplication {
+          name = "check-bun-versions";
+          runtimeInputs = [
+            pkgs.jq
+            pkgs.findutils
+            pkgs.gawk
+          ];
+          text = builtins.readFile ./scripts/check-bun-versions.sh;
+        };
       in
       {
         checks = {
@@ -411,6 +420,13 @@
                 name = "gitleaks";
                 # Use protect mode to only scan staged changes, not full history
                 entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged -v --config ${./gitleaks.toml}";
+              };
+              check-bun-versions = {
+                enable = true;
+                name = "check-bun-versions";
+                entry = "${checkBunVersions}/bin/check-bun-versions";
+                files = "package\\.json$";
+                pass_filenames = false;
               };
             };
           };
