@@ -92,15 +92,12 @@ Working directory: ${cwd}
 Files read during the conversation:
 ${file_list}"
 
-# Fork the surprise-reviewer agent in the background (non-blocking)
-(
-    CLAUDE_HOOK_RECURSIVE=1 @claude@ \
-        --agent surprise-reviewer \
-        --print \
-        --no-session-persistence \
-        "$prompt" \
-        2>/dev/null
-    rm -f "$condensed_transcript"
-) &
+# Run the surprise-reviewer agent (hook is async, so this doesn't block the session)
+CLAUDE_HOOK_RECURSIVE=1 @claude@ \
+    --agent surprise-reviewer \
+    --print \
+    --no-session-persistence \
+    "$prompt" \
+    </dev/null 2>/dev/null || true
 
-exit 0
+rm -f "$condensed_transcript"

@@ -328,6 +328,8 @@
                       {
                         type = "command";
                         command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
+                        async = true;
+                        timeout = 900;
                       }
                     ];
                   }
