@@ -310,6 +310,7 @@
                 set -g default-terminal "tmux-256color"
                 set-option -sa terminal-features ''',wezterm:RGB'''
                 set-option -ga terminal-features ",wezterm:usstyle"
+                set-option -ga terminal-features ",wezterm:hyperlinks"
                 set-option -ga terminal-overrides ",*:Tc"
 
                 set -gq allow-passthrough on
