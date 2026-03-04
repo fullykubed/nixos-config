@@ -237,6 +237,7 @@
       claudeSurprises = pkgs.callPackage ./skills/Surprises { };
 
       claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
+      claudeGitHub = pkgs.callPackage ./skills/GitHub { };
     in
     {
       home-manager.users.${config.username} = {
@@ -339,7 +340,8 @@
         // claudeDevBrowser.homeFiles
         // claudeNixOSBuild.homeFiles
         // claudeSurprises.homeFiles
-        // claudeKeePassXC.homeFiles;
+        // claudeKeePassXC.homeFiles
+        // claudeGitHub.homeFiles;
 
         home.activation.injectExaMcpKey = {
           after = [ "writeBoundary" ];
@@ -371,6 +373,7 @@
         claudeNixOSBuild.package
         claudeSurprises.package
         claudeKeePassXC.package
+        claudeGitHub.package
         claude-code-sandboxed
         claude-wrapper
         ccusage
