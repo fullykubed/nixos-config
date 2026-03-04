@@ -351,6 +351,12 @@ comment = "CVE-2023-3297 (8.1 High): Use-after-free in Ubuntu accountsservice D-
 cve = ["CVE-2021-26720"]
 comment = "CVE-2021-26720 (7.8 High): Privilege escalation via Debian avahi-daemon-check-dns.sh. NixOS uses upstream, unaffected."
 
+# GIMP (Linux)
+# CVE is macOS-only TCC permissions bypass
+["gimp"]
+cve = ["CVE-2025-8672"]
+comment = "CVE-2025-8672 (7.8 High): macOS bundled Python inherits TCC permissions, allowing local code execution. Linux GIMP unaffected."
+
 # ImageMagick - upgraded to unstable (7.1.2-11) via overlay
 # Previous whitelist entry for CVE-2025-66628 removed - now fixed by version upgrade
 
