@@ -1,0 +1,135 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<'EOF'
+Usage: ai-rebase [target]
+
+Rebase the current branch onto a target branch with AI-assisted conflict
+resolution.
+
+Arguments:
+  target    Branch to rebase onto (default: default branch)
+            Accepts: branch, origin/branch, or "origin" (uses default branch)
+
+Options:
+  -h, --help    Show this help message
+
+The script fetches origin, updates the local target branch (worktree-aware),
+and rebases. If conflicts occur, it aborts and invokes Claude to re-run the
+rebase with automatic conflict resolution.
+
+Examples:
+  ai-rebase              # Rebase onto default branch
+  ai-rebase main         # Rebase onto main
+  ai-rebase origin/dev   # Rebase onto dev (extracted from origin/dev)
+EOF
+    exit 0
+fi
+
+# Temp files
+CLAUDE_OUTPUT_FILE=$(mktemp)
+
+cleanup() {
+    rm -f "$CLAUDE_OUTPUT_FILE"
+}
+trap cleanup EXIT
+
+# Parse arguments
+target="${1:-$(git-default-branch)}"
+
+# Normalize target: "origin" → default branch, "origin/branch" → branch
+case "$target" in
+    origin) target="$(git-default-branch)" ;;
+    origin/*) target="${target#origin/}" ;;
+esac
+
+echo "Fetching origin..."
+git fetch origin
+
+# Update local target branch - method depends on whether it's checked out in a worktree
+worktree_path=$(git-worktree-path "$target" 2>/dev/null || true)
+if [[ -n "$worktree_path" ]]; then
+    echo "Updating $target via worktree at $worktree_path..."
+    git -C "$worktree_path" pull --ff-only 2>/dev/null || true
+else
+    echo "Updating local $target..."
+    git fetch origin "$target:$target" 2>/dev/null || true
+fi
+
+echo "Rebasing onto $target..."
+if git rebase "$target"; then
+    # Count rebased commits
+    commit_count=$(git log --oneline "$target"..HEAD | wc -l)
+    echo "Rebased $commit_count commits onto $target"
+else
+    echo "Conflicts detected, starting Claude Code for resolution..."
+    git rebase --abort
+
+    # Build system prompt with conflict resolution instructions
+    system_prompt="You are resolving git rebase conflicts. Rebase the current branch onto $target.
+
+## Steps
+
+1. Run: git rebase $target
+2. For each conflict:
+   a. Read the conflicting file to see zdiff3 markers (ours / original / theirs)
+   b. Run: git log -p -n 3 $target -- <file> to understand target branch changes
+   c. Resolve by preserving intent of BOTH sides
+   d. Remove all conflict markers and produce clean merged result
+   e. Stage with: git add <file>
+   f. Continue with: git rebase --continue
+3. Repeat until rebase completes
+
+## zdiff3 Conflict Markers
+
+<<<<<<< HEAD (ours — the branch being rebased)
+  our version
+||||||| (original — common ancestor)
+  original version
+=======
+  their version
+>>>>>>> commit-message (theirs — target branch)
+
+Compare each side against the original to understand what changed.
+
+## Resolution Rules
+
+| Situation | Resolution |
+|-----------|-----------|
+| Both sides changed different parts of same region | Combine both |
+| Both sides made the same change | Keep one copy |
+| One side refactored, other added new code | Apply new code within refactored structure |
+| Changes are logically incompatible | Stop and report the conflict |
+
+## Environment
+
+- mergiraf: syntax-aware merge driver that auto-resolves many conflicts
+- zdiff3: conflict markers include the common ancestor
+- rerere: git records and replays conflict resolutions
+
+## Output
+
+When complete, output ONLY:
+Rebased N commits onto $target
+  - <file>: <one line describing resolution>
+  - <file>: <one line describing resolution>
+
+Nothing else."
+
+    if claude --system-prompt "$system_prompt" \
+        --dangerously-skip-permissions \
+        --no-session-persistence \
+        --model sonnet \
+        --fallback-model haiku \
+        -p "Rebase onto $target. Resolve any conflicts." \
+        > "$CLAUDE_OUTPUT_FILE" 2>&1; then
+        cat "$CLAUDE_OUTPUT_FILE"
+    else
+        echo "Error: Claude failed to resolve conflicts" >&2
+        cat "$CLAUDE_OUTPUT_FILE" >&2
+        exit 1
+    fi
+fi

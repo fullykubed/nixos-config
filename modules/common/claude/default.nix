@@ -195,6 +195,20 @@
         };
       };
 
+      aiCommitMsg = pkgs.writeShellScriptBin "ai-commit-msg" (builtins.readFile ./scripts/ai-commit-msg);
+
+      aiCommit = pkgs.writeShellScriptBin "ai-commit" (builtins.readFile ./scripts/ai-commit);
+
+      aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
+
+      aiAmend = pkgs.writeShellScriptBin "ai-amend" (builtins.readFile ./scripts/ai-amend);
+
+      aiRebase = pkgs.writeShellScriptBin "ai-rebase" (builtins.readFile ./scripts/ai-rebase);
+
+      aiSquashCommits = pkgs.writeShellScriptBin "ai-squash-commits" (
+        builtins.readFile ./scripts/ai-squash-commits
+      );
+
       claudeShellScripts = pkgs.stdenv.mkDerivation {
         pname = "claude-shell-scripts";
         version = "1.0.0";
@@ -238,6 +252,7 @@
 
       claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
       claudeGitHub = pkgs.callPackage ./skills/GitHub { };
+      claudeGit = pkgs.callPackage ./skills/Git { };
     in
     {
       home-manager.users.${config.username} = {
@@ -341,7 +356,8 @@
         // claudeNixOSBuild.homeFiles
         // claudeSurprises.homeFiles
         // claudeKeePassXC.homeFiles
-        // claudeGitHub.homeFiles;
+        // claudeGitHub.homeFiles
+        // claudeGit.homeFiles;
 
         home.activation.injectExaMcpKey = {
           after = [ "writeBoundary" ];
@@ -374,6 +390,12 @@
         claudeSurprises.package
         claudeKeePassXC.package
         claudeGitHub.package
+        aiCommitMsg
+        aiCommit
+        aiReword
+        aiAmend
+        aiRebase
+        aiSquashCommits
         claude-code-sandboxed
         claude-wrapper
         ccusage

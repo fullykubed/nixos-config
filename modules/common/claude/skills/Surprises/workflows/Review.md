@@ -85,7 +85,7 @@ After all surprises have been reviewed, delete the surprise files for rejected a
 
 ```bash
 # Resolve the default branch worktree path
-MAIN_WORKTREE=$(git-default-worktree-path)
+MAIN_WORKTREE=$(git-worktree-path)
 
 # Delete each rejected or fixed surprise file (NOT ignored ones)
 rm "$MAIN_WORKTREE/.claude/surprises/<slug>.md"

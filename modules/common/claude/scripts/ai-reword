@@ -1,0 +1,161 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<'EOF'
+Usage: ai-reword [-y] <commit-sha>
+
+Rewrite a commit message using AI analysis of the actual diff.
+
+Arguments:
+  commit-sha    The commit whose message should be rewritten
+
+Options:
+  -y, --yes     Skip editor and apply the generated message directly
+  -h, --help    Show this help message
+
+The script analyzes the commit's diff with Claude to generate an improved
+conventional commit message, then opens an editor for review. For HEAD
+commits it uses --amend; for older commits it uses interactive rebase.
+
+Examples:
+  ai-reword HEAD        # Reword the latest commit
+  ai-reword abc1234     # Reword a specific commit
+  ai-reword -y HEAD     # Reword without editor review
+EOF
+    exit 0
+fi
+
+MSG_FILE="/tmp/ai-reword-msg"
+
+# Parse arguments
+auto_confirm=false
+SHA=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes) auto_confirm=true; shift ;;
+        *) SHA="$1"; shift ;;
+    esac
+done
+
+# Use nvr when inside nvim to open commit editor in parent instance
+if [[ -n "${NVIM:-}" ]]; then
+    export EDITOR="nvr --remote-tab-wait-silent"
+else
+    EDITOR="${EDITOR:-vim}"
+fi
+
+# Validate arguments
+if [[ -z "$SHA" ]]; then
+    echo "Error: Missing commit SHA argument" >&2
+    echo "Usage: ai-reword [-y] <commit-sha>" >&2
+    exit 1
+fi
+
+# Validate the SHA is a valid commit
+if ! git rev-parse --verify "$SHA^{commit}" >/dev/null 2>&1; then
+    echo "Error: Invalid commit SHA: $SHA" >&2
+    exit 1
+fi
+
+# Get the full SHA for reliable matching
+FULL_SHA=$(git rev-parse "$SHA")
+SHORT_SHA="${FULL_SHA:0:7}"
+
+# Get the existing commit message
+existing_msg=$(git log -1 --format=%B "$SHA")
+
+# System prompt tailored for rewriting
+system_prompt="Rewrite the provided git commit message to improve it.
+
+Audience: Other engineers who will review this commit and care about why the changes were made, not just what changed.
+
+You are given:
+1. The existing commit message
+2. The actual diff of the changes
+
+Requirements:
+- Analyze the diff to understand what changes were made
+- Review the existing message to understand the original intent
+- Generate an improved conventional commit message
+- Fix any formatting issues, typos, or unclear wording
+- Keep the description concise (under 60 characters)
+- Add a body if the changes are complex to explain the \"why\"
+- Keep each line in the body under 80 characters
+- Focus on the \"why\" not just the \"what\"
+
+Output Format:
+Return ONLY valid JSON matching this schema (no markdown, no code blocks):
+{
+  \"type\": \"feat|fix|chore|docs|refactor|test|style|perf|build|ci\",
+  \"scope\": \"optional scope\",
+  \"description\": \"short description without type prefix\",
+  \"body\": \"optional longer explanation\"
+}
+
+Examples:
+
+{\"type\": \"feat\", \"scope\": \"auth\", \"description\": \"add OAuth2 login support\", \"body\": \"Integrate Google OAuth2 for user authentication to reduce friction during signup and improve security by eliminating password storage.\"}
+
+{\"type\": \"fix\", \"scope\": \"api\", \"description\": \"prevent race condition in cache invalidation\", \"body\": \"Multiple concurrent requests could read stale data when the cache was being refreshed. Add mutex lock around cache updates.\"}"
+
+echo "Generating improved commit message with Claude..."
+
+# Generate message using ai-commit-msg with custom system prompt and existing message as context
+if ! commit_msg=$(git show --format="" "$FULL_SHA" | ai-commit-msg -s "$system_prompt" -c "Existing commit message:
+$existing_msg"); then
+    echo "Error: Failed to generate commit message" >&2
+    exit 1
+fi
+
+# Write message to temp file
+echo "$commit_msg" > "$MSG_FILE"
+
+# Check if this is the HEAD commit
+HEAD_SHA=$(git rev-parse HEAD)
+
+if [[ "$FULL_SHA" == "$HEAD_SHA" ]]; then
+    if [[ "$auto_confirm" == true ]]; then
+        echo "$commit_msg"
+        git commit --amend -F "$MSG_FILE"
+    else
+        echo "Opening editor..."
+        git commit --amend -F "$MSG_FILE" -e
+    fi
+else
+    if [[ "$auto_confirm" == true ]]; then
+        echo "$commit_msg"
+        # For non-HEAD with auto-confirm, use a no-op editor that just accepts the pre-populated message
+        EDITOR_SCRIPT="/tmp/ai-reword-editor"
+        cat > "$EDITOR_SCRIPT" << 'EDITOREOF'
+#!/usr/bin/env bash
+MSG_FILE="/tmp/ai-reword-msg"
+cat "$MSG_FILE" > "$1"
+EDITOREOF
+        chmod +x "$EDITOR_SCRIPT"
+
+        GIT_SEQUENCE_EDITOR="sed -i '0,/^pick $SHORT_SHA/s//reword $SHORT_SHA/'" \
+        GIT_EDITOR="$EDITOR_SCRIPT" \
+        git rebase -i "$FULL_SHA^"
+    else
+        echo "Opening editor..."
+        # Create a script to use as GIT_EDITOR that pre-populates the AI message
+        EDITOR_SCRIPT="/tmp/ai-reword-editor"
+        cat > "$EDITOR_SCRIPT" << 'EDITOREOF'
+#!/usr/bin/env bash
+# Copy AI message to the file git provides, then open editor
+MSG_FILE="/tmp/ai-reword-msg"
+TARGET_FILE="$1"
+cat "$MSG_FILE" > "$TARGET_FILE"
+EDITOREOF
+        echo "exec $EDITOR \"\$TARGET_FILE\"" >> "$EDITOR_SCRIPT"
+        chmod +x "$EDITOR_SCRIPT"
+
+        # Run rebase with automated sequence editor and custom commit editor
+        GIT_SEQUENCE_EDITOR="sed -i '0,/^pick $SHORT_SHA/s//reword $SHORT_SHA/'" \
+        GIT_EDITOR="$EDITOR_SCRIPT" \
+        git rebase -i "$FULL_SHA^"
+    fi
+fi

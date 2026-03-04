@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<'EOF'
+Usage: ai-amend [-y] [commit-sha]
+
+Amend staged changes into an existing commit with an AI-regenerated message.
+
+Arguments:
+  commit-sha    The commit to amend into (default: HEAD)
+
+Options:
+  -y, --yes     Skip editor and apply the generated message directly
+  -h, --help    Show this help message
+
+The script folds staged changes into the target commit and regenerates the
+commit message using Claude to reflect the combined changes. For HEAD it
+uses git commit --amend; for non-HEAD it uses fixup + autosquash rebase.
+
+Staged changes are required. For message-only rewrites, use ai-reword.
+
+Examples:
+  ai-amend              # Amend staged changes into HEAD
+  ai-amend -y           # Amend into HEAD without editor
+  ai-amend abc1234      # Amend into a specific commit
+  ai-amend -y abc1234   # Amend into a specific commit without editor
+EOF
+    exit 0
+fi
+
+MSG_FILE="/tmp/ai-amend-msg"
+
+# Parse arguments
+auto_confirm=false
+SHA=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes) auto_confirm=true; shift ;;
+        *) SHA="$1"; shift ;;
+    esac
+done
+
+# Default to HEAD
+SHA="${SHA:-HEAD}"
+
+# Use nvr when inside nvim to open editor in parent instance
+if [[ -n "${NVIM:-}" ]]; then
+    export EDITOR="nvr --remote-tab-wait-silent"
+else
+    EDITOR="${EDITOR:-vim}"
+fi
+
+# Validate the SHA is a valid commit
+if ! git rev-parse --verify "$SHA^{commit}" >/dev/null 2>&1; then
+    echo "Error: Invalid commit SHA: $SHA" >&2
+    exit 1
+fi
+
+# Get the full SHA for reliable matching
+FULL_SHA=$(git rev-parse "$SHA")
+SHORT_SHA="${FULL_SHA:0:7}"
+HEAD_SHA=$(git rev-parse HEAD)
+
+# Require staged changes
+if git diff --cached --quiet; then
+    echo "Error: No staged changes to amend" >&2
+    echo "To rewrite only the commit message, use: ai-reword $SHA" >&2
+    exit 1
+fi
+
+# Determine if HEAD or non-HEAD amend
+if [[ "$FULL_SHA" == "$HEAD_SHA" ]]; then
+    # === HEAD amend ===
+
+    # Amend staged changes into HEAD (no-edit first to fold in changes)
+    git commit --amend --no-edit
+
+    # Now regenerate the message based on the full amended diff
+    existing_msg=$(git log -1 --format=%B HEAD)
+
+    echo "Generating commit message for amended commit..."
+
+    if ! commit_msg=$(git show --format="" HEAD | ai-commit-msg -c "Existing commit message:
+$existing_msg"); then
+        echo "Error: Failed to generate commit message" >&2
+        exit 1
+    fi
+
+    echo "$commit_msg" > "$MSG_FILE"
+
+    if [[ "$auto_confirm" == true ]]; then
+        echo "$commit_msg"
+        git commit --amend -F "$MSG_FILE"
+    else
+        echo "Opening editor..."
+        git commit --amend -F "$MSG_FILE" -e
+    fi
+else
+    # === Non-HEAD amend ===
+
+    # Create a fixup commit from the staged changes
+    git commit --fixup="$FULL_SHA"
+
+    # Autosquash the fixup into the target commit
+    if ! GIT_SEQUENCE_EDITOR="true" git rebase -i --autosquash "$FULL_SHA^"; then
+        echo "Error: Rebase failed during autosquash" >&2
+        exit 1
+    fi
+
+    # Find the new SHA for the amended commit (it changed during rebase)
+    # The commit is at the same position relative to the base
+    NEW_SHA=$(git rev-parse "$FULL_SHA" 2>/dev/null || true)
+    if [[ -z "$NEW_SHA" || "$NEW_SHA" == "$FULL_SHA" ]]; then
+        # SHA changed — find the commit by counting from the base
+        base_sha=$(git rev-parse "$FULL_SHA^" 2>/dev/null || true)
+        if [[ -n "$base_sha" ]]; then
+            NEW_SHA=$(git log --reverse --format="%H" "$base_sha"..HEAD | head -1)
+        else
+            NEW_SHA="HEAD"
+        fi
+    fi
+
+    # Regenerate the message for the amended commit
+    existing_msg=$(git log -1 --format=%B "$NEW_SHA")
+
+    echo "Generating commit message for amended commit..."
+
+    if ! commit_msg=$(git show --format="" "$NEW_SHA" | ai-commit-msg -c "Existing commit message:
+$existing_msg"); then
+        echo "Error: Failed to generate commit message" >&2
+        exit 1
+    fi
+
+    echo "$commit_msg" > "$MSG_FILE"
+
+    NEW_SHORT_SHA="${NEW_SHA:0:7}"
+
+    if [[ "$auto_confirm" == true ]]; then
+        echo "$commit_msg"
+        # Reword using non-interactive rebase
+        EDITOR_SCRIPT="/tmp/ai-amend-editor"
+        cat > "$EDITOR_SCRIPT" << 'EDITOREOF'
+#!/usr/bin/env bash
+cat /tmp/ai-amend-msg > "$1"
+EDITOREOF
+        chmod +x "$EDITOR_SCRIPT"
+
+        GIT_SEQUENCE_EDITOR="sed -i '0,/^pick $NEW_SHORT_SHA/s//reword $NEW_SHORT_SHA/'" \
+        GIT_EDITOR="$EDITOR_SCRIPT" \
+        git rebase -i "$NEW_SHA^"
+    else
+        echo "Opening editor..."
+        EDITOR_SCRIPT="/tmp/ai-amend-editor"
+        cat > "$EDITOR_SCRIPT" << 'EDITOREOF'
+#!/usr/bin/env bash
+MSG_FILE="/tmp/ai-amend-msg"
+TARGET_FILE="$1"
+cat "$MSG_FILE" > "$TARGET_FILE"
+EDITOREOF
+        echo "exec $EDITOR \"\$TARGET_FILE\"" >> "$EDITOR_SCRIPT"
+        chmod +x "$EDITOR_SCRIPT"
+
+        GIT_SEQUENCE_EDITOR="sed -i '0,/^pick $NEW_SHORT_SHA/s//reword $NEW_SHORT_SHA/'" \
+        GIT_EDITOR="$EDITOR_SCRIPT" \
+        git rebase -i "$NEW_SHA^"
+    fi
+fi
+
+echo "Amended $SHORT_SHA"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Outputs the absolute path of a branch's worktree.
+# Usage: git-worktree-path [branch]
+# If no branch is given, defaults to the default branch.
+
+set -euo pipefail
+
+branch="${1:-$(git-default-branch)}"
+
+git worktree list --porcelain \
+  | grep -B2 "^branch refs/heads/${branch}$" \
+  | grep "^worktree " \
+  | cut -d' ' -f2

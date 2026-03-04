@@ -98,7 +98,7 @@ Once the fix is verified, delete the surprise file from the main worktree:
 
 ```bash
 # Resolve the default branch worktree path
-MAIN_WORKTREE=$(git-default-worktree-path)
+MAIN_WORKTREE=$(git-worktree-path)
 
 # Delete the surprise file
 rm "$MAIN_WORKTREE/.claude/surprises/<slug>.md"

@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<'EOF'
+Usage: ai-commit-msg [-s system-prompt] [-c context] < diff
+
+Generate a conventional commit message from a diff using Claude.
+
+Reads a diff from stdin and outputs a formatted commit message to stdout.
+The diff is automatically truncated at 50,000 characters with a stat
+summary fallback.
+
+Options:
+  -s system-prompt   Override the default system prompt
+  -c context         Extra context prepended to the diff (motivation, PRD, etc.)
+  -h, --help         Show this help message
+
+Examples:
+  git diff --cached | ai-commit-msg
+  git show abc1234 | ai-commit-msg -c "Existing message: fix typo"
+  git diff --cached | ai-commit-msg -c "Motivation: add user auth"
+EOF
+    exit 0
+fi
+
+# Constants
+MAX_DIFF_SIZE=50000
+
+# Parse arguments
+custom_system_prompt=""
+extra_context=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -s) custom_system_prompt="$2"; shift 2 ;;
+        -c) extra_context="$2"; shift 2 ;;
+        *) echo "Error: Unknown option: $1" >&2; exit 1 ;;
+    esac
+done
+
+# Read diff from stdin
+diff=$(cat)
+
+if [[ -z "$diff" ]]; then
+    echo "Error: No diff provided on stdin" >&2
+    exit 1
+fi
+
+# Truncate large diffs
+diff_size=${#diff}
+if [[ $diff_size -gt $MAX_DIFF_SIZE ]]; then
+    # Extract stat from the diff header if possible, otherwise just truncate
+    diff="[Diff too large - truncated from $diff_size chars]
+
+${diff:0:$MAX_DIFF_SIZE}..."
+fi
+
+# JSON schema for validation
+json_schema='{
+  "type": "object",
+  "required": ["type", "description"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["feat", "fix", "chore", "docs", "refactor", "test", "style", "perf", "build", "ci"]
+    },
+    "scope": {
+      "type": "string",
+      "maxLength": 20
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 60
+    },
+    "body": {
+      "type": "string",
+      "minLength": 10,
+      "pattern": "^[^\\u0060](?:(?!.{81})[^\\n]*(?:\\n(?!.{81})[^\\n]*)*)?[^\\u0060]$"
+    }
+  },
+  "additionalProperties": false
+}'
+
+# Default system prompt
+system_prompt="${custom_system_prompt:-Generate a conventional commit message for the provided git diff.
+
+Audience: Other engineers who will review this commit and care about why the changes were made, not just what changed.
+
+Requirements:
+- Use conventional commit format
+- Keep the description concise (under 60 characters)
+- Add a body if the changes are complex to explain the \"why\"
+- Keep each line in the body under 80 characters
+- Focus on the \"why\" not just the \"what\"
+
+Output Format:
+Return ONLY valid JSON matching this schema (no markdown, no code blocks):
+{
+  \"type\": \"feat|fix|chore|docs|refactor|test|style|perf|build|ci\",
+  \"scope\": \"optional scope\",
+  \"description\": \"short description without type prefix\",
+  \"body\": \"optional longer explanation\"
+}
+
+Examples:
+
+{\"type\": \"feat\", \"scope\": \"auth\", \"description\": \"add OAuth2 login support\", \"body\": \"Integrate Google OAuth2 for user authentication to reduce friction during signup and improve security by eliminating password storage.\"}
+
+{\"type\": \"fix\", \"scope\": \"api\", \"description\": \"prevent race condition in cache invalidation\", \"body\": \"Multiple concurrent requests could read stale data when the cache was being refreshed. Add mutex lock around cache updates.\"}}"
+
+# Assemble user prompt
+user_prompt="${extra_context:+$extra_context
+
+}Diff:
+$diff"
+
+# Call Claude
+if ! claude_response=$(claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
+    echo "Error: Failed to generate commit message" >&2
+    echo "Claude response: $claude_response" >&2
+    exit 1
+fi
+
+# Validate JSON
+if ! echo "$claude_response" | jq empty 2>/dev/null; then
+    echo "Error: Claude returned invalid JSON" >&2
+    echo "Response: $claude_response" >&2
+    exit 1
+fi
+
+# Extract from structured_output field (Claude wraps result in metadata)
+commit_type=$(echo "$claude_response" | jq -r '.structured_output.type')
+commit_scope=$(echo "$claude_response" | jq -r '.structured_output.scope // empty')
+commit_desc=$(echo "$claude_response" | jq -r '.structured_output.description')
+commit_body=$(echo "$claude_response" | jq -r '.structured_output.body // empty')
+
+# Construct and output the commit message
+if [[ -n "$commit_scope" ]]; then
+    commit_msg="${commit_type}(${commit_scope}): ${commit_desc}"
+else
+    commit_msg="${commit_type}: ${commit_desc}"
+fi
+
+if [[ -n "$commit_body" ]]; then
+    commit_msg="${commit_msg}
+
+${commit_body}"
+fi
+
+echo "$commit_msg"

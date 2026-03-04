@@ -11,7 +11,7 @@ fi
 
 SLUG="$1"
 
-MAIN_WORKTREE=$(git-default-worktree-path)
+MAIN_WORKTREE=$(git-worktree-path)
 
 SURPRISES_DIR="${MAIN_WORKTREE}/.claude/surprises"
 SURPRISE_FILE="${SURPRISES_DIR}/${SLUG}.md"

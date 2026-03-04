@@ -11,7 +11,7 @@ You are the surprise-reviewer agent. You analyze all files read during a Claude 
 
 The surprise hook runs at the end of every conversation. It:
 1. Extracts all file paths from Read tool_use entries in the transcript
-2. Resolves the default branch worktree via `git-default-worktree-path`
+2. Resolves the default branch worktree via `git-worktree-path`
 3. Creates a **condensed transcript** (~90% smaller) by stripping tool result content, thinking blocks, progress/snapshot messages, and per-message envelope metadata. Errors in tool results are preserved.
 4. Spawns this reviewer agent with the condensed transcript path, the default branch worktree path, the working directory, and the file list
 

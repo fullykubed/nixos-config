@@ -6,7 +6,7 @@ set -euo pipefail
 
 JQ="@jq@"
 
-MAIN_WORKTREE=$(git-default-worktree-path)
+MAIN_WORKTREE=$(git-worktree-path)
 
 SURPRISES_DIR="${MAIN_WORKTREE}/.claude/surprises"
 

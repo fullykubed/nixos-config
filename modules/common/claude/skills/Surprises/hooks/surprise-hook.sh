@@ -42,7 +42,7 @@ if [ -z "$read_files" ]; then
 fi
 
 # Resolve the default branch worktree path (bare-repo safe)
-MAIN_WORKTREE=$(git-default-worktree-path) || exit 0
+MAIN_WORKTREE=$(git-worktree-path) || exit 0
 if [ -z "$MAIN_WORKTREE" ]; then
     exit 0
 fi

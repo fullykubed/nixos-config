@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Help
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+    cat <<'EOF'
+Usage: ai-squash-commits [-y] <range>
+
+Squash a range of commits into one with an AI-generated commit message.
+
+Arguments:
+  range    Commits to squash. Supported formats:
+             last <N>           Squash the last N commits (N >= 2)
+             <SHA1>..<SHA2>     Squash SHA1 through SHA2
+             <SHA1> <SHA2>      Same as above, space-separated
+             since <branch>     All commits since diverging from branch
+
+Options:
+  -y, --yes     Skip editor and apply the generated message directly
+  -h, --help    Show this help message
+
+The script squashes commits using a non-interactive rebase, then generates
+a new commit message with Claude based on the combined diff.
+
+Examples:
+  ai-squash-commits last 3            # Squash last 3 commits
+  ai-squash-commits since main        # Squash all commits since main
+  ai-squash-commits -y last 5         # Squash last 5, skip editor
+  ai-squash-commits abc123..def456    # Squash a SHA range
+EOF
+    exit 0
+fi
+
+# Parse arguments
+auto_confirm=false
+args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -y|--yes) auto_confirm=true; shift ;;
+        *) args+=("$1"); shift ;;
+    esac
+done
+
+# Parse range into BASE commit
+BASE=""
+case "${args[0]:-}" in
+    last)
+        N="${args[1]:-}"
+        if [[ -z "$N" || ! "$N" =~ ^[0-9]+$ ]]; then
+            echo "Error: 'last' requires a number, e.g. 'last 3'" >&2
+            exit 1
+        fi
+        if [[ "$N" -lt 2 ]]; then
+            echo "Error: Cannot squash fewer than 2 commits" >&2
+            exit 1
+        fi
+        BASE="HEAD~$N"
+        ;;
+    since)
+        branch="${args[1]:-}"
+        if [[ -z "$branch" ]]; then
+            echo "Error: 'since' requires a branch name, e.g. 'since main'" >&2
+            exit 1
+        fi
+        BASE=$(git merge-base HEAD "$branch")
+        ;;
+    *)
+        # Handle SHA..SHA or SHA SHA
+        range="${args[0]:-}"
+        if [[ "$range" == *..* ]]; then
+            SHA1="${range%..*}"
+            BASE="$SHA1^"
+        elif [[ -n "${args[1]:-}" ]]; then
+            BASE="${args[0]}^"
+        else
+            echo "Error: Unrecognized range format" >&2
+            echo "Usage: ai-squash-commits [-y] <last N | since branch | SHA..SHA>" >&2
+            exit 1
+        fi
+        ;;
+esac
+
+# Validate BASE
+if ! git rev-parse --verify "$BASE" >/dev/null 2>&1; then
+    echo "Error: Invalid base commit: $BASE" >&2
+    exit 1
+fi
+
+# Count commits in range
+commit_count=$(git log --oneline "$BASE"..HEAD | wc -l | tr -d ' ')
+
+if [[ "$commit_count" -lt 2 ]]; then
+    echo "Error: Nothing to squash — range contains fewer than 2 commits" >&2
+    exit 1
+fi
+
+echo "Squashing $commit_count commits:"
+git log --oneline "$BASE"..HEAD
+
+# Squash using non-interactive rebase (fixup discards intermediate messages)
+if ! GIT_SEQUENCE_EDITOR="sed -i '2,\$s/^pick /fixup /'" git rebase -i "$BASE"; then
+    echo "Error: Rebase failed during squash" >&2
+    exit 1
+fi
+
+# Reword the squashed commit with AI
+reword_args=()
+if [[ "$auto_confirm" == true ]]; then
+    reword_args+=(-y)
+fi
+reword_args+=(HEAD)
+
+ai-reword "${reword_args[@]}"
+
+# Report result
+NEW_SHA=$(git rev-parse --short HEAD)
+NEW_MSG=$(git log -1 --format="%s" HEAD)
+STAT=$(git diff --stat HEAD^..HEAD)
+
+echo "Squashed $commit_count commits into $NEW_SHA: $NEW_MSG"
+echo "$STAT"

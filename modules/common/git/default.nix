@@ -18,19 +18,13 @@ let
     builtins.readFile ./scripts/git-default-branch
   );
 
-  gitDefaultWorktreePath = pkgs.writeShellScriptBin "git-default-worktree-path" (
-    builtins.readFile ./scripts/git-default-worktree-path
+  gitWorktreePath = pkgs.writeShellScriptBin "git-worktree-path" (
+    builtins.readFile ./scripts/git-worktree-path
   );
 
   gitCloneForWorktree = pkgs.writeShellScriptBin "git-clone-for-worktree" (
     builtins.readFile ./scripts/git-clone-for-worktree
   );
-
-  aiCommit = pkgs.writeShellScriptBin "ai-commit" (builtins.readFile ./scripts/ai-commit);
-
-  aiReword = pkgs.writeShellScriptBin "ai-reword" (builtins.readFile ./scripts/ai-reword);
-
-  aiRebase = pkgs.writeShellScriptBin "ai-rebase" (builtins.readFile ./scripts/ai-rebase);
 
   allowedSignersFile = "git/allowed_signers";
   githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
@@ -78,11 +72,8 @@ in
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
       gitDefaultBranch # Output the remote default branch name
-      gitDefaultWorktreePath # Output the default branch's worktree path
+      gitWorktreePath # Output a branch's worktree path
       gitCloneForWorktree # Clone repos for worktree workflows
-      aiCommit # Generate commit messages with Claude AI
-      aiReword # Rewrite commit messages with Claude AI
-      aiRebase # Rebase with Claude Code conflict resolution
       mergiraf # Syntax-aware git merge driver
     ];
 
