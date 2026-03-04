@@ -87,10 +87,10 @@
       # =========================================================================
       versions = {
         # workmux (modules/common/tmux)
-        workmux = "0.1.100";
-        workmuxRev = "d428a715a9cc2d8f487e4ba5e6d273c7240a2b3a";
-        workmuxSrcHash = "sha256-9i+pdX6dS8KSk7QrMAIlpCqqBH+YgA8CTizVQ5xpv+A=";
-        workmuxCargoHash = "sha256-KnDMLpq7MOPcTAM+Nb0HrGd7oPpHhbrFEXwCg7bmGDQ=";
+        workmux = "0.1.129";
+        workmuxRev = "72b290cbd6139a3d688785a1548cf58706a658a2";
+        workmuxSrcHash = "sha256-LhIuDrMzxQI7jDBdBRPJkJ5Ss5bHsdI0C5ZDL9dD2kc=";
+        workmuxCargoHash = "sha256-IkVMn/NVWUrL/XRvM2E5FcFgbyPNV5O4Cdcvd/otNfM=";
 
         # tmux-autoreload plugin (modules/common/tmux)
         tmuxAutoreload = "unstable-2024-01-01";
