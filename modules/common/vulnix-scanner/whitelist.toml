@@ -670,3 +670,28 @@ cve = [
 comment = "CVEs (7.5-8.4 High): Real but low practical risk. glibc-2.40-66 bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025, predates Jan 2026 fixes). Only nix tooling uses this glibc. CVE-2026-0861 needs extreme alignment args; CVE-2026-0915 needs zero-valued network query; CVE-2025-15281 needs specific wordexp flags. Risk accepted 2026-03-04."
 until = "2026-06-04"
 
+#-------------------------------------------------------------------------------
+# DETERMINATE-NIX: determinate-nix-3.16.x → openssl-3.4.2
+# Same pre-built binary pins nixpkgs from Oct 2025, predating the Jan 27
+# 2026 OpenSSL security advisory. System OpenSSL (3.0.19, 3.6.1) is patched.
+# Only nix tooling uses this openssl - no network-facing services.
+# Nix doesn't exercise vulnerable code paths (CMS/S/MIME, PKCS#12, QUIC, OCB).
+# Filed: https://github.com/DeterminateSystems/nix-src/issues/376
+#-------------------------------------------------------------------------------
+["openssl-3.4.2"]
+cve = [
+  "CVE-2025-15467",   # 9.8 Crit - Pre-auth stack overflow in CMS AEAD IV parsing (nix doesn't process CMS/S/MIME)
+  "CVE-2025-69421",   # 7.5 High - NULL deref in PKCS12_item_decrypt_d2i_ex (nix doesn't process PKCS#12)
+  "CVE-2025-69420",   # 7.5 High - Type confusion in TimeStamp Response verification (nix doesn't use RFC 3161)
+  "CVE-2025-69419",   # 7.4 High - OOB write in PKCS12_get_friendlyname BMPString (nix doesn't process PKCS#12)
+  "CVE-2025-11187",   # 6.1 Med  - Stack overflow in PBMAC1 PKCS#12 MAC verification (nix doesn't process PKCS#12)
+  "CVE-2025-66199",   # 5.9 Med  - TLS 1.3 cert compression memory exhaustion (nix is client to trusted servers)
+  "CVE-2025-15468",   # 5.9 Med  - NULL deref in QUIC SSL_CIPHER_find (nix doesn't use QUIC)
+  "CVE-2026-22795",   # 5.5 Med  - PKCS#12 type confusion NULL deref (nix doesn't process PKCS#12)
+  "CVE-2026-22796",   # 5.3 Med  - PKCS#7 type confusion NULL deref (legacy API, not used by nix)
+  "CVE-2025-68160",   # 4.7 Low  - Heap OOB write in BIO_f_linebuffer (not in default TLS paths)
+  "CVE-2025-69418",   # 4.0 Low  - OCB mode trailing bytes unencrypted (EVP users unaffected, TLS doesn't use OCB)
+]
+comment = "CVEs (4.0-9.8 Low-Crit): Real but low practical risk. openssl-3.4.2 bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025, predates Jan 27 2026 advisory). System OpenSSL (3.0.19/3.6.1) already patched. Nix tooling doesn't exercise vulnerable paths: no CMS/S/MIME, no PKCS#12, no QUIC, no OCB. Risk accepted 2026-03-04."
+until = "2026-06-04"
+
