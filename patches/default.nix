@@ -351,10 +351,14 @@ hardeningExclusions
   # All allow remote code execution via crafted image files
   # Upstream nixpkgs PR #484971 pending; version bump applied here
   # NOTE: Override gegl to use our patched openexr (eliminates openexr_2 CVEs)
+  # NOTE: Override ghostscript to use our patched jbig2dec (CVE-2023-46361)
   gimp =
     (final.unstable.gimp.override {
       gegl = final.unstable.gegl.override {
         openexr_2 = final.openexr;
+      };
+      ghostscript = final.unstable.ghostscript.override {
+        inherit (final) jbig2dec;
       };
     }).overrideAttrs
       (old: {
