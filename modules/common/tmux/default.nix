@@ -371,6 +371,8 @@
 
                 bind -n M-w display-popup -d "#{pane_current_path}" -h 90% -w 90% -E "lazyworktree"
 
+                bind -n M-b display-popup -h 90% -w 90% -E "TMUX= tmux attach-session -t btop"
+
                 bind -n M-? run-shell "tmux list-keys -aN | \
                   awk '{ \
                     gsub(/^[[:space:]]+/, \"\", \$0); \
