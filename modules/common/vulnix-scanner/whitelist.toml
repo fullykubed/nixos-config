@@ -694,6 +694,19 @@ until = "2026-06-04"
 # Nix doesn't exercise vulnerable code paths (CMS/S/MIME, PKCS#12, QUIC, OCB).
 # Filed: https://github.com/DeterminateSystems/nix-src/issues/376
 #-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# NIX TOOLING: nix-2.31.2 + determinate-nix-3.16.x → busybox-1.36.1
+# Minimal sandbox-shell build with only ash/sh applets compiled in.
+# CVEs affect wget and tar applets which are NOT present in these builds.
+# Vulnix flags based on package name+version, can't detect applet config.
+#-------------------------------------------------------------------------------
+["busybox-1.36.1"]
+cve = [
+  "CVE-2025-60876",   # 6.5 Med - CRLF injection in wget (wget not compiled)
+  "CVE-2025-46394",   # 3.2 Low - Terminal escape in tar listing (tar not compiled)
+]
+comment = "CVEs (3.2-6.5 Low-Med): Affect wget and tar applets. Neither applet compiled in nix-store busybox (minimal ash/sh only build). False positive from NVD name+version matching. nix-2.31.2→nix-store and determinate-nix-3.16.1→determinate-nix-store both use this minimal build."
+
 ["openssl-3.4.2"]
 cve = [
   "CVE-2025-15467",   # 9.8 Crit - Pre-auth stack overflow in CMS AEAD IV parsing (nix doesn't process CMS/S/MIME)
