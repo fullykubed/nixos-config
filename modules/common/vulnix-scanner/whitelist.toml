@@ -397,6 +397,16 @@ comment = "CVE-2025-5702/5745: Power10 (powerpc64le) only, x86_64 unaffected. CV
 ################################################################################
 # CVEs fixed in the version we have installed.
 
+# VLC → lua-5.2.4 (embedded scripting)
+# CVE-2021-43519 only affects lua 5.4.2-5.4.3 (introduced by commit 287b302a
+# which moved nCcalls increment into resume()). Lua 5.2.x increments nCcalls
+# directly in lua_resume() outside LUAI_THROW - vulnerable code not present.
+# Debian marks lua5.2 as <not-affected>. NVD CPE range (5.1.0-5.3.5) is wrong.
+# Ref: http://lua-users.org/lists/lua-l/2023-06/msg00059.html
+["lua"]
+cve = ["CVE-2021-43519"]
+comment = "CVE-2021-43519 (5.5 Med): Stack overflow in lua_resume. Only affects lua 5.4.2-5.4.3. Lua 5.2.4 does not contain vulnerable code (nCcalls handled differently). Debian confirms not-affected."
+
 # Scientific computing → lapack (OpenBLAS with LAPACK ABI)
 # CVE fixed in OpenBLAS 0.3.18+, system has 0.3.30
 # Note: Version-agnostic here since CVE is fixed in our version
