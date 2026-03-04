@@ -235,6 +235,8 @@
       claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
 
       claudeSurprises = pkgs.callPackage ./skills/Surprises { };
+
+      claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
     in
     {
       home-manager.users.${config.username} = {
@@ -336,7 +338,8 @@
         // claudePRD.homeFiles
         // claudeDevBrowser.homeFiles
         // claudeNixOSBuild.homeFiles
-        // claudeSurprises.homeFiles;
+        // claudeSurprises.homeFiles
+        // claudeKeePassXC.homeFiles;
 
         home.activation.injectExaMcpKey = {
           after = [ "writeBoundary" ];
@@ -367,6 +370,7 @@
         claudeDevBrowser.package
         claudeNixOSBuild.package
         claudeSurprises.package
+        claudeKeePassXC.package
         claude-code-sandboxed
         claude-wrapper
         ccusage
