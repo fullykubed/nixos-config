@@ -36,7 +36,7 @@ git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
 cd "$directory"
 
 # Create a worktree for the default branch so that we have a starting point
-default_branch=$(git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}')
+default_branch=$(git-default-branch)
 git worktree add "$default_branch"
 
 # Generate .envrc for direnv to set git environment variablesi

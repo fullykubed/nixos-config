@@ -233,6 +233,8 @@
       claudeDevBrowser = pkgs.callPackage ./skills/DevBrowser { };
 
       claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
+
+      claudeSurprises = pkgs.callPackage ./skills/Surprises { };
     in
     {
       home-manager.users.${config.username} = {
@@ -305,6 +307,10 @@
                         type = "command";
                         command = "workmux set-window-status done";
                       }
+                      {
+                        type = "command";
+                        command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
+                      }
                     ];
                   }
                 ];
@@ -329,7 +335,8 @@
         // claudeSkill.homeFiles
         // claudePRD.homeFiles
         // claudeDevBrowser.homeFiles
-        // claudeNixOSBuild.homeFiles;
+        // claudeNixOSBuild.homeFiles
+        // claudeSurprises.homeFiles;
 
         home.activation.injectExaMcpKey = {
           after = [ "writeBoundary" ];
@@ -353,11 +360,13 @@
 
       environment.systemPackages = [
         claudeNotifyHook
+        claudeSurprises.hookPackage
         claudeShellScripts
         claudePRD.package
         claudeSkill.package
         claudeDevBrowser.package
         claudeNixOSBuild.package
+        claudeSurprises.package
         claude-code-sandboxed
         claude-wrapper
         ccusage

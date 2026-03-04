@@ -85,6 +85,7 @@ There are two tiers:
 | PRD | Product requirements lifecycle — research, planning, implementation. Defines custom subagents (`prd-researcher`, `prd-worker`) deployed to `~/.claude/agents/` |
 | NixOSBuild | Iterative build-and-fix loop for NixOS configurations |
 | DevBrowser | Headless Chromium automation via a CLI wrapping Playwright |
+| Surprises | Documentation surprise reviewer — detects discrepancies between documentation and reality. Defines custom subagents (`surprise-reviewer`, `surprise-investigator`) deployed to `~/.claude/agents/`. The reviewer is launched automatically by a Stop hook at the end of every conversation |
 
 ## MCP Servers
 
@@ -98,6 +99,7 @@ Hooks run shell commands on Claude Code lifecycle events. They serve two purpose
 
 The system-level hooks (generated into `~/.claude/settings.json`):
 - `Notification` / `UserPromptSubmit` / `Stop` events call `workmux set-window-status` to update the tmux window indicator (`waiting`, `working`, `done`), so when running multiple Claude sessions across worktrees you can see which ones need attention.
+- `Stop` also runs the surprise hook (`claude-surprise-hook`), which extracts all file paths from Read tool calls in the transcript, creates a condensed transcript (~90% smaller by stripping tool results, thinking blocks, and metadata), resolves the default branch worktree via `git-default-branch`, and forks a `surprise-reviewer` agent in the background. The reviewer identifies candidate discrepancies and spawns `surprise-investigator` subagents (with exa MCP access) to verify and write surprise files to `<default-branch-worktree>/.claude/surprises/`.
 - `PostToolUse` events on `Edit|Write` trigger skill validation hooks (PRD schema validation, SKILL.md frontmatter validation). These are assembled by merging each skill package's hook exports.
 
 ## Shell Integration
@@ -134,5 +136,5 @@ The Exa token flows through home-manager activation (decrypt -> read -> jq -> `~
 |------|------|
 | `modules/common/claude/default.nix` | Main module — sandbox, wrapper, settings, skills, secrets |
 | `modules/common/claude/scripts/` | Shell scripts (q, qq, qqq, una, notify-hook) |
-| `modules/common/claude/skills/` | System-level skill packages (Skill, PRD, NixOSBuild, DevBrowser) |
+| `modules/common/claude/skills/` | System-level skill packages (Skill, PRD, NixOSBuild, DevBrowser, Surprises) |
 | `modules/common/mitmproxy-credential-proxy/` | Credential proxy module and TypeScript source |

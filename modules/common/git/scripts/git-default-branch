@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Outputs the name of the remote default branch (e.g. "main").
+
+set -euo pipefail
+
+git remote show "$(git remote)" | awk '/HEAD branch/ {print $NF}'

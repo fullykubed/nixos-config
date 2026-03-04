@@ -14,6 +14,14 @@
 let
   gitName = "Jack Langston";
 
+  gitDefaultBranch = pkgs.writeShellScriptBin "git-default-branch" (
+    builtins.readFile ./scripts/git-default-branch
+  );
+
+  gitDefaultWorktreePath = pkgs.writeShellScriptBin "git-default-worktree-path" (
+    builtins.readFile ./scripts/git-default-worktree-path
+  );
+
   gitCloneForWorktree = pkgs.writeShellScriptBin "git-clone-for-worktree" (
     builtins.readFile ./scripts/git-clone-for-worktree
   );
@@ -69,6 +77,8 @@ in
       gh # Official GitHub CLI
       hub # Tool for interacting with Github API
       git-credential-manager # Tool for securely storing git credentials
+      gitDefaultBranch # Output the remote default branch name
+      gitDefaultWorktreePath # Output the default branch's worktree path
       gitCloneForWorktree # Clone repos for worktree workflows
       aiCommit # Generate commit messages with Claude AI
       aiReword # Rewrite commit messages with Claude AI

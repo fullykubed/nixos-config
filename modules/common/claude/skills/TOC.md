@@ -6,3 +6,4 @@ Reusable skill packages providing domain-specific workflows and tooling for Clau
 - `NixOSBuild/` — Build automation skill that builds NixOS systems and fixes errors in a loop until success.
 - `PRD/` — Product requirements management skill for creating, planning, and implementing PRDs.
 - `Skill/` — Meta-skill for creating and managing Claude Code skills, workflows, and references.
+- `Surprises/` — Documentation surprise reviewer skill for fixing documentation discrepancies discovered by the surprise hook.
