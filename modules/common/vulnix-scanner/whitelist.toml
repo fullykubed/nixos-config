@@ -654,6 +654,15 @@ until = "2026-05-02"
 #   CVE-2025-1373, CVE-2025-1594
 ################################################################################
 
+# Exiv2 0.28.8 - NVD CPE data error for CVE-2026-27631
+# NVD says "versionEndIncluding: 0.28.8" but GitHub advisory GHSA-p2pw-7935-c73j
+# says "Prior to version 0.28.8" with patched_versions: "0.28.8".
+# Fix commit 21d129c8 (backport PR #3517) merged to 0.28.x branch on 2026-02-28,
+# before v0.28.8 tag (2026-03-01). Fix confirmed present in release.
+["exiv2-0.28.8"]
+cve = ["CVE-2026-27631"]
+comment = "CVE-2026-27631 (5.3 Med): Uncaught exception in PSD preview parser. NVD CPE incorrectly includes 0.28.8 - fix verified in v0.28.8 (backport PR #3517 merged before release). GitHub advisory confirms 0.28.8 as patched."
+
 # FFmpeg 7.1.3 - All 12 CVE fix commits VERIFIED as present in n7.1.3 tag
 # Each fix commit individually verified via git history and cherry-pick tracking:
 #   CVE-2023-51791: fb54c89a0df3d63198678b17d64aef4dbb599109 (jpegxl_parser) - in master Dec 2023, before 7.1 branch cut

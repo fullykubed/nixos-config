@@ -421,6 +421,19 @@ hardeningExclusions
         };
       });
 
+  # Exiv2 0.28.8 from unstable - fixes 3 CVEs in 0.28.7:
+  # CVE-2026-25884 (CVSS 8.1 High): Out-of-bounds read in CRW image parser
+  #   Heap OOB read in CrwMap::decode0x0805 via crafted Canon Raw files
+  #   See: https://github.com/Exiv2/exiv2/security/advisories/GHSA-9mxq-4j5g-5wrp
+  # CVE-2026-27596 (CVSS 7.5 High): Out-of-bounds read in preview component
+  #   Integer underflow in LoaderNative::getData() causes 4GB offset OOB read
+  #   See: https://github.com/Exiv2/exiv2/security/advisories/GHSA-3wgv-fg4w-75x7
+  # CVE-2026-27631 (CVSS 5.3 Med): Uncaught exception in PSD parser
+  #   Integer overflow creates huge std::vector, crashing via std::length_error
+  #   See: https://github.com/Exiv2/exiv2/security/advisories/GHSA-p2pw-7935-c73j
+  # Pulled in by: libkexiv2 → okular (KDE PDF viewer)
+  inherit (final.unstable) exiv2;
+
   # Perl 5.42.0 from unstable - fixes CVE-2024-56406
   # CVE-2024-56406 (8.4 High): Heap buffer overflow in tr// operator
   # Affects 5.34-5.40 and dev versions through 5.41.10, fixed in 5.42.0
