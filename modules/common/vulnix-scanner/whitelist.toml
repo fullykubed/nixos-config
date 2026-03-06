@@ -282,10 +282,14 @@ cve = ["CVE-2025-47436"]
 comment = "CVE-2025-47436 (7.5 High): DoS in Apache ORC columnar storage. GStreamer orc-0.4.41 (Oil Runtime Compiler) is unrelated."
 
 # ranger file manager (terminal)
-# CVE affects Apache Ranger (Java policy admin)
+# CVEs affect Apache Ranger (Java policy admin), not Python terminal file manager
 ["ranger"]
-cve = ["CVE-2024-55532"]
-comment = "CVE-2024-55532 (6.5 Med): Auth bypass in Apache Ranger (Java). Terminal file manager ranger is unrelated."
+cve = [
+  "CVE-2024-55532",
+  "CVE-2025-59059",
+  "CVE-2025-59060",
+]
+comment = "CVEs (5.3-9.8 Med-Crit): CSV injection, RCE via NashornScriptEngine, hostname bypass in NiFiClient — all in Apache Ranger (Java). Terminal file manager ranger-1.9.3 is unrelated Python software."
 
 # kitty GPU terminal emulator
 # CVEs affect KiTTY (Windows PuTTY fork 0.76.x), not kitty terminal (0.44.x)
