@@ -177,8 +177,10 @@
                 config.allowUnfree = true;
                 overlays = [
                   # Apply security patches to unstable packages too.
-                  # Without this, packages from unstable (e.g., gimp) pull in
-                  # unpatched dependencies via: gimp → ghostscript → cups → avahi
+                  # Without this, packages from unstable (e.g., gimp, imagemagick)
+                  # pull in unpatched dependencies from the unstable dep tree.
+                  # e.g., gimp → ghostscript → cups → avahi
+                  # e.g., pipewire-unstable → libsndfile (unpatched)
                   (_: unstablePrev: {
                     avahi = unstablePrev.avahi.overrideAttrs (old: {
                       patches = (old.patches or [ ]) ++ [
@@ -186,6 +188,13 @@
                         ./patches/cves/CVE-2025-68471.patch
                         ./patches/cves/CVE-2025-68276.patch
                         ./patches/cves/CVE-2026-24401.patch
+                      ];
+                    });
+                    libsndfile = unstablePrev.libsndfile.overrideAttrs (old: {
+                      patches = (old.patches or [ ]) ++ [
+                        ./patches/cves/CVE-2025-52194.patch
+                        ./patches/cves/CVE-2024-50612.patch
+                        ./patches/cves/CVE-2025-56226.patch
                       ];
                     });
                   })
