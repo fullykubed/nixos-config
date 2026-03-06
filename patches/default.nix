@@ -272,10 +272,11 @@ hardeningExclusions
     };
     buildInputs = (old.buildInputs or [ ]) ++ [ final.openjph ];
   });
-  # Avahi security patches (3 CVEs patched, 1 whitelisted)
+  # Avahi security patches (4 CVEs patched, 1 whitelisted)
   # CVE-2025-68468 (CVSS 6.5 Medium): CNAME TTL crash - network DoS
   # CVE-2025-68471 (CVSS 6.5 Medium): CNAME timing crash - network DoS
   # CVE-2025-68276 (CVSS 5.5 Medium): Wide-area D-Bus crash - local DoS
+  # CVE-2026-24401 (CVSS 6.5 Medium): Recursive CNAME → stack exhaustion crash
   # CVE-2025-59529 (CVSS 5.5 Medium): Client limit bypass - whitelisted (no fix)
   # See: https://github.com/avahi/avahi/security/advisories
   avahi = prev.avahi.overrideAttrs (old: {
@@ -283,6 +284,7 @@ hardeningExclusions
       ./cves/CVE-2025-68468.patch
       ./cves/CVE-2025-68471.patch
       ./cves/CVE-2025-68276.patch
+      ./cves/CVE-2026-24401.patch
     ];
   });
 
@@ -582,6 +584,17 @@ hardeningExclusions
     websockets = prev.python312Packages.websockets.overrideAttrs (old: {
       disabledTests = (old.disabledTests or [ ]) ++ [
         "test_writing_in_recv_events_fails"
+      ];
+    });
+
+    # NixOSBuild AUTOFIX
+    # Package rich: Skip test_brokenpipeerror - sandbox timing issue
+    # Error details: test asserts proc1.returncode == 1 after piping to head, but gets 0
+    # Fix explanation: BrokenPipeError timing is non-deterministic in sandbox; process exits
+    #   before SIGPIPE arrives, so returncode is 0 instead of 1
+    rich = prev.python312Packages.rich.overrideAttrs (old: {
+      disabledTests = (old.disabledTests or [ ]) ++ [
+        "test_brokenpipeerror"
       ];
     });
   };

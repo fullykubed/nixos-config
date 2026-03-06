@@ -175,6 +175,21 @@
               unstable = import nixpkgs-unstable {
                 inherit system;
                 config.allowUnfree = true;
+                overlays = [
+                  # Apply security patches to unstable packages too.
+                  # Without this, packages from unstable (e.g., gimp) pull in
+                  # unpatched dependencies via: gimp → ghostscript → cups → avahi
+                  (_: unstablePrev: {
+                    avahi = unstablePrev.avahi.overrideAttrs (old: {
+                      patches = (old.patches or [ ]) ++ [
+                        ./patches/cves/CVE-2025-68468.patch
+                        ./patches/cves/CVE-2025-68471.patch
+                        ./patches/cves/CVE-2025-68276.patch
+                        ./patches/cves/CVE-2026-24401.patch
+                      ];
+                    });
+                  })
+                ];
               };
             })
 
