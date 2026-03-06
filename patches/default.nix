@@ -434,6 +434,16 @@ hardeningExclusions
   # Pulled in by: libkexiv2 → okular (KDE PDF viewer)
   inherit (final.unstable) exiv2;
 
+  # Go 1.25.7 from unstable - fixes 2 CVEs not yet in NixOS 25.11 stable
+  # CVE-2025-68121 (10.0 Critical): TLS session resumption bypasses changed ClientCAs/RootCAs
+  #   Config.Clone or GetConfigForClient can resume sessions that should be rejected
+  #   See: https://go.dev/issue/77217
+  # CVE-2025-61732 (8.6 High): cgo comment parsing allows code smuggling into binary
+  #   Discrepancy between Go and C/C++ comment parsing enables injection
+  #   See: https://go.dev/issue/76697
+  # Fixed in Go 1.25.7 and 1.24.13 (released 2026-02-04)
+  inherit (final.unstable) go;
+
   # Perl 5.42.0 from unstable - fixes CVE-2024-56406
   # CVE-2024-56406 (8.4 High): Heap buffer overflow in tr// operator
   # Affects 5.34-5.40 and dev versions through 5.41.10, fixed in 5.42.0

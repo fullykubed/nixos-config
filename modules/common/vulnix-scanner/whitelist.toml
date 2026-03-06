@@ -573,19 +573,55 @@ until = "2026-04-18"
 #-------------------------------------------------------------------------------
 ["go-1.22.12-linux-amd64-bootstrap"]
 cve = [
-  "CVE-2025-61729",   # 7.5 High - DoS via quadratic runtime in HostnameError
-  "CVE-2025-61727",   # 6.5 Med - Certificate validation bypass with wildcard SANs
+  "CVE-2025-68121",   # 10.0 Crit - TLS session resumption bypasses changed ClientCAs/RootCAs
+  "CVE-2025-4674",    # 8.6 High - VCS command execution in untrusted repos
+  "CVE-2025-61732",   # 8.6 High - cgo comment parsing code smuggling
+  "CVE-2025-61731",   # 7.8 High - cgo pkg-config file write
+  "CVE-2025-58187",   # 7.5 High - x509 name constraint DoS
+  "CVE-2025-58188",   # 7.5 High - DSA public key panic in cert validation
+  "CVE-2025-61723",   # 7.5 High - PEM parsing DoS
+  "CVE-2025-61726",   # 7.5 High - net/url query parameter DoS
+  "CVE-2025-61729",   # 7.5 High - HostnameError quadratic DoS
+  "CVE-2025-68119",   # 7.0 High - VCS malicious version code execution
+  "CVE-2025-47907",   # 7.0 High - database/sql race condition in Scan
+  "CVE-2025-47906",   # 6.5 Med - os/exec PATH lookup issue
+  "CVE-2025-61727",   # 6.5 Med - Wildcard SAN constraint bypass
+  "CVE-2025-61728",   # 6.5 Med - archive/zip indexing DoS
   "CVE-2025-0913",    # 5.5 Med - Symlink handling inconsistency in os.OpenFile
+  "CVE-2025-47912",   # 5.3 Med - URL bracket parsing
+  "CVE-2025-58185",   # 5.3 Med - DER parsing memory exhaustion
+  "CVE-2025-58189",   # 5.3 Med - ALPN error info disclosure
+  "CVE-2025-61724",   # 5.3 Med - textproto response CPU DoS
+  "CVE-2025-61730",   # 5.3 Med - TLS 1.3 minor info disclosure
+  "CVE-2025-22873",   # 3.8 Low - os.Root parent directory escape
 ]
-comment = "Go bootstrap compiler - build-time only, not in runtime closure. Used to compile go-1.24.11+ which has fixes. Not exploitable."
+comment = "Go bootstrap compiler - build-time only, not in runtime closure. Used to compile go-1.25.7+ which has fixes. Not exploitable in build context."
 
 ["go-1.22.12-linux-386-bootstrap"]
 cve = [
-  "CVE-2025-61729",
-  "CVE-2025-61727",
-  "CVE-2025-0913",
+  "CVE-2025-68121",   # 10.0 Crit - TLS session resumption bypass
+  "CVE-2025-4674",    # 8.6 High - VCS command execution
+  "CVE-2025-61732",   # 8.6 High - cgo code smuggling
+  "CVE-2025-61731",   # 7.8 High - cgo pkg-config file write
+  "CVE-2025-58187",   # 7.5 High - x509 name constraint DoS
+  "CVE-2025-58188",   # 7.5 High - DSA public key panic
+  "CVE-2025-61723",   # 7.5 High - PEM parsing DoS
+  "CVE-2025-61726",   # 7.5 High - net/url query param DoS
+  "CVE-2025-61729",   # 7.5 High - HostnameError quadratic DoS
+  "CVE-2025-68119",   # 7.0 High - VCS malicious version code exec
+  "CVE-2025-47907",   # 7.0 High - database/sql race condition
+  "CVE-2025-47906",   # 6.5 Med - os/exec PATH lookup
+  "CVE-2025-61727",   # 6.5 Med - Wildcard SAN bypass
+  "CVE-2025-61728",   # 6.5 Med - archive/zip DoS
+  "CVE-2025-0913",    # 5.5 Med - Symlink inconsistency
+  "CVE-2025-47912",   # 5.3 Med - URL bracket parsing
+  "CVE-2025-58185",   # 5.3 Med - DER memory exhaustion
+  "CVE-2025-58189",   # 5.3 Med - ALPN info disclosure
+  "CVE-2025-61724",   # 5.3 Med - textproto CPU DoS
+  "CVE-2025-61730",   # 5.3 Med - TLS 1.3 info disclosure
+  "CVE-2025-22873",   # 3.8 Low - os.Root parent dir escape
 ]
-comment = "Go bootstrap compiler (32-bit) - build-time only, not in runtime closure. Used to compile go-1.24.11+ which has fixes. Not exploitable."
+comment = "Go bootstrap compiler (32-bit) - build-time only, not in runtime closure. Used to compile go-1.25.7+ which has fixes. Not exploitable in build context."
 
 #-------------------------------------------------------------------------------
 # ASSIMP: assimp-6.0.2 - 3D model import library
@@ -745,6 +781,36 @@ cve = [
 ]
 comment = "CVEs (7.5-8.4 High): Real but low practical risk. glibc-2.40-66 bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025, predates Jan 2026 fixes). Only nix tooling uses this glibc. CVE-2026-0861 needs extreme alignment args; CVE-2026-0915 needs zero-valued network query; CVE-2025-15281 needs specific wordexp flags. Risk accepted 2026-03-04."
 until = "2026-06-04"
+
+#-------------------------------------------------------------------------------
+# DETERMINATE-NIX: determinate-nix-3.16.x → go-1.24.6
+# Pre-built binary pins nixpkgs from Oct 2025, predating Go 1.24.13 security
+# release (2026-02-04). Runtime Go (1.25.7 via unstable overlay) is patched.
+# Build-time only dependency (nix-functional-tests → util-linux → systemd →
+# libcap → go-1.24.6). Not in runtime closure.
+# Filed: https://github.com/DeterminateSystems/nix-src/issues/376
+#-------------------------------------------------------------------------------
+["go-1.24.6"]
+cve = [
+  "CVE-2025-68121",   # 10.0 Crit - TLS session resumption bypasses changed ClientCAs/RootCAs
+  "CVE-2025-61732",   # 8.6 High - cgo comment parsing code smuggling
+  "CVE-2025-61731",   # 7.8 High - cgo pkg-config file write
+  "CVE-2025-58187",   # 7.5 High - x509 name constraint DoS
+  "CVE-2025-58188",   # 7.5 High - DSA public key panic in cert validation
+  "CVE-2025-61723",   # 7.5 High - PEM parsing DoS
+  "CVE-2025-61726",   # 7.5 High - net/url query parameter DoS
+  "CVE-2025-61729",   # 7.5 High - HostnameError quadratic DoS
+  "CVE-2025-68119",   # 7.0 High - VCS malicious version code execution
+  "CVE-2025-61727",   # 6.5 Med - Wildcard SAN constraint bypass
+  "CVE-2025-61728",   # 6.5 Med - archive/zip indexing DoS
+  "CVE-2025-47912",   # 5.3 Med - URL bracket parsing
+  "CVE-2025-58185",   # 5.3 Med - DER parsing memory exhaustion
+  "CVE-2025-58189",   # 5.3 Med - ALPN error info disclosure
+  "CVE-2025-61724",   # 5.3 Med - textproto response CPU DoS
+  "CVE-2025-61730",   # 5.3 Med - TLS 1.3 minor info disclosure
+]
+comment = "CVEs (5.3-10.0 Med-Crit): Real but low practical risk. go-1.24.6 bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025, predates Feb 2026 fixes). Build-time only dep for nix-functional-tests. Not in runtime closure. Runtime Go (1.25.7) is patched. Risk accepted 2026-03-06."
+until = "2026-06-06"
 
 #-------------------------------------------------------------------------------
 # DETERMINATE-NIX: determinate-nix-3.16.x → openssl-3.4.2
