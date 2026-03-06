@@ -734,6 +734,28 @@ cve = [
 ]
 comment = "CVEs (3.2-6.5 Low-Med): Affect wget and tar applets. Neither applet compiled in nix-store busybox (minimal ash/sh only build). False positive from NVD name+version matching. nix-2.31.2→nix-store and determinate-nix-3.16.1→determinate-nix-store both use this minimal build."
 
+#-------------------------------------------------------------------------------
+# DETERMINATE-NIX: determinate-nix-3.16.x → curl-8.14.1
+# Pre-built binary from Determinate Systems pins its own nixpkgs (Oct 2025),
+# predating the Jan 2026 curl security advisory. System curl (8.18.0) is patched.
+# Only nix tooling uses this curl - no user-facing services.
+# Build uses libssh2 (not libssh/wolfSSH), OpenSSL (not GnuTLS), no LDAP.
+# None of the vulnerable code paths are compiled in or exercised.
+# Filed: https://github.com/DeterminateSystems/nix-src/issues/376
+#-------------------------------------------------------------------------------
+["curl-8.14.1"]
+cve = [
+  "CVE-2025-10966",   # 4.3 Med  - wolfSSH SFTP host verification (build uses libssh2, not wolfSSH)
+  "CVE-2025-13034",   # 5.9 Med  - QUIC cert pinning bypass with ngtcp2+GnuTLS (build uses OpenSSL)
+  "CVE-2025-14017",   # 6.3 Med  - Multi-threaded LDAPS TLS option leak (nix doesn't use LDAP)
+  "CVE-2025-14524",   # 5.3 Med  - OAuth2 bearer token leak on cross-protocol redirect (nix doesn't use OAuth2/IMAP/POP3/SMTP)
+  "CVE-2025-14819",   # 5.3 Med  - TLS CA store reuse with partial chain toggle (nix doesn't toggle this option)
+  "CVE-2025-15079",   # 5.3 Med  - libssh known_hosts bypass (build uses libssh2, not libssh)
+  "CVE-2025-15224",   # 3.1 Low  - libssh SSH agent bypass (build uses libssh2, not libssh)
+]
+comment = "CVEs (3.1-6.3 Low-Med): All affect code paths not present in this build. curl-8.14.1 bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025). System curl (8.18.0) already patched. No wolfSSH, no GnuTLS, no LDAP, no libssh compiled in. Risk accepted 2026-03-06."
+until = "2026-06-06"
+
 ["openssl-3.4.2"]
 cve = [
   "CVE-2025-15467",   # 9.8 Crit - Pre-auth stack overflow in CMS AEAD IV parsing (nix doesn't process CMS/S/MIME)
