@@ -116,6 +116,10 @@
         "flakes"
       ];
       post-build-hook = "/etc/nix/enqueue-to-cache.sh";
+
+      # Substituter timeouts - fail fast if a cache is slow or unreachable
+      connect-timeout = 5;
+      stalled-download-timeout = 15;
     };
     extraOptions = ''
       !include /etc/nix/builder-override.conf

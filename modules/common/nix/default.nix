@@ -39,6 +39,10 @@
 
       # Parallel copy operations to/from remote builders and substituters
       max-substitution-jobs = 32;
+
+      # Substituter timeouts - fail fast if a cache is slow or unreachable
+      connect-timeout = 5;
+      stalled-download-timeout = 15;
     };
   };
 
