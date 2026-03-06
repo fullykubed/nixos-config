@@ -427,7 +427,7 @@ comment = "CVE-2022-26691 (6.7 Medium): Local privilege escalation via auth bypa
 cve = ["CVE-2024-56406"]
 comment = "CVE-2024-56406 (8.4 High): Heap overflow in tr// operator. Patch already backported to nixpkgs perl-5.40.0."
 
-# FFmpeg 8.0 - All 8 CVE fix commits VERIFIED as ancestors of n8.0 tag
+# FFmpeg 8.0 - All 11 CVE fix commits VERIFIED as ancestors of n8.0 tag
 # Each fix commit individually verified via: git merge-base --is-ancestor <commit> n8.0
 #   CVE-2023-51791: fb54c89a0df3d63198678b17d64aef4dbb599109 (jpegxl_parser)
 #   CVE-2023-51793: 0ecc1f0e48930723d7a467761b66850811c23e62 (vf_weave)
@@ -437,6 +437,9 @@ comment = "CVE-2024-56406 (8.4 High): Heap overflow in tr// operator. Patch alre
 #   CVE-2023-51797: 08bd2cbfeb34717d60ec62bcbaeb7996206df906 (avf_showwaves)
 #   CVE-2023-51798: 68146f06f852078866b3ef1564556e3a272920c7 (vf_minterpolate)
 #   CVE-2025-22921: 7f9c7f9849a2155224711f0ff57ecdac6e4bfb57 (jpeg2000dec)
+#   CVE-2025-12343: 263e819aa4 (dnn_backend_tf double-free)
+#   CVE-2025-25468: d5873be583ada9e1fb887e2fe8dcfd4b12e0efcd (mem.c memory leak)
+#   CVE-2025-25469: d5873be583ada9e1fb887e2fe8dcfd4b12e0efcd (iamf.c memory leak)
 ["ffmpeg-8.0"]
 cve = [
   "CVE-2023-51791",
@@ -446,9 +449,31 @@ cve = [
   "CVE-2023-51796",
   "CVE-2023-51797",
   "CVE-2023-51798",
+  "CVE-2025-12343",
   "CVE-2025-22921",
+  "CVE-2025-25468",
+  "CVE-2025-25469",
 ]
-comment = "All 8 CVE fix commits verified as ancestors of n8.0 tag. NVD metadata incorrectly shows 8.0 as affected."
+comment = "All 11 CVE fix commits verified as ancestors of n8.0 tag. NVD metadata incorrectly shows 8.0 as affected."
+
+# FFmpeg 8.0.1 - signal-desktop → electron-40.6.1 → ffmpeg-8.0.1
+# All fix commits verified as ancestors of n8.0.1 (superset of n8.0 fixes)
+# Same fixes as ffmpeg-8.0 above - n8.0.1 inherits all n8.0 patches
+["ffmpeg-8.0.1"]
+cve = [
+  "CVE-2023-51791",
+  "CVE-2023-51793",
+  "CVE-2023-51794",
+  "CVE-2023-51795",
+  "CVE-2023-51796",
+  "CVE-2023-51797",
+  "CVE-2023-51798",
+  "CVE-2025-12343",
+  "CVE-2025-22921",
+  "CVE-2025-25468",
+  "CVE-2025-25469",
+]
+comment = "All 11 CVE fix commits verified as ancestors of n8.0.1 tag. NVD metadata incorrectly shows 8.0.1 as affected. Bundled by signal-desktop via electron-40.6.1."
 
 # zlib 1.3.1 - CVE only affects untgz demo utility (contrib/untgz)
 # The untgz tool is not installed in NixOS - it's a demonstration program
@@ -605,8 +630,9 @@ until = "2026-05-02"
 # pname: ffmpeg (all versions share this)
 #
 # VERSION MAP:
-#   ffmpeg 7.1.2  → firefox-146.0.1, vlc-3.0.23 (media playback)
-#   ffmpeg 8.0    → system (current, no whitelist needed)
+#   ffmpeg 7.1.3  → firefox, vlc-3.0.23 (media playback, via unstable overlay)
+#   ffmpeg 8.0    → system (false positives whitelisted)
+#   ffmpeg 8.0.1  → signal-desktop (via electron-40.6.1)
 #
 # When updating a package, remove ONLY the CVEs for its ffmpeg version.
 #
@@ -617,23 +643,20 @@ until = "2026-05-02"
 #   CVE-2025-1373, CVE-2025-1594
 ################################################################################
 
-["ffmpeg-7.1.2"]
+# FFmpeg 7.1.3 - All 12 CVEs resolved via unstable overlay + backported patches
+# Version bump from 7.1.2 → 7.1.3 fixes 9 CVEs (buffer overflows, NULL deref, double-free)
+# 3 additional CVEs fixed via backported patches in patches/cves/:
+#   CVE-2025-22921: 7f9c7f9849a2155224711f0ff57ecdac6e4bfb57 (jpeg2000dec)
+#   CVE-2025-25468: d5873be583ada9e1fb887e2fe8dcfd4b12e0efcd (iamf_parse)
+#   CVE-2025-25469: d5873be583ada9e1fb887e2fe8dcfd4b12e0efcd (iamf_parse)
+# Vulnix may still flag these due to NVD metadata; whitelist as false positives.
+["ffmpeg-7.1.3"]
 cve = [
-  #---------------------------------------------------------------------------
-  # FIREFOX + VLC: firefox-146.0.1, vlc-3.0.23 → ffmpeg-7.1.2
-  # Remove these when Firefox/VLC update to newer ffmpeg
-  #---------------------------------------------------------------------------
-  "CVE-2023-51791",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51793",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51794",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51795",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51796",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51797",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2023-51798",     # 7.8 High - heap overflow via MOV - firefox, vlc
-  "CVE-2025-22921",     # 6.5 Med - DoS via crafted media - firefox, vlc
+  "CVE-2025-22921",     # 6.5 Med - patched via CVE-2025-22921.patch
+  "CVE-2025-25468",     # 6.5 Med - patched via CVE-2025-25468-25469.patch
+  "CVE-2025-25469",     # 6.5 Med - patched via CVE-2025-25468-25469.patch
 ]
-comment = "CVEs (6.5-7.8 Med-High): Memory corruption, DoS via crafted media in ffmpeg-7.1.2 bundled by Firefox/VLC."
-until = "2026-07-01"
+comment = "All 3 CVEs patched via backported upstream fixes in patches/cves/. Vulnix flags due to NVD version-range matching."
 
 #-------------------------------------------------------------------------------
 # YASM: yasm-1.3.0 - x86 assembler (abandonware, last release 2014)
