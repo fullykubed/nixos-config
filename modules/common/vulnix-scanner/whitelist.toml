@@ -425,6 +425,13 @@ comment = "CVE-2021-4048 (5.9 Medium): Out-of-bounds read in OpenBLAS. Fixed in 
 cve = ["CVE-2022-26691"]
 comment = "CVE-2022-26691 (6.7 Medium): Local privilege escalation via auth bypass. Fixed in 2.4.2+, we have 2.4.15/16."
 
+# libheif 1.20.2 - CVE already patched in nixpkgs
+# Patch 001-fix-wrong-copy-width-in-overlay-images.patch applies upstream fix b8c12a7
+# but doesn't include CVE ID in filename, so vulnix auto-detection misses it
+["libheif"]
+cve = ["CVE-2025-68431"]
+comment = "CVE-2025-68431 (6.5 Med): Heap buffer over-read in overlay(). Already patched in nixpkgs via 001-fix-wrong-copy-width-in-overlay-images.patch (commit b8c12a7). Vulnix false positive - patch filename lacks CVE ID."
+
 # Perl 5.40.0 - CVE already backported in nixpkgs
 # Patch applied: https://github.com/Perl/perl5/commit/87f42aa0e0096e9a346c9672aa3a0bd3bef8c1dd
 ["perl-5.40.0"]
