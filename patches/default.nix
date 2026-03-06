@@ -678,26 +678,28 @@ hardeningExclusions
   #   CVE-2023-51798 (7.8 High): heap overflow in vf_minterpolate
   #   CVE-2025-10256 (5.3 Med):  NULL deref in af_firequalizer
   #   CVE-2025-12343 (3.3 Low):  double-free in dnn_backend_tf
-  # Backported patches fix 3 more CVEs (not backported upstream to 7.1.x):
+  # NixOSBuild AUTOFIX
+  # ffmpeg_7: Remove CVE-2025-25468-25469.patch (already merged upstream in 7.1.3)
+  # Error: patchPhase fails with "Reversed (or previously applied) patch detected"
+  # Fix: Remove the now-redundant patch; CVE-2025-22921 still needs backporting
+  # Backported patch fixes 1 more CVE (not backported upstream to 7.1.x):
   #   CVE-2025-22921 (6.5 Med): segfault in jpeg2000dec
+  # Fixed upstream in 7.1.3:
   #   CVE-2025-25468 (6.5 Med): memory leak in iamf_parse.c
   #   CVE-2025-25469 (6.5 Med): memory leak in iamf_parse.c
   ffmpeg_7 = final.unstable.ffmpeg_7.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2025-22921.patch
-      ./cves/CVE-2025-25468-25469.patch
     ];
   });
   ffmpeg_7-full = final.unstable.ffmpeg_7-full.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2025-22921.patch
-      ./cves/CVE-2025-25468-25469.patch
     ];
   });
   ffmpeg_7-headless = final.unstable.ffmpeg_7-headless.overrideAttrs (old: {
     patches = (old.patches or [ ]) ++ [
       ./cves/CVE-2025-22921.patch
-      ./cves/CVE-2025-25468-25469.patch
     ];
   });
 
