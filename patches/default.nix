@@ -252,26 +252,37 @@ hardeningExclusions
     };
   };
 
-  # OpenEXR 3.4.4 - Security update from 3.3.5
-  # Fixes 9 CVEs total:
+  # OpenEXR 3.4.5 - Security update from 3.3.5
+  # Fixes 10 CVEs total:
   #   CVE-2025-64181 (7.5 High): Use of uninitialized memory → DoS
   #   CVE-2025-64182 (7.8 High): Memory safety bug in Python adapter → RCE
   #   CVE-2025-64183 (7.5 High): Use-after-free in PyObject_StealAttrString
   #   CVE-2025-12495 (7.8 High): Heap buffer overflow RCE via EXR parsing (ZDI-CAN-27946)
   #   CVE-2025-12839 (7.8 High): Heap buffer overflow RCE via EXR parsing (ZDI-CAN-27947)
   #   CVE-2025-12840 (7.8 High): Heap buffer overflow RCE via EXR parsing (ZDI-CAN-27948)
+  #   CVE-2026-26981 (6.5 Med): Heap OOB read in istream_nonparallel_read → DoS
   # Plus CVE-2025-48071 through CVE-2025-48074 fixed in 3.3.3/3.4.x
-  # See: https://github.com/AcademySoftwareFoundation/openexr/releases/tag/v3.4.4
+  # See: https://github.com/AcademySoftwareFoundation/openexr/releases/tag/v3.4.5
   openexr = prev.openexr.overrideAttrs (old: rec {
-    version = "3.4.4";
+    version = "3.4.5";
     src = prev.fetchFromGitHub {
       owner = "AcademySoftwareFoundation";
       repo = "openexr";
       rev = "v${version}";
-      sha256 = "12bqywybl0dllfznpfs15bbyfarh3hafy9r11rvj2xpjf6fdard1";
+      sha256 = "0p0jj5xi8brjqhfmk6h7mxa0afmv94gxhypcna3zv1v4lsxkg3hq";
     };
     buildInputs = (old.buildInputs or [ ]) ++ [ final.openjph ];
   });
+  # libjxl: Force rebuild with patched openexr to eliminate openexr-3.3.5
+  # Without this, libjxl links against the default nixpkgs openexr-3.3.5 which has:
+  #   CVE-2025-12495 (7.8 High): Heap buffer overflow → RCE
+  #   CVE-2025-12839 (7.8 High): Heap buffer overflow → RCE
+  #   CVE-2025-12840 (7.8 High): Heap buffer overflow → RCE
+  #   CVE-2025-64181 (7.5 High): Uninitialized memory → DoS
+  libjxl = prev.libjxl.override {
+    inherit (final) openexr;
+  };
+
   # MuPDF CVE-2026-25556 (CVSS 7.5 High): Double-free in barcode decoding
   # fz_fill_pixmap_from_display_list() incorrectly drops caller-owned pixmap on error,
   # causing heap corruption when caller also drops it. Affects 1.23.0-1.27.0.
@@ -376,6 +387,7 @@ hardeningExclusions
   # Upstream nixpkgs PR #484971 pending; version bump applied here
   # NOTE: Override gegl to use our patched openexr (eliminates openexr_2 CVEs)
   # NOTE: Override ghostscript to use our patched jbig2dec (CVE-2023-46361)
+  # NOTE: Override libjxl to use our patched openexr (eliminates openexr-3.3.5 CVEs)
   gimp =
     (final.unstable.gimp.override {
       gegl = final.unstable.gegl.override {
@@ -384,6 +396,7 @@ hardeningExclusions
       ghostscript = final.unstable.ghostscript.override {
         inherit (final) jbig2dec;
       };
+      libjxl = final.unstable.libjxl.override { inherit (final) openexr; };
     }).overrideAttrs
       (old: {
         version = "3.0.8";
@@ -421,6 +434,7 @@ hardeningExclusions
   imagemagick =
     (final.unstable.imagemagick.override {
       inherit (final) openexr;
+      libjxl = final.unstable.libjxl.override { inherit (final) openexr; };
     }).overrideAttrs
       (_old: {
         version = "7.1.2-15";

@@ -331,6 +331,13 @@ comment = "CVEs (6.1 Med): XSS in Xinhu Rainrock RockOA (Chinese OA system). Goo
 cve = ["CVE-2025-59777", "CVE-2025-62689"]
 comment = "CVEs (7.5 High): NULL ptr deref + heap overflow in libmicrohttpd_ws.so (experimental WebSocket). NixOS builds only libmicrohttpd.so without --enable-experimental. Unaffected."
 
+# OpenEXR Python adapter (pyOpenEXR_old.cpp)
+# CVEs affect the legacy Python bindings which NixOS does not build.
+# Verified: no /lib/python* in openexr store paths.
+["openexr"]
+cve = ["CVE-2025-64182", "CVE-2025-64183"]
+comment = "CVE-2025-64182 (7.8 High): Integer overflow in Python adapter InputFile.channel(). CVE-2025-64183 (7.5 High): Use-after-free in PyObject_StealAttrString. Both in pyOpenEXR_old.cpp - Python bindings not built in NixOS."
+
 
 ################################################################################
 # PLATFORM/DISTRO SPECIFIC
