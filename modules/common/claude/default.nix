@@ -149,7 +149,7 @@
           substitute $src/notify-hook.sh $out/bin/claude-notify-hook \
             --replace "@notify-send@" "${pkgs.libnotify}/bin/notify-send" \
             --replace "@jq@" "${pkgs.jq}/bin/jq" \
-            --replace "@claude@" "${pkgs.unstable.claude-code}/bin/claude"
+            --replace "@claude@" "${claude-code-sandboxed}/bin/claude"
 
           substitute $src/extract-conversation.sh $out/bin/extract-conversation \
             --replace "jq" "${pkgs.jq}/bin/jq" \
@@ -285,6 +285,9 @@
             force = true;
             text = builtins.toJSON {
               skipDangerousModePermissionPrompt = true;
+              sandbox = {
+                enabled = false; # We provide our own bwrap sandbox via claude-code-sandboxed
+              };
               statusLine = {
                 type = "command";
                 command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
@@ -369,11 +372,25 @@
             EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
             EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
 
+            if [[ ! -f "$CLAUDE_JSON" ]]; then
+              echo '{}' > "$CLAUDE_JSON"
+            fi
+
+            # Set dark mode, auto-trust home directory, and runtime preferences
+            ${pkgs.jq}/bin/jq '
+              .theme = "dark" |
+              .projects["/home/${config.username}"].hasTrustDialogAccepted = true |
+              .autoCompactEnabled = true |
+              .fileCheckpointingEnabled = true |
+              .respectGitignore = true |
+              .preferTmuxOverIterm2 = true |
+              .autoConnectIde = false |
+              .autoInstallIdeExtension = false
+            ' "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
+            mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
+
             if [[ -f "$EXA_TOKEN_PATH" ]]; then
               EXA_API_KEY="$(cat "$EXA_TOKEN_PATH")"
-              if [[ ! -f "$CLAUDE_JSON" ]]; then
-                echo '{}' > "$CLAUDE_JSON"
-              fi
               ${pkgs.jq}/bin/jq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
               mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
             fi

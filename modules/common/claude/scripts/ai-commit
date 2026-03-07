@@ -110,7 +110,7 @@ if [[ -x "$hook_script" ]]; then
         echo ""
         echo "Git hook failure detected. Starting Claude Fixer in background..."
 
-        claude --model opus --fallback-model sonnet --dangerously-skip-permissions --verbose -p "The git commit failed due to git hook failures. Here is the output:
+        claude-wrapper --model opus --fallback-model sonnet --verbose -p "The git commit failed due to git hook failures. Here is the output:
 
 $hook_output
 

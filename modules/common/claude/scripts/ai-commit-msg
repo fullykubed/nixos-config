@@ -117,7 +117,7 @@ user_prompt="${extra_context:+$extra_context
 $diff"
 
 # Call Claude
-if ! claude_response=$(claude --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
+if ! claude_response=$(claude-wrapper --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
     echo "Error: Failed to generate commit message" >&2
     echo "Claude response: $claude_response" >&2
     exit 1

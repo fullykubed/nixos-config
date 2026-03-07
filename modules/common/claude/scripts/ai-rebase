@@ -119,8 +119,7 @@ Rebased N commits onto $target
 
 Nothing else."
 
-    if claude --system-prompt "$system_prompt" \
-        --dangerously-skip-permissions \
+    if claude-wrapper --system-prompt "$system_prompt" \
         --no-session-persistence \
         --model sonnet \
         --fallback-model haiku \

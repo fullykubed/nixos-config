@@ -10,4 +10,4 @@ if ! git -C @home@/repos/nixos-config/main worktree list --porcelain | grep -q "
 fi
 
 hostname=$(@hostname@)
-claude --dangerously-skip-permissions "/NixOSBuild $hostname $worktree"
+claude-wrapper "/NixOSBuild $hostname $worktree"
