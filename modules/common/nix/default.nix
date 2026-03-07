@@ -40,9 +40,15 @@
       # Parallel copy operations to/from remote builders and substituters
       max-substitution-jobs = 32;
 
+      # Retain build outputs and derivations so nix-shell/nix develop can
+      # reuse them without re-downloading or rebuilding
+      keep-outputs = true;
+      keep-derivations = true;
+
       # Substituter timeouts - fail fast if a cache is slow or unreachable
       connect-timeout = 5;
       stalled-download-timeout = 15;
+      narinfo-cache-negative-ttl = 60; # Re-check cache misses after 60s (default 1h)
     };
   };
 
