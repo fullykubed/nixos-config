@@ -65,8 +65,8 @@ comment = "CVEs (5.5-8.2 Med-High): Auth bypass, DoS, privesc in Cloudflare WARP
 # pandoc → zlib-0.7.1.1 (compression binding)
 # CVEs affect C zlib library, system zlib-1.3.1 is patched
 ["zlib"]
-cve = ["CVE-2022-37434", "CVE-2023-45853", "CVE-2023-6992", "CVE-2026-22184"]
-comment = "CVEs (7.0-9.8 High-Crit): C zlib vulnerabilities. Haskell zlib-0.7.1.1 is FFI binding only - no C code, no untgz utility. System zlib-1.3.1 separately handled."
+cve = ["CVE-2022-37434", "CVE-2023-45853", "CVE-2023-6992", "CVE-2026-22184", "CVE-2026-27171"]
+comment = "CVEs (2.9-9.8 Low-Crit): C zlib vulnerabilities. Haskell zlib-0.7.1.1 is FFI binding only - no C code. System zlib-1.3.1 separately handled (patched/whitelisted)."
 
 
 #-------------------------------------------------------------------------------

@@ -283,6 +283,17 @@ hardeningExclusions
     ];
   });
 
+  # zlib security patch
+  # CVE-2026-27171 (CVSS 2.9 Low / 5.5 Med): CPU exhaustion via infinite loop
+  # crc32_combine64/crc32_combine_gen64 enter infinite loop on negative len2
+  # Fix adds early return for negative lengths in both functions
+  # See: https://nvd.nist.gov/vuln/detail/CVE-2026-27171
+  zlib = prev.zlib.overrideAttrs (old: {
+    patches = (old.patches or [ ]) ++ [
+      ./cves/CVE-2026-27171.patch
+    ];
+  });
+
   # Avahi security patches (4 CVEs patched, 1 whitelisted)
   # CVE-2025-68468 (CVSS 6.5 Medium): CNAME TTL crash - network DoS
   # CVE-2025-68471 (CVSS 6.5 Medium): CNAME timing crash - network DoS
