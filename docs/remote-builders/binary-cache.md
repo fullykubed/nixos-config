@@ -50,7 +50,7 @@ The cache server is a persistent Hetzner instance (not ephemeral like builders).
 | niks3 | Listens on 127.0.0.1:5751 (not exposed publicly) |
 | SSH | Port 3099 (only open port) |
 | Storage | Cloudflare R2 bucket (zero egress via CDN) |
-| Config | `cache/image.nix` |
+| Config | `images/cache/image.nix` |
 
 The niks3 write API is only reachable via SSH tunnel — the firewall exposes nothing except SSH. Both local machines and builders establish a tunnel:
 
@@ -101,7 +101,7 @@ If setting up the cache for the first time (builder setup is covered in [setup.m
 1. Generate cache SSH key pair, host key pair, and NAR signing key (see `docs/secrets.md`)
 2. Create a Cloudflare R2 bucket and store the credentials as agenix secrets
 3. Add the R2 custom domain and signing public key to `flake.nix` `cacheModule`
-4. Build and upload the cache image: `./cache/upload-image.sh`
+4. Build and upload the cache image: `./images/cache/upload-image.sh`
 5. Create the server: `cache create`
 6. Rebuild the local system to deploy the cache module: `un.sh`
 
@@ -109,8 +109,8 @@ If setting up the cache for the first time (builder setup is covered in [setup.m
 
 Similar to builders:
 
-1. Edit `cache/image.nix`
-2. Build and upload: `./cache/upload-image.sh`
+1. Edit `images/cache/image.nix`
+2. Build and upload: `./images/cache/upload-image.sh`
 3. Destroy and recreate: `cache destroy && cache create`
 
 R2 data persists across server destruction — only the niks3 process and PostgreSQL reference database are lost. The database is rebuilt automatically as new pushes arrive.

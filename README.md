@@ -42,16 +42,18 @@ Personal [NixOS](https://nixos.org/) configuration for multiple machines using [
   - `q`, `qq`, `qqq` shell aliases for quick AI queries from the terminal
   - [voxtype](https://github.com/fullykubed/voxtype) for push-to-talk transcription to control agents
   - [workmux](https://github.com/fullykubed/workmux) for agent multiplexing with tmux
+- **Build performance**
+  - [mold](https://github.com/rui314/mold) linker enabled globally for faster linking
+  - Self-hosted [niks3](https://github.com/Mic92/niks3) binary cache backed by Cloudflare R2
+  - On-demand [Hetzner Cloud](https://www.hetzner.com/cloud/) remote builders provisioned via SSH proxy
+  - Parallel Nix evaluation with `eval-cores` and the `parallel-eval` experimental feature
+  - Build isolation with cgroups
 - **Theming** - System-wide styling with [Stylix](https://github.com/danth/stylix)
 - **Storage** - [ZFS](https://openzfs.org/) filesystem with encryption and automated snapshots
 
-## Repository Structure
+## Architecture
 
-See [TOC.md](TOC.md) for a full listing of all files and directories.
-
-## Documentation
-
-See [docs/TOC.md](docs/TOC.md) for a full listing of available documentation.
+See [docs/architecture.md](docs/architecture.md) for an overview of how the repo is structured and how systems are assembled.
 
 ## License
 

@@ -40,13 +40,18 @@ You manage CVE vulnerabilities through their complete lifecycle in a NixOS syste
 
 ```
 <repo>/
-├── patches/
-│   ├── default.nix                          # Overlay applying all patches
-│   └── CVE-XXXX-XXXXX-<package>.patch       # Individual patch files
-├── modules/common/vulnix-scanner/
-│   ├── default.nix                          # Vulnix scanner service + wrapper
-│   └── whitelist.toml                       # CVE whitelist (auto-applied)
-└── flake.nix                                # Imports patches overlay
+├── modules/
+│   ├── patches/
+│   │   ├── default.nix                      # Imports all per-package submodules
+│   │   └── <package>/
+│   │       ├── default.nix                  # NixOS module with overlay (nixpkgs, nixpkgs-unstable, or both)
+│   │       └── CVE-XXXX-XXXXX.patch         # Individual patch files
+│   └── common/
+│       ├── stdenv/default.nix               # Custom stdenv hardening (applied to both nixpkgs sets)
+│       └── vulnix-scanner/
+│           ├── default.nix                  # Vulnix scanner service + wrapper
+│           └── whitelist.toml               # CVE whitelist (auto-applied)
+└── flake.nix                                # Imports modules
 ```
 
 ## Whitelist

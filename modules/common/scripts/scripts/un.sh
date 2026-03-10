@@ -11,7 +11,8 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 
 readonly NIXOS_CONFIG_DIR="/etc/nixos"
-readonly SCRIPT_NAME="$(basename "$0")"
+SCRIPT_NAME="$(basename "$0")"
+readonly SCRIPT_NAME
 
 # ------------------------------------------------------------------------------
 # Output Helpers
@@ -47,6 +48,7 @@ Options:
   -j, --jobs N          Set max concurrent derivation builds (default: 1)
   -o, --offline         Build without network access (use local store only)
   -u, --update          Update flake inputs before rebuilding
+  -s, --stop-on-error   Stop on first build failure (override keep-going)
   -h, --help            Show this help message
 
 Options to disable defaults:
@@ -64,6 +66,7 @@ Examples:
   $SCRIPT_NAME -u -b         # Update flake inputs and rebuild boot config
   $SCRIPT_NAME -B 3 -P 1     # Use 3 regular + 1 big-parallel builder
   $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
+  $SCRIPT_NAME -s            # Stop on first failure for debugging
 EOF
 }
 
@@ -73,7 +76,7 @@ EOF
 
 is_nixos_config_repo() {
   local dir="$1"
-  [[ -f "$dir/flake.nix" ]] && [[ -f "$dir/configuration.nix" ]]
+  [[ -f "$dir/flake.nix" ]] && [[ -d "$dir/modules" ]]
 }
 
 find_repo_root() {
@@ -280,6 +283,7 @@ parse_args() {
       -P|--big-builders) shift; BIG_BUILDER_COUNT="$1" ;;
       -j|--jobs)       shift; MAX_JOBS="$1" ;;
       -o|--offline)    OFFLINE_MODE=true ;;
+      -s|--stop-on-error) STOP_ON_ERROR=true ;;
       -u|--update)     UPDATE_MODE=true ;;
       -i|--impure)     IMPURE_MODE=true ;;
       --no-impure|--copy) IMPURE_MODE=false ;;
@@ -306,6 +310,7 @@ main() {
   # Default values (performance-optimized)
   BOOT_MODE=false
   OFFLINE_MODE=false
+  STOP_ON_ERROR=false
   UPDATE_MODE=false
   IMPURE_MODE=true
   USE_NOM=true
@@ -364,6 +369,7 @@ main() {
   # Build flags (work with both nix build and nixos-rebuild)
   local nix_flags=()
   [[ "$OFFLINE_MODE" == true ]] && nix_flags+=(--offline) && info "Building in offline mode"
+  [[ "$STOP_ON_ERROR" == true ]] && nix_flags+=(--no-keep-going) && info "Stopping on first build failure"
   [[ "$IMPURE_MODE" == true ]] && nix_flags+=(--impure)
   nix_flags+=(--max-jobs "$MAX_JOBS")
   [[ "$MAX_JOBS" != "1" ]] && info "Max concurrent builds: $MAX_JOBS"
@@ -388,14 +394,14 @@ main() {
         done
       fi
 
-      # Generate big-parallel builder entries (mandatoryFeatures=big-parallel)
+      # Generate big-parallel builder entries (supports big-parallel, accepts any job)
       local big_n="${BIG_BUILDER_COUNT:-}"
       if [[ -n "$big_n" ]] && [[ "$big_n" -gt 0 ]]; then
         for i in $(seq 1 "$big_n"); do
           if [[ -n "$builder_list" ]]; then
             builder_list+="; "
           fi
-          builder_list+="ssh://remotebuild@big-builder-$i x86_64-linux /root/.ssh/builder-key 1 1 nixos-test,big-parallel,kvm,benchmark big-parallel"
+          builder_list+="ssh://remotebuild@big-builder-$i x86_64-linux /root/.ssh/builder-key 1 1 nixos-test,big-parallel,kvm,benchmark"
         done
       fi
 

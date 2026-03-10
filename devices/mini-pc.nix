@@ -1,14 +1,8 @@
-{
-  modulesPath,
-  ...
-}:
+_:
 
 {
-  imports = [
-    (modulesPath + "/installer/scan/not-detected.nix")
-    ../modules/utility/intel-cpu.nix
-    ../modules/utility/brother-scanner.nix
-  ];
+
+  cpuVendor = "intel";
 
   # Enable thermal monitoring
   environment.etc."sysconfig/lm_sensors".text = ''

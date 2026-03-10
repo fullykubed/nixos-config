@@ -5,8 +5,11 @@
 ## Core System
 
 - **boot/** - Security-hardened UEFI boot with Secure Boot via lanzaboote, kernel hardening, and IOMMU isolation.
+- **cpu/** - CPU vendor configuration with microcode updates and KVM support for AMD and Intel processors.
+- **gpu/** - Discrete GPU driver configuration with optional AMD GPU support including CoreCtrl and radeontop.
 - **global-options/** - Defines shared configuration options (username, home directory, monitor count) used across modules.
 - **home/** - Configures XDG Base Directory specification and MIME type associations.
+- **home-manager/** - Home Manager user configuration with stylix theming, nix-index integration, and state versions.
 - **locale/** - Sets internationalization to en_US.UTF-8 with US keyboard layout and automatic timezone via geoclue2.
 - **networking/** - Sets up NetworkManager with dnscrypt-proxy2 for DNS-over-HTTPS encrypted DNS resolution.
 - **nix/** - Configures Nix daemon optimization, automatic garbage collection, and flake settings.
@@ -78,6 +81,9 @@
 - **crypto/** - Installs cryptocurrency wallets (Wasabi Bitcoin, Monero GUI, MyCrypto).
 - **torrent/** - Installs and configures qBittorrent torrent client.
 - **printer/** - Enables the CUPS printing system.
-- **scanner/** - Installs naps2 document scanning application.
+- **scanner/** - Configures Brother network scanner with brscan5 drivers, SANE integration, and naps2 scanning application.
+- **wakeup/** - Optional systemd service that disables ACPI wakeup triggers to prevent unwanted wake-from-sleep events.
 - **binary-cache/** - Configures remote Nix binary cache access with SSH-based authentication and a management CLI.
+- **hetzner/** - Installs Hetzner Cloud CLI tools (hcloud and hcloud-upload-image).
 - **remote-builders/** - Configures remote Nix build machine connections with SSH authentication and the builders CLI tool.
+- **stdenv/** - Custom stdenv with additional hardening flags, reference check bypass for CVE patches on bootstrap packages, and related test/build overrides.

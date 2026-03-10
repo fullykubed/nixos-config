@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, nixpkgs-unstable, ... }:
 let
   package = pkgs.stdenv.mkDerivation {
     pname = "claude-surprises-scripts";
@@ -38,7 +38,7 @@ let
       mkdir -p $out/bin
       substitute $src/surprise-hook.sh $out/bin/claude-surprise-hook \
         --replace "@jq@" "${pkgs.jq}/bin/jq" \
-        --replace "@claude@" "${pkgs.unstable.claude-code}/bin/claude"
+        --replace "@claude@" "${nixpkgs-unstable.claude-code}/bin/claude"
       chmod +x $out/bin/claude-surprise-hook
     '';
   };

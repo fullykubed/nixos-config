@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  nixpkgs-unstable,
   ...
 }:
 {
@@ -13,7 +14,7 @@
 
     programs.lazygit = {
       enable = true;
-      package = pkgs.unstable.lazygit;
+      package = nixpkgs-unstable.lazygit;
       settings = {
         git = {
           commitPrefix = [ ];

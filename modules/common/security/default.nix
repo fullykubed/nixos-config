@@ -37,13 +37,17 @@ in
       settings = {
         cue = true; # Prompt to touch the key
         origin = "pam://nixos"; # Makes the key independent of the hardware
-        authfile = pkgs.writeText "u2f-mappings" (
-          pkgs.lib.concatStrings [
-            config.username
-            ":tGvO5XWn+Ytz49zkZITTo9YWpFzO6XnZk3X5AuyDbJ5mo2w/0lv5d7Q/dRYYv+WEU8sGma90mClHnAYysNjkTQ==,jBm2zt1lSIF68gFdk/T6li5kGAxsZR4UHFJAqS3fQwKPOuqYt+iFGcGBV078iVj6O3GA0XpdI76N/nSAqvsZNA==,es256,+presence"
-            ":1wsJRGnmP+8OvTlo+EZ+iPMGrWoFNU1pHGKaIshrWAvMoqkgy2nhOK/M/SCWeN068/ylCMLvyRiMfhzorQkwig==,VQlRxN/YmuwQ/brZyeRmJW+vWQLc+YajVOu68KGikGyBx+nB9e4X0FwxmZ5lZ87VF+iysDu4/UTf41OnRzDdog==,es256,+presence"
-          ]
-        );
+        authfile =
+          let
+            keys = pkgs.lib.concatStrings [
+              ":tGvO5XWn+Ytz49zkZITTo9YWpFzO6XnZk3X5AuyDbJ5mo2w/0lv5d7Q/dRYYv+WEU8sGma90mClHnAYysNjkTQ==,jBm2zt1lSIF68gFdk/T6li5kGAxsZR4UHFJAqS3fQwKPOuqYt+iFGcGBV078iVj6O3GA0XpdI76N/nSAqvsZNA==,es256,+presence"
+              ":1wsJRGnmP+8OvTlo+EZ+iPMGrWoFNU1pHGKaIshrWAvMoqkgy2nhOK/M/SCWeN068/ylCMLvyRiMfhzorQkwig==,VQlRxN/YmuwQ/brZyeRmJW+vWQLc+YajVOu68KGikGyBx+nB9e4X0FwxmZ5lZ87VF+iysDu4/UTf41OnRzDdog==,es256,+presence"
+            ];
+          in
+          pkgs.writeText "u2f-mappings" ''
+            ${config.username}${keys}
+            root${keys}
+          '';
       };
     };
   };
@@ -53,6 +57,9 @@ in
     sudo-compat
     pkgs.pam_u2f
   ];
+
+  # Prevent imperative user/group changes (useradd, passwd, etc.)
+  users.mutableUsers = false;
 
   services.passSecretService.enable = true;
   services.dbus.packages = [ pkgs.grc ];

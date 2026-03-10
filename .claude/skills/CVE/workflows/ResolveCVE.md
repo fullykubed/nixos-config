@@ -127,36 +127,106 @@ See: https://github.com/nix-community/vulnix#cve-patch-auto-detection
 - `CVE-2025-68617.patch` (first patch)
 - `CVE-2025-68617-2.patch` (second patch)
 
+**Create the package patch directory (if new package):**
+```bash
+mkdir -p modules/patches/<package>
+```
+
 **Download the patch:**
 ```bash
 curl -sL "https://github.com/<owner>/<repo>/commit/<sha>.patch" \
-  -o patches/CVE-XXXX-XXXXX.patch
+  -o modules/patches/<package>/CVE-XXXX-XXXXX.patch
 ```
 
 **Verify the patch:**
 ```bash
 # Check patch applies (in a nix-shell with the package source)
-nix-shell -p <package> --run "patch --dry-run -p1 < patches/CVE-XXXX-XXXXX.patch"
+nix-shell -p <package> --run "patch --dry-run -p1 < modules/patches/<package>/CVE-XXXX-XXXXX.patch"
 ```
 
-**Add to patches overlay** (`patches/default.nix`):
+**Create or update the package module** (`modules/patches/<package>/default.nix`):
+
+Each patch module is a NixOS module that applies its overlay to the appropriate nixpkgs set(s). Both `nixpkgs` and `nixpkgs-unstable` use the custom hardened stdenv, but a patch should only target the set(s) that actually provide the package on the live system.
+
+#### Determining which nixpkgs set to target (REQUIRED)
+
+Before writing the module, check where the package comes from:
+
+```bash
+# Check if the package is pulled from nixpkgs-unstable in the config
+grep -r 'nixpkgs-unstable\.' modules/ --include='*.nix' | grep '<package>'
+
+# Check if it exists in the standard nixpkgs overlay/config
+grep -r 'pkgs\.<package>\|prev\.<package>' modules/ --include='*.nix'
+```
+
+| Finding | Target |
+|---------|--------|
+| Package only used from `nixpkgs` (the default) | `nixpkgs.overlays` only |
+| Package explicitly pulled from `nixpkgs-unstable` | `nixpkgs-unstable.overlays` only |
+| Package used from both sets | Both `nixpkgs.overlays` and `nixpkgs-unstable.overlays` |
+| Foundational package (stdenv, coreutils, gcc, etc.) | Both — these are built by both sets |
+
+**Template — nixpkgs only (most common):**
 ```nix
-_: prev: {
-  <package> = prev.<package>.overrideAttrs (old: {
-    patches = (old.patches or [ ]) ++ [
-      # CVE-XXXX-XXXXX (CVSS X.X Severity): <brief description>
-      # See: https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXXX
-      ./CVE-XXXX-XXXXX.patch
-    ];
-  });
+# <package>: CVE-XXXX-XXXXX (CVSS X.X Severity): <brief description>
+# See: https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXXX
+_: {
+  nixpkgs.overlays = [
+    (_final: prev: {
+      <package> = prev.<package>.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          ./CVE-XXXX-XXXXX.patch
+        ];
+      });
+    })
+  ];
 }
 ```
 
-**Ensure overlay is imported in flake.nix:**
+**Template — nixpkgs-unstable only:**
 ```nix
-nixpkgs.overlays = [
-  # ... other overlays
-  (import ./patches)
+# <package>: CVE-XXXX-XXXXX (CVSS X.X Severity): <brief description>
+# See: https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXXX
+_: {
+  nixpkgs-unstable.overlays = [
+    (_final: prev: {
+      <package> = prev.<package>.overrideAttrs (old: {
+        patches = (old.patches or [ ]) ++ [
+          ./CVE-XXXX-XXXXX.patch
+        ];
+      });
+    })
+  ];
+}
+```
+
+**Template — both sets (foundational packages or when used from both):**
+```nix
+# <package>: CVE-XXXX-XXXXX (CVSS X.X Severity): <brief description>
+# See: https://nvd.nist.gov/vuln/detail/CVE-XXXX-XXXXX
+_:
+let
+  overlay = _final: prev: {
+    <package> = prev.<package>.overrideAttrs (old: {
+      patches = (old.patches or [ ]) ++ [
+        ./CVE-XXXX-XXXXX.patch
+      ];
+    });
+  };
+in
+{
+  nixpkgs.overlays = [ overlay ];
+  nixpkgs-unstable.overlays = [ overlay ];
+}
+```
+
+**Add the import to `modules/patches/default.nix`** (keep alphabetical order):
+```nix
+imports = [
+  # ...existing imports...
+  ./<package>
+  # ...
 ];
 ```
 
@@ -445,9 +515,10 @@ vulnix --system | grep CVE-XXXX-XXXXX
 Update repository documentation:
 
 **If patch was added:**
-- Ensure patch file has descriptive name
-- Add comment in patches/default.nix with CVE link
-- Consider adding to CLAUDE.md if pattern is reusable
+- Ensure patch file follows naming convention (`CVE-XXXX-XXXXX.patch`)
+- Add comment in `modules/patches/<package>/default.nix` with CVE link
+- Add import to `modules/patches/default.nix` (alphabetical order)
+- Update `modules/patches/TOC.md` with entry for the new package
 
 **If whitelisted:**
 - Document in whitelist.toml with expiration date

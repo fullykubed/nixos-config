@@ -69,7 +69,7 @@ These workflow steps MUST be followed exactly as written.
 
 1. **Execute build to file (no timeout):**
    ```bash
-   nix build --no-link --impure --quiet @home@/repos/nixos-config/<worktree>#nixosConfigurations.<hostname>.config.system.build.toplevel > "$STATE_DIR/build-output.log" 2>&1; echo "EXIT_CODE:$?"
+   nix build --no-link --impure --quiet --no-keep-going @home@/repos/nixos-config/<worktree>#nixosConfigurations.<hostname>.config.system.build.toplevel > "$STATE_DIR/build-output.log" 2>&1; echo "EXIT_CODE:$?"
    ```
    - Do NOT set a timeout — builds can run for an extended period
    - Use `--quiet` to suppress progress noise

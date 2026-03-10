@@ -9,14 +9,9 @@ let
   maxBigBuilders = 1;
 
   # Base64-encoded builder host public key for nix buildMachines publicHostKey.
-  # This is: base64 -w0 secrets/builder-host-key.pub
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
   builderHostPublicKeyBase64 = builtins.replaceStrings [ "\n" ] [ "" ] (
-    builtins.readFile (
-      pkgs.runCommand "builder-host-key-base64" { } ''
-        ${pkgs.coreutils}/bin/base64 -w0 ${../../../secrets/builder-host-key.pub} > $out
-      ''
-    )
+    builtins.readFile ../../../secrets/builder-host-key.pub.b64
   );
 
   # Known hosts file for SSH host key verification
@@ -87,7 +82,7 @@ let
       "kvm"
       "benchmark"
     ];
-    mandatoryFeatures = [ "big-parallel" ];
+    mandatoryFeatures = [ ];
     publicHostKey = builderHostPublicKeyBase64;
   };
 

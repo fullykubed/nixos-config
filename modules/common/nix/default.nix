@@ -3,6 +3,7 @@
 
   environment.systemPackages = [
     pkgs.nix-output-monitor # Better build progress display (nom)
+    pkgs.nix-tree # Interactively browse dependency graphs of Nix derivations
   ];
 
   nix = {
@@ -34,6 +35,19 @@
       # Build resource limits
       max-jobs = (config.cpuCount + 3) / 4;
       cores = config.cpuCount - 1;
+      eval-cores = config.cpuCount - 1; # Parallelize Nix evaluation (import/IFD)
+      lazy-locks = true;
+      lazy-trees = true;
+      max-silent-time = 1800; # Kill builds silent for 30 minutes
+      fallback = true; # Build from source if substituter fails
+      timeout = 21600; # Kill builds running longer than 6 hours
+      allow-import-from-derivation = false;
+      extra-experimental-features = [
+        "cgroups"
+        "parallel-eval"
+      ];
+      use-cgroups = true;
+      auto-optimise-store = true;
       keep-build-log = true;
       log-lines = 100;
 

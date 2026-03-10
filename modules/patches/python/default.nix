@@ -1,0 +1,56 @@
+_:
+let
+  overlay = _final: prev: {
+    python312 = prev.python312.override {
+      packageOverrides = _pyfinal: pyprev: {
+        # websockets: Skip flaky test with race condition in sync connection handling
+        # Test fails intermittently depending on builder load due to timing-sensitive connection state
+        # See: https://github.com/NixOS/nixpkgs/issues/366256
+        websockets = pyprev.websockets.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_writing_in_recv_events_fails"
+          ];
+        });
+
+        # anyio: Skip test_single_thread — threading.active_count() race condition
+        # Thread cleanup after BlockingPortalProvider.__exit__() is non-deterministic;
+        # pytest-xdist workers skew the count. Same class of bug as upstream-disabled test_multiple_threads.
+        # See: https://github.com/NixOS/nixpkgs/issues/448125
+        anyio = pyprev.anyio.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_single_thread"
+          ];
+        });
+
+        # rich: Skip test_brokenpipeerror — sandbox timing issue
+        # BrokenPipeError timing is non-deterministic in sandbox; process exits
+        # before SIGPIPE arrives, so returncode is 0 instead of expected 1
+        rich = pyprev.rich.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_brokenpipeerror"
+          ];
+        });
+      };
+    };
+
+    python313 = prev.python313.override {
+      packageOverrides = _pyfinal: pyprev: {
+        # mss: Disable install checks — tests require X11 display unavailable in sandbox
+        mss = pyprev.mss.overrideAttrs {
+          doInstallCheck = false;
+        };
+
+        # numpy: Skip test_cli_obj — meson subprocess can't find mold linker
+        numpy = pyprev.numpy.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_cli_obj"
+          ];
+        });
+      };
+    };
+  };
+in
+{
+  nixpkgs.overlays = [ overlay ];
+  nixpkgs-unstable.overlays = [ overlay ];
+}

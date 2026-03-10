@@ -106,22 +106,18 @@ Key properties:
 
 ## Component Overview
 
-1. **Builder Snapshot**: Pre-built NixOS image created with `nixpkgs make-disk-image` and uploaded to Hetzner as a snapshot. Contains the full builder configuration: Nix daemon, `remotebuild` user, cache upload queue, and inactivity monitor. The same snapshot is used for both regular and big-parallel builders. Defined in `builders/image.nix`.
+1. **Builder Snapshot**: Pre-built NixOS image created with `nixpkgs make-disk-image` and uploaded to Hetzner as a snapshot. Contains the full builder configuration: Nix daemon, `remotebuild` user, cache upload queue, and inactivity monitor. The same snapshot is used for both regular and big-parallel builders. Defined in `images/builder/image.nix`.
 
 2. **SSH ProxyCommand** (`modules/common/remote-builders/proxy-command.sh`): Intercepts SSH connections to `builder-N` and `big-builder-N` hosts. If the server does not exist, it provisions one from the snapshot via the Hetzner API, injects SSH keys via cloud-init, then waits for SSH to become available on port 3098 before proxying the connection.
 
 3. **Nix buildMachines** (`modules/common/remote-builders/default.nix`): Static `nix.buildMachines` entries for `builder-1` through `builder-N` (regular) and `big-builder-1` through `big-builder-M` (big-parallel). SSH config routes each hostname through the ProxyCommand transparently.
 
-4. **Inactivity Monitor** (`builders/inactivity-monitor.nix`): Systemd timer that runs every minute on each builder. Checks for active `nixbld` processes and SSH sessions. After 60 consecutive minutes of inactivity, calls `hcloud server delete` on itself.
+4. **Inactivity Monitor** (`images/builder/inactivity-monitor.nix`): Systemd timer that runs every minute on each builder. Checks for active `nixbld` processes and SSH sessions. After 60 consecutive minutes of inactivity, calls `hcloud server delete` on itself.
 
 5. **Waybar Module** (`modules/common/sway/waybar/waybar-builders.sh`): Polls `hcloud server list` every 30 seconds to display active builder count and cache status in the status bar. Shows `N+M` format (N regular + M big-parallel) when both types are active, plus upload queue depth.
 
 6. **CLI Tools**: `builders` (`modules/common/remote-builders/builders-cli.sh`) for builder fleet management, `cache` (`modules/common/binary-cache/cache-cli.sh`) for cache server management.
 
-7. **Cache Server** (`cache/image.nix`): Persistent Hetzner instance running niks3 backed by PostgreSQL, storing NARs in Cloudflare R2. Only accessible via SSH tunnel on port 3099.
+7. **Cache Server** (`images/cache/image.nix`): Persistent Hetzner instance running niks3 backed by PostgreSQL, storing NARs in Cloudflare R2. Only accessible via SSH tunnel on port 3099.
 
 8. **Binary Cache Module** (`modules/common/binary-cache/default.nix`): Client-side integration on local machines — SSH tunnel, upload queue, healthchecks, status polling, and secrets management.
-
-## Sub-documents
-
-See [TOC.md](TOC.md) for a listing of all documents in this directory.

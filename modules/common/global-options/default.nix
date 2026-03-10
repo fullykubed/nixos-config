@@ -16,11 +16,6 @@
       description = "The primary user's username on the system.";
     };
 
-    cpuCount = mkOption {
-      type = types.int;
-      description = "The number of CPU cores on this system.";
-    };
-
     monitors = mkOption {
       default = { };
       type = types.attrsOf (

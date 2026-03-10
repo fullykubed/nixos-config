@@ -19,6 +19,10 @@ case "$FILE_PATH" in
     { deadnix --fail "$FILE_PATH" >"$TMPDIR/deadnix" 2>&1 || echo "deadnix" >>"$TMPDIR/failed"; } &
     { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
     ;;
+  */package.json)
+    { "$CLAUDE_PROJECT_DIR/lib/devshell/check-bun-versions.sh" >"$TMPDIR/check-bun-versions" 2>&1 || echo "check-bun-versions" >>"$TMPDIR/failed"; } &
+    { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
+    ;;
   *.sh | *.bash)
     { shellcheck "$FILE_PATH" >"$TMPDIR/shellcheck" 2>&1 || echo "shellcheck" >>"$TMPDIR/failed"; } &
     { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
@@ -52,6 +56,9 @@ while read -r tool; do
       ;;
     shellcheck)
       ERRORS+="$(cat "$TMPDIR/shellcheck")"$'\n'
+      ;;
+    check-bun-versions)
+      ERRORS+="$(cat "$TMPDIR/check-bun-versions")"$'\n'
       ;;
   esac
 done <"$TMPDIR/failed"

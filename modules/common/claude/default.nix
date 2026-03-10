@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  nixpkgs-unstable,
   ...
 }:
 {
@@ -28,8 +29,8 @@
 
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
-        runScript = "${pkgs.unstable.claude-code}/bin/claude";
-        targetPkgs = pkgs: [ pkgs.unstable.claude-code ];
+        runScript = "${nixpkgs-unstable.claude-code}/bin/claude";
+        targetPkgs = _pkgs: [ nixpkgs-unstable.claude-code ];
 
         unshareUser = false;
         unshareIpc = true;
@@ -248,7 +249,7 @@
 
       claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
 
-      claudeSurprises = pkgs.callPackage ./skills/Surprises { };
+      claudeSurprises = pkgs.callPackage ./skills/Surprises { inherit nixpkgs-unstable; };
 
       claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
       claudeGitHub = pkgs.callPackage ./skills/GitHub { };

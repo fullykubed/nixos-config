@@ -1,6 +1,6 @@
 { config, pkgs, ... }:
 let
-  scheme = "${pkgs.base16-schemes}/share/themes/tokyo-city-dark.yaml";
+  scheme = ./tokyo-city-dark.yaml;
   fonts = {
     monospace = {
       package = pkgs.nerd-fonts.jetbrains-mono;

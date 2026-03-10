@@ -1,0 +1,56 @@
+# Security patches for CVEs and fixes not yet in nixpkgs
+#
+# Each subdirectory is a NixOS module that adds its own overlay.
+_: {
+  imports = [
+    ./assimp
+    ./avahi
+    ./binutils
+    ./busybox
+    ./coreutils
+    ./cups-filters
+    ./deno
+    ./dotnet
+    ./exiv2
+    ./ffmpeg
+    ./firefox
+    ./fluidsynth
+    ./gd
+    ./gegl
+    ./gimp
+    ./git
+    ./gjs
+    ./gnupg
+    ./go
+    ./gpsd
+    ./gvfs
+    ./imagemagick
+    ./jbig2dec
+    ./jq
+    ./libaom
+    ./libadwaita
+    ./libass
+    ./libavif
+    ./libcdio
+    ./libgcrypt
+    ./libgphoto2
+    ./libheif
+    ./libjxl
+    ./libsndfile
+    ./libvpx
+    ./lttng-ust
+    ./lua
+    ./mupdf
+    ./onnxruntime
+    ./openexr
+    ./p11-kit
+    ./perl
+    ./python
+    ./sway
+    ./taglib
+    ./texinfo
+    ./waybar
+    ./xvidcore
+    ./zlib
+  ];
+}

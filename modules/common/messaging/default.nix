@@ -1,8 +1,13 @@
-{ config, pkgs, ... }:
+{
+  config,
+  pkgs,
+  nixpkgs-unstable,
+  ...
+}:
 {
   environment.systemPackages = with pkgs; [
     discord
-    unstable.signal-desktop # TODO: this does not have wayland enabled
+    nixpkgs-unstable.signal-desktop # TODO: this does not have wayland enabled
     slack
     signal-cli # TODO: Need to follow instructions here to work: https://github.com/AsamK/signal-cli/issues/701
   ];
@@ -17,7 +22,7 @@
       signal = {
         name = "Signal";
         comment = "Signal";
-        exec = "${pkgs.unstable.signal-desktop}/bin/signal-desktop";
+        exec = "${nixpkgs-unstable.signal-desktop}/bin/signal-desktop";
         type = "Application";
       };
       discord = {

@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  nixpkgs-unstable,
   ...
 }:
 {
@@ -78,9 +79,9 @@
         python312Packages.python-lsp-server
         yaml-language-server
         vscode-langservers-extracted # HTML, CSS, JSON, ESLint
-        unstable.tofu-ls
-        unstable.opentofu
-        unstable.terraform-ls
+        nixpkgs-unstable.tofu-ls
+        nixpkgs-unstable.opentofu
+        nixpkgs-unstable.terraform-ls
         marksman # markdown
         mdx-language-server # mdx
       ];

@@ -2,6 +2,7 @@
   config,
   pkgs,
   lib,
+  nixpkgs-unstable,
   ...
 }:
 let
@@ -56,7 +57,7 @@ in
       swayidle # sway idle timer
       waybar # status bar
       wlprop # window property displayer
-      unstable.swayr # window switcher
+      nixpkgs-unstable.swayr # window switcher
       wl-clipboard
       wf-recorder
       swaynotificationcenter # notification daemon with control center
@@ -125,7 +126,7 @@ in
       RUST_BACKTRACE = "1";
     };
     serviceConfig = {
-      ExecStart = "${pkgs.unstable.swayr}/bin/swayrd";
+      ExecStart = "${nixpkgs-unstable.swayr}/bin/swayrd";
     };
   };
 

@@ -12,19 +12,22 @@ List all CVE patches currently in the repository.
 
 **Find patch files:**
 ```bash
-# List all patch files
-ls -la patches/*.patch
+# List all patch modules
+ls -d modules/patches/*/
 
-# Check patches overlay
-cat patches/default.nix
+# List all .patch files across all packages
+find modules/patches/ -name '*.patch' | sort
+
+# Check which packages are imported
+cat modules/patches/default.nix
 ```
 
 **For each patch, extract:**
 | Field | Source |
 |-------|--------|
 | CVE ID | Filename (`CVE-XXXX-XXXXX.patch`) |
-| Package | Overlay entry in `patches/default.nix` |
-| Description | Comment in `patches/default.nix` |
+| Package | Directory name under `modules/patches/<package>/` |
+| Description | Comment in `modules/patches/<package>/default.nix` |
 | Date Added | Git history |
 
 **Note:** Patch files should follow the naming convention `CVE-XXXX-XXXXX.patch` (CVE ID only, no description suffix). This enables vulnix CVE patch auto-detection. See ResolveCVE.md for details.
@@ -137,15 +140,16 @@ Create a comprehensive report of patch status.
 Based on the review, take appropriate actions:
 
 **For removable patches:**
-1. Remove patch file from `patches/`
-2. Remove entry from `patches/default.nix`
-3. Rebuild and verify CVE is still resolved (by nixpkgs)
-4. Commit with message explaining removal
+1. Remove the package directory from `modules/patches/<package>/`
+2. Remove the import from `modules/patches/default.nix`
+3. Remove the entry from `modules/patches/TOC.md`
+4. Rebuild and verify CVE is still resolved (by nixpkgs)
+5. Commit with message explaining removal
 
 **For patches needing updates:**
 1. Fetch updated patch from upstream
-2. Replace old patch file
-3. Update comment in `patches/default.nix`
+2. Replace old patch file in `modules/patches/<package>/`
+3. Update comment in `modules/patches/<package>/default.nix`
 4. Rebuild and test
 
 **For expired whitelists:**

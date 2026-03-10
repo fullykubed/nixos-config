@@ -1,16 +1,10 @@
-{
-  modulesPath,
-  ...
-}:
+_:
 
 {
-  imports = [
-    (modulesPath + "/installer/scan/not-detected.nix")
-    ../modules/utility/disable-wakeup-triggers.nix
-    ../modules/utility/amd-cpu.nix
-    ../modules/utility/amd-gpu.nix
-    ../modules/utility/brother-scanner.nix
-  ];
+
+  cpuVendor = "amd";
+  gpuVendor = "amd";
+  disableWakeupTriggers = true;
 
   # Enable thermal monitoring
   environment.etc."sysconfig/lm_sensors".text = ''

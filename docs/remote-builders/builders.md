@@ -32,10 +32,10 @@ Builders auto-destroy after 60 minutes of inactivity. The `builders status` comm
 
 ## Updating the Builder Image
 
-When you change the builder configuration (e.g., add packages to `builders/image.nix`):
+When you change the builder configuration (e.g., add packages to `images/builder/image.nix`):
 
-1. Edit `builders/image.nix`
-2. Build and upload: `./builders/upload-image.sh`
+1. Edit `images/builder/image.nix`
+2. Build and upload: `./images/builder/upload-image.sh`
 3. Existing running builders continue with the old image; new builders automatically use the latest snapshot
 
 Note: The same snapshot is used for both regular and big-parallel builders. Cloud-init configures tier-specific settings at boot time.
