@@ -37,6 +37,25 @@ let
     ];
     text = builtins.readFile ./check-bun-versions.sh;
   };
+  ntScripts =
+    builtins.map
+      (
+        name:
+        pkgs.writeShellApplication {
+          inherit name;
+          text = builtins.readFile (./. + "/${name}.sh");
+        }
+      )
+      [
+        "nt-syntax"
+        "nt-eval"
+        "nt-dry"
+        "nt-pkg"
+        "nt-option"
+        "nt-build"
+        "nt-check"
+        "nt-hosts"
+      ];
 in
 {
   checks = {
@@ -72,6 +91,7 @@ in
       pkgs.hcloud
       hcloud-upload-image
     ]
+    ++ ntScripts
     ++ self.checks.${system}.pre-commit-check.enabledPackages;
 
     inherit (self.checks.${system}.pre-commit-check) shellHook;
