@@ -438,6 +438,15 @@ comment = "CVE-2021-4048 (5.9 Medium): Out-of-bounds read in OpenBLAS. Fixed in 
 cve = ["CVE-2022-26691"]
 comment = "CVE-2022-26691 (6.7 Medium): Local privilege escalation via auth bypass. Fixed in 2.4.2+, we have 2.4.15/16."
 
+# giflib 5.2.2 - CVE-2024-45993 already fixed by nixpkgs' CVE-2025-31344 patch
+# Both CVEs have the same root cause: missing palette index bounds check in
+# DumpScreen2RGB's multi-file output path (gif2rgb.c). The CVE-2025-31344.patch
+# in nixpkgs adds the fix, but vulnix only auto-detects CVE-2025-31344 from the
+# filename, not CVE-2024-45993.
+["giflib"]
+cve = ["CVE-2024-45993"]
+comment = "CVE-2024-45993 (6.5 Med): Heap buffer overflow in gif2rgb DumpScreen2RGB. Same root cause as CVE-2025-31344 (already patched in nixpkgs). Both affect missing palette bounds check in multi-file output path."
+
 # libheif 1.20.2 - CVE already patched in nixpkgs
 # Patch 001-fix-wrong-copy-width-in-overlay-images.patch applies upstream fix b8c12a7
 # but doesn't include CVE ID in filename, so vulnix auto-detection misses it
