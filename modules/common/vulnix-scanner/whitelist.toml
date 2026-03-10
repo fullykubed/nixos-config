@@ -790,6 +790,21 @@ comment = "CVEs (7.5-8.4 High): Real but low practical risk. glibc-2.40-66 bundl
 until = "2026-06-04"
 
 #-------------------------------------------------------------------------------
+# DETERMINATE-NIX: determinate-nix-3.16.x → libarchive-3.8.0
+# Pre-built binary pins nixpkgs from Oct 2025, predating libarchive 3.8.1 fix.
+# System libarchive (3.8.4) is already patched.
+# CVE is in bsdtar CLI substitution code (tar/subst.c), not the library API.
+# Nix uses the -lib output for archive extraction, never invokes bsdtar -s.
+# Filed: https://github.com/DeterminateSystems/nix-src/issues/376
+#-------------------------------------------------------------------------------
+["libarchive-3.8.0"]
+cve = [
+  "CVE-2025-60753",   # 5.5 Med - bsdtar -s substitution OOM DoS (tar/subst.c, not library API)
+]
+comment = "CVE (5.5 Med): DoS via crafted bsdtar -s substitution rules. Affects CLI tool only, not libarchive library API. libarchive-3.8.0-lib bundled by determinate-nix pre-built binary (nixpkgs pinned to Oct 2025). System libarchive (3.8.4) already patched. Nix uses library output for archive extraction, never exercises bsdtar substitution code. Risk accepted 2026-03-10."
+until = "2026-06-10"
+
+#-------------------------------------------------------------------------------
 # DETERMINATE-NIX: determinate-nix-3.16.x → go-1.24.6
 # Pre-built binary pins nixpkgs from Oct 2025, predating Go 1.24.13 security
 # release (2026-02-04). Runtime Go (1.25.7 via unstable overlay) is patched.
