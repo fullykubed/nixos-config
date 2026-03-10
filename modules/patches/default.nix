@@ -36,6 +36,7 @@ _: {
     ./libgphoto2
     ./libheif
     ./libjxl
+    ./libssh
     ./libsndfile
     ./libtpms
     ./libvpx

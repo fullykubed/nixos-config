@@ -40,6 +40,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **libheif/** - Forces nasm-based libaom to eliminate yasm CVEs.
 - **libjxl/** - Forces rebuild with patched openexr to eliminate openexr-3.3.5 CVEs.
 - **libsndfile/** - Three CVE patches for IRCAM buffer overflow, OGG OOB read, and MP3 memory leak.
+- **libssh/** - CVE-2026-3731 out-of-bounds read fix in SFTP extension name handler.
 - **libvpx/** - Yasm-to-NASM migration with configure flag update.
 - **lttng-ust/** - Disable trivialautovarinit due to VLA incompatibility with tracepoint macros.
 - **lua/** - CVE-2021-43519 stack overflow fix for Lua 5.2.
