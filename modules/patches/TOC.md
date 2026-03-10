@@ -49,6 +49,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **p11-kit/** - Disable tests that fail in sandbox lacking PKCS#11 token infrastructure.
 - **perl/** - Perl 5.42.0 from unstable fixing CVE-2024-56406 heap buffer overflow.
 - **python/** - Test skip overrides for websockets, rich, and mss sandbox issues.
+- **stdenv/** - Custom stdenv with additional hardening flags, reference check bypass for CVE patches on bootstrap packages, and mold linker globally.
 - **sway/** - Fix maybe-uninitialized false positive from trivialautovarinit + -Werror.
 - **taglib/** - CVE-2023-47466 NULL pointer dereference fix in taglib_1.
 - **texinfo/** - Disable tests that fail in sandbox due to locale/encoding issues.

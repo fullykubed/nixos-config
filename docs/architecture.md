@@ -20,7 +20,7 @@ All per-machine differentiation lives in the device module.
 
 **Dual nixpkgs channels** -- `lib/nixpkgs-unstable.nix` exposes `nixpkgs-unstable` as a module argument with its own overlays option. Modules can pull bleeding-edge packages without touching stable.
 
-**Hardened stdenv with mold** -- `modules/common/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via `__noMold = true` or the `moldExcludedNames` list.
+**Hardened stdenv with mold** -- `modules/patches/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via `__noMold = true` or the `moldExcludedNames` list.
 
 **Patches** -- `modules/patches/` has per-package directories, each an overlay module. Patches cover CVEs not yet upstream, fixes for packages broken by our hardened stdenv, and any other upstream issues. A daily `vulnix` timer scans for new vulnerabilities.
 

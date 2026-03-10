@@ -66,7 +66,6 @@
     ./common/binary-cache
     ./common/tailscale
     ./patches
-    ./common/stdenv
   ];
 
   # This value determines the NixOS release from which the default

@@ -86,4 +86,3 @@
 - **binary-cache/** - Configures remote Nix binary cache access with SSH-based authentication and a management CLI.
 - **hetzner/** - Installs Hetzner Cloud CLI tools (hcloud and hcloud-upload-image).
 - **remote-builders/** - Configures remote Nix build machine connections with SSH authentication and the builders CLI tool.
-- **stdenv/** - Custom stdenv with additional hardening flags, reference check bypass for CVE patches on bootstrap packages, and related test/build overrides.

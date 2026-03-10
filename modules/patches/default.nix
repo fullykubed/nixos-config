@@ -52,5 +52,6 @@ _: {
     ./waybar
     ./xvidcore
     ./zlib
+    ./stdenv
   ];
 }
