@@ -33,7 +33,7 @@ fi
 $YQ -o=json '
 {
   "draft": [.[] | select(.answer == null or .answer == "")] | length,
-  "complete": [.[] | select(.answer != null and .answer != "")] | length,
+  "complete": [.[] | select((.answer == null or .answer == "") | not)] | length,
   "total": length
 }
 ' "$RESEARCH_FILE"

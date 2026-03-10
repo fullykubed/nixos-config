@@ -43,8 +43,8 @@ fi
 # Step 2: Check that tasks with status 'defined' have existing spec files
 PRD_DIR=$(dirname "$FILE_PATH")
 SPEC_PATHS=$($YQ '
-    [.[] | select(.status == "defined") | {name: .name, spec: .spec},
-     .[] | .subtasks[]? | select(.status == "defined") | {name: .name, spec: .spec}]
+    [.[] | select(.status == "defined") | {"name": .name, "spec": .spec},
+     .[] | .subtasks[]? | select(.status == "defined") | {"name": .name, "spec": .spec}]
     | .[] | .name + "|" + .spec
 ' "$FILE_PATH" 2>/dev/null || echo "")
 
@@ -66,6 +66,7 @@ fi
 
 if [[ $ERRORS -gt 0 ]]; then
     # Output structured response for Claude
+    # shellcheck disable=SC2016 # $reason is a jq variable, not shell
     $JQ -n \
         --arg reason "Validation failed for $FILE_PATH: $ERROR_MESSAGES" \
         '{

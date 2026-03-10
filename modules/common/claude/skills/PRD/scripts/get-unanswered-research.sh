@@ -29,4 +29,4 @@ if [[ ! -f "$RESEARCH_FILE" ]]; then
 fi
 
 # Return unanswered questions (those without an answer)
-$YQ -o=json '[.[] | select(.answer == null or .answer == "") | {text: .text, mode: .mode}]' "$RESEARCH_FILE"
+$YQ -o=json '[.[] | select(.answer == null or .answer == "") | {"text": .text, "mode": .mode}]' "$RESEARCH_FILE"
