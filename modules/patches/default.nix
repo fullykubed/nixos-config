@@ -37,6 +37,7 @@ _: {
     ./libheif
     ./libjxl
     ./libsndfile
+    ./libtpms
     ./libvpx
     ./lttng-ust
     ./lua
