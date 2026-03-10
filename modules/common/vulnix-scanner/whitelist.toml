@@ -256,6 +256,12 @@ comment = "CVE-2021-28794 (8.8 High): RCE via VS Code ShellCheck extension auto-
 ################################################################################
 # Completely unrelated software that happens to share a name.
 
+# ada URL parser (C++ WHATWG-compliant, github.com/ada-url/ada)
+# CVE affects Ada.cx (customer service AI chatbot cloud platform)
+["ada"]
+cve = ["CVE-2024-9410"]
+comment = "CVE-2024-9410 (5.3 Med): Blind SSRF via Sentry misconfiguration in Ada.cx cloud platform. Our ada-3.4.2 is ada-url (C++ URL parser), unrelated."
+
 # rubygems CLI tool
 # CVE affects RubyGems.org WEBSITE, not the rubygems package manager CLI
 ["rubygems"]
