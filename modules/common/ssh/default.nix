@@ -8,6 +8,8 @@
       enableDefaultConfig = false;
     };
 
+    home.file.".ssh/config".force = true;
+
     # Home Manager symlinks ~/.ssh/config into the nix store.  OpenSSH
     # rejects symlinks whose apparent permissions are too open (lrwxrwxrwx).
     # Replace the symlink with a regular copy after every activation so SSH

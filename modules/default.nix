@@ -64,6 +64,7 @@
     ./common/hetzner
     ./common/remote-builders
     ./common/binary-cache
+    ./common/ccache
     ./common/tailscale
     ./patches
   ];

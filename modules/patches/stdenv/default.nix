@@ -1,16 +1,18 @@
-# Custom stdenv with additional hardening flags and mold linker
+# Custom stdenv with additional hardening flags, mold linker, and ccache
 #
 # This module overrides the default stdenv to:
 # 1. Enable additional hardening flags globally (trivialautovarinit)
 # 2. Use the mold linker for all compatible packages (faster than GNU ld)
-# 3. Disable reference checks to allow CVE patches on bootstrap packages
-# 4. Exclude specific packages from aggressive hardening
+# 3. Use ccache as a C/C++ compiler wrapper for all compatible packages
+# 4. Disable reference checks to allow CVE patches on bootstrap packages
+# 5. Exclude specific packages from aggressive hardening
 #
-# Mold is built from a clean nixpkgs import (no overlays) to avoid
-# a circular dependency (mold needs stdenv, our stdenv adds mold).
+# Mold and ccache are built from a clean nixpkgs import (no overlays) to
+# avoid a circular dependency (they need stdenv, our stdenv adds them).
 #
 # Per-package test/build overrides caused by the custom stdenv live in modules/patches/.
 # Packages can opt out of mold by setting __noMold = true via overrideAttrs.
+# Packages can opt out of ccache by setting __noCcache = true via overrideAttrs.
 {
   lib,
   system,
@@ -18,13 +20,15 @@
   ...
 }:
 let
-  # Build mold from a clean nixpkgs import (no overlays) to avoid
-  # circular dependency.
-  cleanMold =
-    (import nixpkgs-unstable-input {
-      inherit system;
-      config.allowUnfree = true;
-    }).mold;
+  # Import a clean nixpkgs (no overlays) for packages that our stdenv
+  # adds globally. Without this, they'd be built with our custom stdenv,
+  # creating a circular dependency.
+  cleanPkgs = import nixpkgs-unstable-input {
+    inherit system;
+    config.allowUnfree = true;
+  };
+  cleanMold = cleanPkgs.mold;
+  cleanCcache = cleanPkgs.ccache;
 
   stdenvOverlay =
     _final: prev:
@@ -70,6 +74,13 @@ let
         "dejagnu"
       ];
 
+      # Packages excluded from ccache by pname.
+      ccacheExcludedNames = [
+        "ghc-binary" # bakes CC path into settings file; downstream Haskell packages need a real store path
+        "metis" # two-phase cmake configure loses install prefix when ccache changes CMAKE_C_COMPILER
+        "shiboken6" # bakes compiler path into installed config; ccache wrapper path breaks downstream pyside6
+      ];
+
       # Packages excluded from mold by pname.
       moldExcludedNames = [
         "elfutils" # installcheck self-tests expect GNU ld ELF section layout
@@ -98,6 +109,11 @@ let
               isBootstrap = prev.lib.hasPrefix "bootstrap-" (_stdenv.name or "");
               useMold =
                 !isBootstrap && !(a.__noMold or false) && !(a ? pname && builtins.elem a.pname moldExcludedNames);
+
+              useCcache =
+                !isBootstrap
+                && !(a.__noCcache or false)
+                && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
 
               # Mold linker flags are injected into whichever location the
               # derivation already uses. If the derivation sets NIX_CFLAGS_LINK
@@ -134,6 +150,86 @@ let
                         RUSTFLAGS = toString ((a.env or { }).RUSTFLAGS or "") + " -C link-arg=-fuse-ld=mold";
                       };
                   };
+
+              # ccacheFlags chains env from rustMoldFlags (which already chains
+              # cMoldFlags.env) so the final // merge doesn't clobber prior env keys.
+              # The preConfigure snippet is guarded by a directory existence check so
+              # builds proceed normally when the ccache dir is not mounted.
+              # preConfigure is only string-appended when the existing value is a
+              # string (or absent); function-style preConfigure is left untouched.
+              ccacheFlags =
+                if !useCcache then
+                  { }
+                else
+                  {
+                    env =
+                      (a.env or { })
+                      // (rustMoldFlags.env or { })
+                      // {
+                        CCACHE_DIR = "/var/cache/ccache";
+                        CCACHE_REMOTE_STORAGE = "file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs";
+                        CCACHE_SLOPPINESS = "include_file_ctime,include_file_mtime,random_seed,time_macros";
+                        CCACHE_BASEDIR = "/build";
+                        CCACHE_MAXSIZE = "200G";
+                        CCACHE_COMPRESS = "true";
+                        CCACHE_COMPRESSLEVEL = "6";
+                        CCACHE_NOHASHDIR = "true";
+                        CCACHE_UMASK = "007";
+                      };
+                    preConfigure =
+                      let
+                        existing = a.preConfigure or null;
+                        # Leading newline prevents syntax errors when this hook is
+                        # appended to a package's existing preConfigure string that
+                        # doesn't end with a newline.
+                        hook = ''
+
+                          if [ -f "''${CCACHE_DIR:-}/.disabled" ]; then
+                            echo "ccache: disabled via .disabled sentinel"
+                          elif [ ! -d "''${CCACHE_DIR:-}" ]; then
+                            echo "====="
+                            echo "ccache: directory '$CCACHE_DIR' does not exist"
+                            echo "====="
+                          elif [ ! -w "''${CCACHE_DIR:-}" ]; then
+                            echo "====="
+                            echo "ccache: directory '$CCACHE_DIR' is not writable"
+                            echo "Please verify it is owned by root:nixbld with mode 0770"
+                            echo "====="
+                          elif [[ "''${CC:-}" == */build/.ccache-wrap/* ]] || [[ "''${CXX:-}" == */build/.ccache-wrap/* ]]; then
+                            : # CC/CXX already point to ccache wrapper; skip to avoid infinite recursion
+                          else
+                            _ccache_wrap=/build/.ccache-wrap
+                            mkdir -p "$_ccache_wrap"
+                            _orig_cc="''${CC:-cc}"
+                            _orig_cxx="''${CXX:-c++}"
+                            _cc_name="$(basename "''${_orig_cc%% *}")"
+                            _cxx_name="$(basename "''${_orig_cxx%% *}")"
+                            _ccache_bin="$(command -v ccache)"
+                            _mkwrapper() {
+                              printf '#!/bin/sh\nfor _a in "$@"; do\n  if [ "$_a" = "-c" ]; then\n    exec %s %s "$@"\n  fi\ndone\nexec %s "$@"\n' "$_ccache_bin" "$2" "$2" > "$1"
+                              chmod +x "$1"
+                            }
+                            _mkwrapper "$_ccache_wrap/$_cc_name" "$_orig_cc"
+                            _mkwrapper "$_ccache_wrap/$_cxx_name" "$_orig_cxx"
+                            export CC="$_ccache_wrap/$_cc_name"
+                            export CXX="$_ccache_wrap/$_cxx_name"
+                          fi
+                        '';
+                      in
+                      # Only string-append when preConfigure is absent or a plain string.
+                      # Function-style preConfigure is passed through unchanged.
+                      # Any other type (list, derivation, etc.) is also passed through
+                      # unchanged to avoid type errors; ccache simply won't wrap in
+                      # those rare cases.
+                      if existing == null then
+                        hook
+                      else if builtins.isString existing then
+                        existing + hook
+                      else if builtins.isFunction existing then
+                        existing
+                      else
+                        existing;
+                  };
             in
             {
               doCheck = false;
@@ -143,10 +239,12 @@ let
                 else
                   (a.hardeningEnable or [ ]);
               nativeBuildInputs =
-                if useMold then (a.nativeBuildInputs or [ ]) ++ [ cleanMold ] else (a.nativeBuildInputs or [ ]);
+                (if useMold then (a.nativeBuildInputs or [ ]) ++ [ cleanMold ] else (a.nativeBuildInputs or [ ]))
+                ++ (if useCcache then [ cleanCcache ] else [ ]);
             }
             // cMoldFlags
-            // rustMoldFlags;
+            // rustMoldFlags
+            // ccacheFlags;
         in
         if builtins.isFunction args then
           finalAttrs:

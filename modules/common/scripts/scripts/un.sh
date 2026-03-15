@@ -47,6 +47,7 @@ Options:
   -P, --big-builders N  Use N big-parallel remote builders (default: all configured)
   -j, --jobs N          Set max concurrent derivation builds (default: 1)
   -o, --offline         Build without network access (use local store only)
+  -S, --no-substituters Skip all binary cache lookups (build everything locally)
   -u, --update          Update flake inputs before rebuilding
   -s, --stop-on-error   Stop on first build failure (override keep-going)
   -h, --help            Show this help message
@@ -67,6 +68,7 @@ Examples:
   $SCRIPT_NAME -B 3 -P 1     # Use 3 regular + 1 big-parallel builder
   $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
   $SCRIPT_NAME -s            # Stop on first failure for debugging
+  $SCRIPT_NAME -S            # Skip binary cache queries (faster with custom stdenv)
 EOF
 }
 
@@ -283,6 +285,7 @@ parse_args() {
       -P|--big-builders) shift; BIG_BUILDER_COUNT="$1" ;;
       -j|--jobs)       shift; MAX_JOBS="$1" ;;
       -o|--offline)    OFFLINE_MODE=true ;;
+      -S|--no-substituters) NO_SUBSTITUTERS=true ;;
       -s|--stop-on-error) STOP_ON_ERROR=true ;;
       -u|--update)     UPDATE_MODE=true ;;
       -i|--impure)     IMPURE_MODE=true ;;
@@ -311,6 +314,7 @@ main() {
   BOOT_MODE=false
   OFFLINE_MODE=false
   STOP_ON_ERROR=false
+  NO_SUBSTITUTERS=false
   UPDATE_MODE=false
   IMPURE_MODE=true
   USE_NOM=true
@@ -369,6 +373,7 @@ main() {
   # Build flags (work with both nix build and nixos-rebuild)
   local nix_flags=()
   [[ "$OFFLINE_MODE" == true ]] && nix_flags+=(--offline) && info "Building in offline mode"
+  [[ "$NO_SUBSTITUTERS" == true ]] && nix_flags+=(--option substitute false) && info "Skipping binary cache lookups"
   [[ "$STOP_ON_ERROR" == true ]] && nix_flags+=(--no-keep-going) && info "Stopping on first build failure"
   [[ "$IMPURE_MODE" == true ]] && nix_flags+=(--impure)
   nix_flags+=(--max-jobs "$MAX_JOBS")

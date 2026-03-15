@@ -10,4 +10,5 @@
 - **niks3-api-token.age** - Encrypted API token for the niks3 binary cache service.
 - **pushover-token.age** - Encrypted Pushover notification service credentials for system alerts.
 - **r2-access-key.age / r2-secret-key.age** - Encrypted Cloudflare R2 S3-compatible storage credentials for the binary cache.
+- **ccache-r2-access-key.age / ccache-r2-secret-key.age** - Encrypted Cloudflare R2 S3-compatible storage credentials for the ccache compilation cache bucket (separate from the nix binary cache bucket).
 - **rekeyed/** - Per-machine rekeyed secrets organized by hostname, containing machine-specific decryption variants of the master secrets.

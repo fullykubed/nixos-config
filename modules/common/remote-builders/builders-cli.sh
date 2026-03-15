@@ -12,6 +12,8 @@ HOST_PUBKEY_FILE="/etc/ssh/builder-host-key.pub"
 CACHE_SSH_KEY_FILE="/root/.ssh/cache-key"
 CACHE_HOST_PUBKEY_FILE="/etc/ssh/cache-host-key.pub"
 NIKS3_TOKEN_FILE="/run/agenix/niks3-api-token"
+CCACHE_R2_ACCESS_KEY_FILE="/run/agenix/ccache-r2-access-key"
+CCACHE_R2_SECRET_KEY_FILE="/run/agenix/ccache-r2-secret-key"
 # Resolve the latest builder snapshot by label (or use explicit override)
 resolve_snapshot_id() {
   if [[ -n "${HETZNER_BUILDER_SNAPSHOT:-}" ]]; then
@@ -612,6 +614,16 @@ cmd_create() {
     exit 1
   fi
 
+  if [[ ! -f "$CCACHE_R2_ACCESS_KEY_FILE" ]]; then
+    echo -e "${RED}Error: ccache R2 access key not found at $CCACHE_R2_ACCESS_KEY_FILE${NC}" >&2
+    return 1
+  fi
+
+  if [[ ! -f "$CCACHE_R2_SECRET_KEY_FILE" ]]; then
+    echo -e "${RED}Error: ccache R2 secret key not found at $CCACHE_R2_SECRET_KEY_FILE${NC}" >&2
+    return 1
+  fi
+
   local server_type
   server_type=$(server_type_for "$name")
   local btype
@@ -633,6 +645,11 @@ cmd_create() {
   cache_ssh_key=$(cat "$CACHE_SSH_KEY_FILE")
   cache_host_pubkey=$(cat "$CACHE_HOST_PUBKEY_FILE")
   niks3_token=$(cat "$NIKS3_TOKEN_FILE")
+
+  # Read ccache R2 credentials for injection
+  local ccache_r2_access_key ccache_r2_secret_key
+  ccache_r2_access_key=$(cat "$CCACHE_R2_ACCESS_KEY_FILE")
+  ccache_r2_secret_key=$(cat "$CCACHE_R2_SECRET_KEY_FILE")
 
   # Build cloud-init user-data to inject SSH keys and host keys
   local user_data_file
@@ -685,10 +702,19 @@ write_files:
     permissions: '0400'
     content: |
       $niks3_token
+  - path: /run/sccache-r2-access-key
+    permissions: '0400'
+    content: |
+      $ccache_r2_access_key
+  - path: /run/sccache-r2-secret-key
+    permissions: '0400'
+    content: |
+      $ccache_r2_secret_key
 runcmd:
   - systemctl restart nix-daemon
   - systemctl start cache-tunnel.service
   - systemctl start inactivity-monitor.timer
+  - systemctl start ccache-r2-mount.service
 EOF
   else
     # Regular builder: no nix overrides needed
@@ -731,9 +757,18 @@ write_files:
     permissions: '0400'
     content: |
       $niks3_token
+  - path: /run/sccache-r2-access-key
+    permissions: '0400'
+    content: |
+      $ccache_r2_access_key
+  - path: /run/sccache-r2-secret-key
+    permissions: '0400'
+    content: |
+      $ccache_r2_secret_key
 runcmd:
   - systemctl start cache-tunnel.service
   - systemctl start inactivity-monitor.timer
+  - systemctl start ccache-r2-mount.service
 EOF
   fi
 

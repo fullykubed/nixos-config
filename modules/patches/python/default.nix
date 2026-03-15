@@ -35,10 +35,24 @@ let
 
     python313 = prev.python313.override {
       packageOverrides = _pyfinal: pyprev: {
+        # distutils: test_build_clib.test_run calls self.skipTest (unittest API)
+        # but the test class isn't a unittest.TestCase — AttributeError
+        distutils = pyprev.distutils.overrideAttrs {
+          doInstallCheck = false;
+        };
+
         # mss: Disable install checks — tests require X11 display unavailable in sandbox
         mss = pyprev.mss.overrideAttrs {
           doInstallCheck = false;
         };
+
+        # pytest-xdist: test_workqueue_ordered_by_input asserts worker gw0 gets
+        # work first, but scheduling is non-deterministic in sandbox
+        pytest-xdist = pyprev.pytest-xdist.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_workqueue_ordered_by_input"
+          ];
+        });
 
         # numpy: Skip test_cli_obj — meson subprocess can't find mold linker
         numpy = pyprev.numpy.overrideAttrs (old: {

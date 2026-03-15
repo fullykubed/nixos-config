@@ -1,19 +1,34 @@
-# Remote Builders
+# Build System
 
-Dynamic Hetzner Cloud builders for distributed NixOS builds, with an S3-backed binary cache.
+Distributed build infrastructure for NixOS: a hardened custom stdenv, shared compiler cache, ephemeral remote builders on Hetzner Cloud, and an S3-backed binary cache.
 
-## Overview
+## Layers
 
-This system provisions NixOS remote builders on Hetzner Cloud on-demand when builds are initiated via SSH. Builders automatically delete themselves after 60 minutes of inactivity, keeping costs to a minimum. All build outputs are automatically signed and uploaded to a Cloudflare R2-backed binary cache so they can be reused across machines and future builds.
+The build system has four layers, each building on the last:
 
-Key properties:
+```
+┌────────────────────────────────────────────────────────────┐
+│  4. Binary Cache                                           │
+│     niks3 + Cloudflare R2 — stores and serves build output │
+├────────────────────────────────────────────────────────────┤
+│  3. Remote Builders                                        │
+│     Ephemeral Hetzner Cloud VMs — distributed compilation  │
+├────────────────────────────────────────────────────────────┤
+│  2. Compiler Cache (ccache)                                │
+│     R2-backed ccache — skip recompilation across machines  │
+├────────────────────────────────────────────────────────────┤
+│  1. Custom stdenv                                          │
+│     mold linker + hardening flags + ccache wrapping        │
+└────────────────────────────────────────────────────────────┘
+```
 
-- On-demand: builders are created only when `nix` connects to them
-- Ephemeral: fresh Nix store on each launch, no persistent state
-- Self-managing: builders monitor inactivity and delete themselves via the Hetzner API
-- Secret-managed: API tokens and SSH keys handled by agenix
-- Two-tier: regular builders for small packages, big-parallel builders for heavy builds
-- Cached: every build output is pushed to a persistent binary cache via [niks3](https://github.com/Mic92/niks3)
+**Layer 1** ([stdenv](stdenv.md)) overrides every package's build environment: the mold linker replaces GNU ld for faster linking, additional hardening flags are enabled globally, and every C/C++ compilation is wrapped with ccache. This is the foundation — it runs on local machines and remote builders alike.
+
+**Layer 2** ([ccache](ccache.md)) backs the compiler cache with Cloudflare R2 so cache hits are shared across all machines. New compilations write to a local directory that syncs to R2 every 60 seconds; an s3fs FUSE mount provides read-only access to the full shared cache.
+
+**Layer 3** ([remote builders](remote-builders/README.md)) provisions ephemeral NixOS VMs on Hetzner Cloud on-demand when `nix` initiates a build. They auto-destroy after 60 minutes idle. Two tiers — regular and big-parallel — route heavy derivations to appropriately-sized machines.
+
+**Layer 4** ([binary cache](remote-builders/binary-cache.md)) stores every build output (NAR) in Cloudflare R2 via niks3. Both local machines and remote builders push to the cache through an SSH tunnel. Reads go through Cloudflare CDN with signature verification.
 
 ## Architecture
 
@@ -45,6 +60,12 @@ Key properties:
 │  │ (path unit + hourly timer)              │           │  │                 │
 │  └─────────────────────────────────────────┘           │  │                 │
 │                                                         │  │                 │
+│  ┌─────────────────────────────────────────────┐       │  │                 │
+│  │  Custom stdenv (mold + ccache + hardening)  │       │  │                 │
+│  │  ccache-r2-mount (s3fs → R2, read-only)     │       │  │                 │
+│  │  ccache-r2-sync  (s5cmd → R2, every 60s)    │       │  │                 │
+│  └─────────────────────────────────────────────┘       │  │                 │
+│                                                         │  │                 │
 │  nix.substituters ── HTTPS ──────────────────────────────────────▶ CDN (R2) │
 │                                                         │  │                 │
 └─────────────────────────────────────────────────────────┼──┼─────────────────┘
@@ -56,7 +77,7 @@ Key properties:
 │                                                                               │
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
 │  │                    NixOS Builder Snapshot (shared)                    │    │
-│  │  Built with make-disk-image, uploaded via upload-image.sh            │    │
+│  │  Custom stdenv (mold + ccache + hardening) baked into image          │    │
 │  │  Tier-agnostic: cloud-init writes overrides for big-parallel at boot │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
 │                              │                                               │
@@ -68,6 +89,10 @@ Key properties:
 │  │  4 jobs       │  │  4 jobs       │  │ 1 job, all cores│                │
 │  │ ┌───────────┐ │  │ ┌───────────┐ │  │ ┌───────────┐   │                │
 │  │ │ nix-daemon│ │  │ │ nix-daemon│ │  │ │ nix-daemon│   │                │
+│  │ └───────────┘ │  │ └───────────┘ │  │ └───────────┘   │                │
+│  │ ┌───────────┐ │  │ ┌───────────┐ │  │ ┌───────────┐   │                │
+│  │ │ ccache-r2 │ │  │ │ ccache-r2 │ │  │ │ ccache-r2 │   │                │
+│  │ │ (s3fs)    │ │  │ │ (s3fs)    │ │  │ │ (s3fs)    │   │                │
 │  │ └───────────┘ │  │ └───────────┘ │  │ └───────────┘   │                │
 │  │ ┌───────────┐ │  │ ┌───────────┐ │  │ ┌───────────┐   │                │
 │  │ │cache-     │ │  │ │cache-     │ │  │ │cache-     │   │                │
@@ -104,20 +129,54 @@ Key properties:
                  └─────────────────┘
 ```
 
-## Component Overview
+## Components at a Glance
 
-1. **Builder Snapshot**: Pre-built NixOS image created with `nixpkgs make-disk-image` and uploaded to Hetzner as a snapshot. Contains the full builder configuration: Nix daemon, `remotebuild` user, cache upload queue, and inactivity monitor. The same snapshot is used for both regular and big-parallel builders. Defined in `images/builder/image.nix`.
+| Component | What it does | Config |
+|---|---|---|
+| **Custom stdenv** | Overrides mkDerivation for all packages: mold linker, ccache wrapping, hardening flags | `modules/common/stdenv/default.nix` |
+| **ccache module** | R2-backed compiler cache: s3fs mount, s5cmd sync, sandbox paths | `modules/common/ccache/default.nix` |
+| **SSH ProxyCommand** | Intercepts SSH to `builder-N`, provisions Hetzner VM if absent | `modules/common/remote-builders/proxy-command.sh` |
+| **Builder image** | Pre-built NixOS snapshot: nix-daemon, ccache, cache upload, inactivity monitor | `images/builder/image.nix` |
+| **Inactivity monitor** | Per-builder timer; self-deletes via Hetzner API after 60 min idle | `images/builder/inactivity-monitor.nix` |
+| **Binary cache module** | Client-side: SSH tunnel to niks3, upload queue, healthchecks | `modules/common/binary-cache/default.nix` |
+| **Cache server image** | Persistent Hetzner VM running niks3 + PostgreSQL | `images/cache/image.nix` |
+| **`builders` CLI** | Fleet management: list, status, dashboard, check, create, destroy | `modules/common/remote-builders/builders-cli.sh` |
+| **`cache` CLI** | Cache server management: status, create, check, destroy, enqueue | `modules/common/binary-cache/cache-cli.sh` |
+| **`un.sh`** | NixOS rebuild script with builder flags and nom integration | `modules/common/scripts/scripts/un.sh` |
+| **Waybar module** | Status bar: active builder count, upload queue depth | `modules/common/sway/waybar/waybar-builders.sh` |
 
-2. **SSH ProxyCommand** (`modules/common/remote-builders/proxy-command.sh`): Intercepts SSH connections to `builder-N` and `big-builder-N` hosts. If the server does not exist, it provisions one from the snapshot via the Hetzner API, injects SSH keys via cloud-init, then waits for SSH to become available on port 3098 before proxying the connection.
+## How a Build Flows
 
-3. **Nix buildMachines** (`modules/common/remote-builders/default.nix`): Static `nix.buildMachines` entries for `builder-1` through `builder-N` (regular) and `big-builder-1` through `big-builder-M` (big-parallel). SSH config routes each hostname through the ProxyCommand transparently.
+1. User runs `un.sh -B 3 -P 1`
+2. Nix evaluates the system configuration (custom stdenv applies mold, ccache, and hardening to every derivation)
+3. Nix checks `extra-substituters` — if the binary cache has the NAR, it downloads instead of building
+4. For uncached derivations, Nix schedules builds across local + remote builders
+5. SSH ProxyCommand provisions any missing builders from the Hetzner snapshot (~30-60s)
+6. Each builder's nix-daemon runs the build inside a sandbox with ccache directories mounted
+7. ccache checks its local cache, then the R2-backed remote storage for compilation hits
+8. On build completion, the post-build-hook enqueues the output to the upload queue
+9. `cache-upload.service` batches 32 paths and pushes them to niks3 via SSH tunnel
+10. niks3 signs the NAR and uploads to R2; Cloudflare CDN serves it for future reads
+11. After 60 minutes with no active builds, the inactivity monitor deletes the builder
 
-4. **Inactivity Monitor** (`images/builder/inactivity-monitor.nix`): Systemd timer that runs every minute on each builder. Checks for active `nixbld` processes and SSH sessions. After 60 consecutive minutes of inactivity, calls `hcloud server delete` on itself.
+## Secrets
 
-5. **Waybar Module** (`modules/common/sway/waybar/waybar-builders.sh`): Polls `hcloud server list` every 30 seconds to display active builder count and cache status in the status bar. Shows `N+M` format (N regular + M big-parallel) when both types are active, plus upload queue depth.
+All secrets are managed with agenix + agenix-rekey (YubiKey-secured), decrypted at activation to `/run/agenix/`. On builders and the cache server, cloud-init injects them at boot.
 
-6. **CLI Tools**: `builders` (`modules/common/remote-builders/builders-cli.sh`) for builder fleet management, `cache` (`modules/common/binary-cache/cache-cli.sh`) for cache server management.
+| Secret | Used by | Purpose |
+|---|---|---|
+| `hetzner-api-token` | ProxyCommand, builders CLI, inactivity monitor | Hetzner Cloud API access |
+| `builder-ssh-key` | Local SSH config | Key for builder SSH connections |
+| `builder-host-key` | Local SSH config, cloud-init | Builder host key verification |
+| `cache-ssh-key` | Cache tunnel | SSH key for tunnel to niks3 |
+| `cache-host-key.pub` | Cache tunnel | Cache server host key verification |
+| `cache-signing-key` | niks3 | Ed25519 NAR signing key |
+| `niks3-api-token` | Upload service | Bearer token for niks3 push API |
+| `r2-access-key` / `r2-secret-key` | niks3, cache server | Cloudflare R2 credentials (binary cache) |
+| `ccache-r2-access-key` / `ccache-r2-secret-key` | ccache module, builder cloud-init | Cloudflare R2 credentials (compiler cache) |
 
-7. **Cache Server** (`images/cache/image.nix`): Persistent Hetzner instance running niks3 backed by PostgreSQL, storing NARs in Cloudflare R2. Only accessible via SSH tunnel on port 3099.
+## Further Reading
 
-8. **Binary Cache Module** (`modules/common/binary-cache/default.nix`): Client-side integration on local machines — SSH tunnel, upload queue, healthchecks, status polling, and secrets management.
+- [Custom stdenv](stdenv.md) — mold linker, hardening flags, ccache wrapping, package exclusions
+- [Compiler cache](ccache.md) — R2-backed ccache architecture, sync services, sandbox integration
+- [Remote builders](remote-builders/) — ephemeral Hetzner Cloud VMs, provisioning, binary cache, troubleshooting

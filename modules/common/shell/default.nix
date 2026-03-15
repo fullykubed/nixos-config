@@ -12,6 +12,7 @@
     fzf # For fuzzy finding
     killall # Kills all processes in tree
     pv # Stream monitoring
+    viddy # better watch
   ];
 
   home-manager.users.${config.username} = {

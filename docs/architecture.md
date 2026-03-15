@@ -18,7 +18,7 @@ All per-machine differentiation lives in the device module.
 
 **Home Manager for user config** -- Home Manager is integrated via `modules/common/home-manager/`. User-level settings (shell aliases, program config, dotfiles) should go through `home-manager.users.${config.username}` rather than system-level options when possible. Most common modules already use this -- e.g. shell aliases in zsh, git config, SSH match blocks.
 
-**Dual nixpkgs channels** -- `lib/nixpkgs-unstable.nix` exposes `nixpkgs-unstable` as a module argument with its own overlays option. Modules can pull bleeding-edge packages without touching stable.
+**Dual nixpkgs channels** -- In addition to the standard `pkgs`, `lib/nixpkgs-unstable.nix` exposes `nixpkgs-unstable` as a module argument with its own overlays option. Modules can pull bleeding-edge packages without touching stable.
 
 **Hardened stdenv with mold** -- `modules/patches/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via `__noMold = true` or the `moldExcludedNames` list.
 
@@ -57,4 +57,4 @@ yubikeys/              # YubiKey public identities
 - [Working with modules](modules/working-with-modules.md) -- organization, guidelines, and creating new modules
 - [Deployment](deployment.md) -- building and deploying system configurations
 - [Secrets](secrets.md) -- agenix secret management workflow
-- [Remote builders](remote-builders/README.md) -- Hetzner Cloud builder and cache setup
+- [Build system](build-system/README.md) -- stdenv, compiler cache, remote builders, and binary cache
