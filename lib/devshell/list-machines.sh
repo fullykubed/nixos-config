@@ -2,7 +2,7 @@
 # List all machines defined in the flake with their host key status.
 # Outputs JSON to stdout for consumption by other devshell scripts.
 
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo ":: Error: not in a git repository" >&2; exit 1; }
+REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}" || { echo ":: Error: not in a git repository" >&2; exit 1; }
 cd "$REPO_ROOT" || exit
 
 mapfile -t machines < <(

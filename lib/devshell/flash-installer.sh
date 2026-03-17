@@ -46,6 +46,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}" || error "not in a git repository"
+export REPO_ROOT
 cd "$REPO_ROOT" || exit
 
 # Elevate to root for flashing (build-only doesn't need root)

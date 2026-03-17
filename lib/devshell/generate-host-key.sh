@@ -3,7 +3,8 @@
 # with YubiKey recipients via rage. Automatically rekeys all secrets afterward.
 # Usage: generate-host-key [hostname]
 
-REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || { echo ":: Error: not in a git repository" >&2; exit 1; }
+REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)}" || { echo ":: Error: not in a git repository" >&2; exit 1; }
+export REPO_ROOT
 cd "$REPO_ROOT" || exit
 
 info()  { echo ":: $*" >&2; }
