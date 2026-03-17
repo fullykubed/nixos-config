@@ -64,6 +64,20 @@ mount -o ro "$KEY_PART" "$KEY_MNT"
 HOST_KEY_ENC="$KEY_MNT/host-key.enc"
 [[ -f "$HOST_KEY_ENC" ]] || { umount "$KEY_MNT"; error "Encrypted host key not found on HOSTKEY partition"; }
 
+# Set the system clock from the timestamp baked into the USB by
+# flash-installer.  Chrony uses NTS (TLS-based authentication) and
+# certificate validation will fail if the clock is too far off, so an
+# approximately-correct clock is required before the first boot.
+TIMESTAMP_FILE="$KEY_MNT/install-date"
+if [[ -f "$TIMESTAMP_FILE" ]]; then
+  INSTALL_DATE=$(cat "$TIMESTAMP_FILE")
+  info "Setting system clock to $INSTALL_DATE..."
+  date -us "$INSTALL_DATE"
+  hwclock --systohc --utc
+else
+  echo -e "${RED}WARNING:${NC} No install-date found on HOSTKEY partition — RTC may be inaccurate"
+fi
+
 mkdir -p /mnt/etc/ssh
 echo "  Enter the installer passphrase (displayed during flash-installer):"
 (umask 077 && openssl enc -d -aes-256-cbc -pbkdf2 -in "$HOST_KEY_ENC" -out /mnt/etc/ssh/ssh_host_ed25519_key)

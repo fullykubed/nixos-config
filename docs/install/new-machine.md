@@ -54,6 +54,8 @@ flash-installer
 
 Write down the **installer passphrase** displayed at the end.
 
+**Important:** The USB contains a hardcoded timestamp used to set the hardware clock during installation. Boot the USB and run `install-machine` within **30 minutes** of flashing. If more time has passed, re-run `flash-installer` to get a fresh timestamp.
+
 
 ## Part 2: Install NixOS (New Machine)
 

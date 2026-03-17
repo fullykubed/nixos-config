@@ -27,6 +27,15 @@ The passphrase is case-sensitive and base64-encoded (includes uppercase, lowerca
 
 Make sure the flake target name matches `networking.hostName` in the machine file. The expected format is `fullykubed-<machine-name>`.
 
+### install-date not found warning
+
+The installer prints a warning if the `install-date` file is missing from the HOSTKEY partition. This means the USB was flashed with an older version of `flash-installer` that didn't write the timestamp. Re-flash the USB to get a fresh timestamp, or set the clock manually before rebooting:
+
+```bash
+date -us "2026-03-17 12:00:00"   # approximate UTC time
+hwclock --systohc --utc
+```
+
 ## After First Boot
 
 ### ZFS pool won't import on boot
@@ -36,6 +45,26 @@ zpool import -f rpool   # or your pool name
 zfs load-key rpool
 zfs mount -a
 ```
+
+### Chrony fails to sync (NTS certificate errors)
+
+Chrony uses NTS-only servers with `authselectmode require`. If the hardware clock is too far off, TLS certificate validation fails and chrony cannot sync. Check the system time:
+
+```bash
+date
+chronyc -n sources    # should show reachable sources
+journalctl -u chronyd # look for NTS-KE or certificate errors
+```
+
+If the clock is wrong, set it manually and restart chrony:
+
+```bash
+sudo date -us "2026-03-17 12:00:00"   # approximate UTC time
+sudo hwclock --systohc --utc
+sudo systemctl restart chronyd
+```
+
+This usually means the USB was flashed too long before running the installer, or the `install-date` file was missing. For future installs, run `install-machine` within 30 minutes of flashing.
 
 ### Secrets not decrypted
 

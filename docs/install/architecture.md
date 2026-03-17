@@ -65,7 +65,8 @@ Re-encrypts every secret in the repo for the new machine's host public key. Outp
 2. Flashes the ISO to the USB drive via `dd`
 3. Appends a 1 MiB FAT32 partition labeled `HOSTKEY` after the ISO data
 4. Copies the encrypted host key (`host-key.enc`) to the HOSTKEY partition
-5. Ejects the drive and displays the installer passphrase
+5. Writes an `install-date` file containing the current UTC time + 10 minutes (used by `install-machine` to set the hardware clock — see [Clock Bootstrap](#clock-bootstrap))
+6. Ejects the drive and displays the installer passphrase
 
 ### Installer ISO (lib/installer/default.nix)
 
@@ -93,6 +94,9 @@ confirm disk wipe
         |
         v
   find HOSTKEY partition (blkid LABEL=HOSTKEY)
+        |
+        v
+  set clock from install-date
         |
         v
   decrypt host key -----> installer passphrase prompt
@@ -126,19 +130,28 @@ After first boot, the system handles Secure Boot automatically:
 
 No manual key generation is needed — all machines share the same Secure Boot PKI via agenix.
 
+## Clock Bootstrap
+
+Chrony is configured with NTS-only servers and `authselectmode require`. NTS relies on TLS for the key-establishment handshake, so certificate validation must succeed before chrony can obtain any time samples. If the hardware clock is too far off (dead CMOS battery, new hardware, long power-off), TLS validation fails and chrony cannot sync.
+
+To break this chicken-and-egg problem, `flash-installer` writes the current UTC time + 10 minutes to `install-date` on the HOSTKEY partition. `install-machine` reads this file, sets the system clock, and writes it to the RTC with `hwclock --systohc --utc`. This ensures the installed system boots with a close-enough clock for NTS to work.
+
+The 10-minute offset accounts for time between flashing and running the installer. The USB should be used within **30 minutes** of flashing; after that, re-run `flash-installer` to get a fresh timestamp.
+
 ## USB Drive Layout
 
 ```
-+---------------------------+----------+
-| ISO hybrid image          | HOSTKEY  |
-| (NixOS installer +        | 1 MiB   |
-|  pre-built closures +     | FAT32   |
-|  repo snapshot)           |          |
-+---------------------------+----------+
++---------------------------+--------------+
+| ISO hybrid image          | HOSTKEY      |
+| (NixOS installer +        | 1 MiB FAT32  |
+|  pre-built closures +     +--------------+
+|  repo snapshot)           | host-key.enc |
+|                           | install-date |
++---------------------------+--------------+
   Partition 1-2 (ISO)        Partition 3
 ```
 
-The HOSTKEY partition is zero-wiped by `install-machine` after the host key is extracted.
+The HOSTKEY partition contains `host-key.enc` (encrypted SSH host key) and `install-date` (UTC timestamp for clock bootstrap). Both are destroyed when `install-machine` zero-wipes the partition after extraction.
 
 ## Host Key Lifecycle
 

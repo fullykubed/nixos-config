@@ -258,6 +258,10 @@ mkfs.vfat -n HOSTKEY "$KEY_PART" >/dev/null
 KEY_MNT=$(mktemp -d)
 mount "$KEY_PART" "$KEY_MNT"
 cp "$ENC_KEY" "$KEY_MNT/host-key.enc"
+# Write a timestamp 10 minutes in the future so install-machine can set the
+# RTC to an approximately-correct time.  Chrony uses NTS (TLS-based auth)
+# and certificate validation fails if the clock is too far off.
+date -ud "+10 minutes" '+%Y-%m-%d %H:%M:%S' > "$KEY_MNT/install-date"
 umount "$KEY_MNT"
 rmdir "$KEY_MNT"
 rm -f "$ENC_KEY"
@@ -273,3 +277,6 @@ info "============================================"
 info ""
 info "Done — USB drive is ready to boot."
 info "Run on target: sudo install-machine"
+info ""
+info "WARNING: Run the installer within 30 minutes — the USB"
+info "contains a hardcoded timestamp for setting the system clock."
