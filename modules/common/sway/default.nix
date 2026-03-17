@@ -199,55 +199,80 @@ in
           for_window [app_id="floating-terminal"] floating enable, resize set 50 ppt 50 ppt
           for_window [app_id="systemd-manager"] floating enable, resize set 60 ppt 70 ppt
 
+          # Move window
+          bindsym ${swayModifier}+Up move up
+          bindsym ${swayModifier}+Down move down
+          bindsym ${swayModifier}+Left move left
+          bindsym ${swayModifier}+Right move right
+          bindsym ${swayModifier}+h move left
+          bindsym ${swayModifier}+j move down
+          bindsym ${swayModifier}+k move up
+          bindsym ${swayModifier}+l move right
+
+          # Move workspace to output
+          bindsym ${swayModifier}+Alt+Up move workspace to output up
+          bindsym ${swayModifier}+Alt+Down move workspace to output down
+          bindsym ${swayModifier}+Alt+Left move workspace to output left
+          bindsym ${swayModifier}+Alt+Right move workspace to output right
+          bindsym ${swayModifier}+Alt+h move workspace to output left
+          bindsym ${swayModifier}+Alt+j move workspace to output down
+          bindsym ${swayModifier}+Alt+k move workspace to output up
+          bindsym ${swayModifier}+Alt+l move workspace to output right
+
           # Focus navigation
-          bindsym ${swayModifier}+Alt+Up focus up
-          bindsym ${swayModifier}+Alt+Down focus down
-          bindsym ${swayModifier}+Alt+Left focus left
-          bindsym ${swayModifier}+Alt+Right focus right
-          bindsym ${swayModifier}+Alt+h focus left
-          bindsym ${swayModifier}+Alt+j focus down
-          bindsym ${swayModifier}+Alt+k focus up
-          bindsym ${swayModifier}+Alt+l focus right
+          bindsym ${swayModifier}+Shift+Up focus up
+          bindsym ${swayModifier}+Shift+Down focus down
+          bindsym ${swayModifier}+Shift+Left focus left
+          bindsym ${swayModifier}+Shift+Right focus right
+          bindsym ${swayModifier}+Shift+h focus left
+          bindsym ${swayModifier}+Shift+j focus down
+          bindsym ${swayModifier}+Shift+k focus up
+          bindsym ${swayModifier}+Shift+l focus right
 
           # Quick application/workspace focus
-          bindsym ${swayModifier}+Alt+p [app_id="org.keepassxc.KeePassXC"] focus
-          bindsym ${swayModifier}+Alt+s [app_id="signal"] focus
-          bindsym ${swayModifier}+Alt+m [app_id="Slack"] focus
-          bindsym ${swayModifier}+Alt+e workspace editor
-          bindsym ${swayModifier}+Alt+n workspace files
-          bindsym ${swayModifier}+Alt+b [app_id="btop"] focus
-          bindsym ${swayModifier}+Alt+f exec sway-switch-and-launch-if-ne browser firefox firefox
-          bindsym ${swayModifier}+Alt+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
-          bindsym ${swayModifier}+Alt+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
-          bindsym ${swayModifier}+Alt+o exec sway-switch-and-launch-if-ne obs obs obs
-          bindsym ${swayModifier}+Alt+t workspace terminal
-          bindsym ${swayModifier}+Alt+a workspace spotify
+          bindsym ${swayModifier}+Shift+p [app_id="org.keepassxc.KeePassXC"] focus
+          bindsym ${swayModifier}+Shift+s [app_id="signal"] focus
+          bindsym ${swayModifier}+Shift+m [app_id="Slack"] focus
+          bindsym ${swayModifier}+Shift+e workspace editor
+          bindsym ${swayModifier}+Shift+n workspace files
+          bindsym ${swayModifier}+Shift+b [app_id="btop"] focus
+          bindsym ${swayModifier}+Shift+f exec sway-switch-and-launch-if-ne browser firefox firefox
+          bindsym ${swayModifier}+Shift+r exec sway-switch-and-launch-if-ne email firefox firefox --new-window https://fastmail.com
+          bindsym ${swayModifier}+Shift+c exec sway-switch-and-launch-if-ne calendar firefox firefox --new-window https://calendar.google.com
+          bindsym ${swayModifier}+Shift+o exec sway-switch-and-launch-if-ne obs obs obs
+          bindsym ${swayModifier}+Shift+t workspace terminal
+          bindsym ${swayModifier}+Shift+a workspace spotify
 
           # Swayr window/workspace switching
           bindsym ${swayModifier}+space exec swayr switch-to-urgent-or-lru-window --skip-urgent
-          bindsym ${swayModifier}+Alt+space exec swayr switch-to-urgent-or-lru-window --skip-lru
-          bindsym ${swayModifier}+Alt+w exec swayr switch-window
-          bindsym ${swayModifier}+Alt+z exec swayr switch-workspace
+          bindsym ${swayModifier}+Shift+space exec swayr switch-to-urgent-or-lru-window --skip-lru
+          bindsym ${swayModifier}+Shift+w exec swayr switch-window
+          bindsym ${swayModifier}+Shift+z exec swayr switch-workspace
 
           # Workspace navigation
-          bindsym ${swayModifier}+Alt+1 workspace number 1
-          bindsym ${swayModifier}+Alt+2 workspace number 2
-          bindsym ${swayModifier}+Alt+3 workspace number 3
-          bindsym ${swayModifier}+Alt+4 workspace number 4
-          bindsym ${swayModifier}+Alt+5 workspace number 5
-          bindsym ${swayModifier}+Alt+6 workspace number 6
-          bindsym ${swayModifier}+Alt+7 workspace number 7
-          bindsym ${swayModifier}+Alt+8 workspace number 8
-          bindsym ${swayModifier}+Alt+9 workspace number 9
+          bindsym ${swayModifier}+1 workspace number 1
+          bindsym ${swayModifier}+2 workspace number 2
+          bindsym ${swayModifier}+3 workspace number 3
+          bindsym ${swayModifier}+4 workspace number 4
+          bindsym ${swayModifier}+5 workspace number 5
+          bindsym ${swayModifier}+6 workspace number 6
+          bindsym ${swayModifier}+7 workspace number 7
+          bindsym ${swayModifier}+8 workspace number 8
+          bindsym ${swayModifier}+9 workspace number 9
+
+          # Move workspace to monitor
+          bindsym ${swayModifier}+Shift+1 move workspace to output "${getMonitorByNum 1}"
+          bindsym ${swayModifier}+Shift+2 move workspace to output "${getMonitorByNum 2}"
+          bindsym ${swayModifier}+Shift+3 move workspace to output "${getMonitorByNum 3}"
 
           # Rename current workspace
-          bindsym ${swayModifier}+Shift+r exec echo "" | ${pkgs.wofi}/bin/wofi --show dmenu -p "Rename workspace to:" | xargs swaymsg rename workspace to
+          bindsym ${swayModifier}+Alt+r exec echo "" | ${pkgs.wofi}/bin/wofi --show dmenu -p "Rename workspace to:" | xargs swaymsg rename workspace to
 
           # Window management
           bindsym ${swayModifier}+q kill
           bindsym ${swayModifier}+Shift+q exec swayr quit-window
           bindsym ${swayModifier}+f fullscreen toggle
-          bindsym ${swayModifier}+Shift+space floating toggle
+          bindsym ${swayModifier}+Alt+space floating toggle
           bindsym ${swayModifier}+Shift+minus move scratchpad
           bindsym ${swayModifier}+minus scratchpad show
 
@@ -259,18 +284,13 @@ in
           bindsym ${swayModifier}+e layout toggle split
 
           # System control
-          bindsym ${swayModifier}+Shift+c reload
-          bindsym ${swayModifier}+Shift+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -b 'Yes, exit sway' 'swaymsg exit'
+          bindsym ${swayModifier}+Alt+c reload
+          bindsym ${swayModifier}+Alt+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -b 'Yes, exit sway' 'swaymsg exit'
 
           # Terminal
           bindsym ${swayModifier}+Return exec wezterm
           bindsym ${swayModifier}+Shift+Return exec wezterm start --class floating-terminal
           bindsym ${swayModifier}+o exec wezterm start -- bash -c "sesh connect \$(sesh list -t | ${pkgs.wofi}/bin/wofi --show dmenu -p 'Select tmux session:')"
-
-          # Mode switching
-          bindsym ${swayModifier}+r mode resize
-          bindsym ${swayModifier}+XF86AudioMicMute mode "move-workspace"
-          bindsym ${swayModifier}+XF86TouchpadToggle mode "move-window"
 
           # For resizing
           bindsym ${swayModifier}+Control+1 resize set width 10ppt
@@ -282,64 +302,6 @@ in
           bindsym ${swayModifier}+Control+7 resize set width 70ppt
           bindsym ${swayModifier}+Control+8 resize set width 80ppt
           bindsym ${swayModifier}+Control+9 resize set width 90ppt
-
-          # Move workspace mode
-          mode "move-workspace" {
-            # Move workspace to specific outputs
-            bindsym 1 move workspace to output "${getMonitorByNum 1}"; mode "default"
-            bindsym 2 move workspace to output "${getMonitorByNum 2}"; mode "default"
-            bindsym 3 move workspace to output "${getMonitorByNum 3}"; mode "default"
-            
-            # Move workspace directionally (stay in mode)
-            bindsym Up move workspace to output up
-            bindsym Down move workspace to output down
-            bindsym Left move workspace to output left
-            bindsym Right move workspace to output right
-            
-            bindsym h move workspace to output left
-            bindsym j move workspace to output down
-            bindsym k move workspace to output up
-            bindsym l move workspace to output right
-            
-            # Return to default mode
-            bindsym Return mode "default"
-            bindsym Escape mode "default"
-            bindsym ${swayModifier}+XF86AudioMicMute mode "default"
-          }
-
-          # Move window mode
-          mode "move-window" {
-            # Move container to specific workspace numbers
-            bindsym 1 move container to workspace number 1; mode "default"
-            bindsym 2 move container to workspace number 2; mode "default"
-            bindsym 3 move container to workspace number 3; mode "default"
-            bindsym 4 move container to workspace number 4; mode "default"
-            bindsym 5 move container to workspace number 5; mode "default"
-            bindsym 6 move container to workspace number 6; mode "default"
-            bindsym 7 move container to workspace number 7; mode "default"
-            bindsym 8 move container to workspace number 8; mode "default"
-            bindsym 9 move container to workspace number 9; mode "default"
-            
-            # Move container directionally (stay in mode)
-            bindsym Up move up
-            bindsym Down move down
-            bindsym Left move left
-            bindsym Right move right
-            
-            bindsym h move left
-            bindsym j move down
-            bindsym k move up
-            bindsym l move right
-            
-            # Swayr commands
-            bindsym s exec swayr steal-window; mode "default"
-            bindsym m exec swayr move-focused-to-workspace; mode "default"
-            
-            # Return to default mode
-            bindsym Return mode "default"
-            bindsym Escape mode "default"
-            bindsym ${swayModifier}+XF86TouchpadToggle mode "default"
-          }
 
           # SwayNC notification center keybindings
           bindsym ${swayModifier}+n exec swaync-client -t -sw
@@ -354,7 +316,7 @@ in
 
           # Screenshot
           bindsym ${swayModifier}+s exec grimshot copy area
-          bindsym ${swayModifier}+Shift+s exec screenshot-satty
+          bindsym ${swayModifier}+Alt+s exec screenshot-satty
 
           # for locking the screen (Hyper+L = Mod4+Shift+Control+Alt+L)
           bindsym ${swayModifier}+Shift+Control+Alt+l exec swaylock --color 000000 -fF
@@ -362,11 +324,11 @@ in
           # for suspending the system (Hyper+S = Mod4+Shift+Control+Alt+S)
           bindsym ${swayModifier}+Shift+Control+Alt+s exec ${pkgs.systemd}/bin/systemctl suspend
 
-          # for toggling single monitor mode 
+          # for toggling single monitor mode
           bindsym ${swayModifier}+Shift+Control+Alt+f exec single-monitor-mode
 
           # for turning monitors on and off
-          bindsym ${swayModifier}+Shift+o output * dpms off
+          bindsym ${swayModifier}+Alt+o output * dpms off
           bindsym ${swayModifier}+Control+Shift+o output * dpms on
 
           # Volume control keybindings

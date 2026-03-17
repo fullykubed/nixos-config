@@ -66,6 +66,14 @@ let
     ];
     text = builtins.readFile ./generate-host-key.sh;
   };
+  updateHostKey = pkgs.writeShellApplication {
+    name = "update-host-key";
+    runtimeInputs = [
+      pkgs.rage
+      pkgs.hostname
+    ];
+    text = builtins.readFile ./update-host-key.sh;
+  };
   ntScripts =
     builtins.map
       (
@@ -123,6 +131,7 @@ in
       listMachines
       flashInstaller
       generateHostKey
+      updateHostKey
     ]
     ++ ntScripts
     ++ self.checks.${system}.pre-commit-check.enabledPackages;

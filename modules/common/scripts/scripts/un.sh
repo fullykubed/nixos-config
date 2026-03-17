@@ -43,6 +43,7 @@ NixOS rebuild script with performance-optimized defaults.
 
 Options:
   -b, --boot            Rebuild boot configuration only
+  -t, --test            Test configuration without making it permanent
   -B, --builders N      Use N regular remote builders (0 to disable all, default: all configured)
   -P, --big-builders N  Use N big-parallel remote builders (default: all configured)
   -j, --jobs N          Set max concurrent derivation builds (default: 1)
@@ -68,6 +69,7 @@ Examples:
   $SCRIPT_NAME -B 3 -P 1     # Use 3 regular + 1 big-parallel builder
   $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
   $SCRIPT_NAME -s            # Stop on first failure for debugging
+  $SCRIPT_NAME -t            # Test config (activates but doesn't survive reboot)
   $SCRIPT_NAME -S            # Skip binary cache queries (faster with custom stdenv)
 EOF
 }
@@ -281,6 +283,7 @@ parse_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
       -b|--boot)       BOOT_MODE=true ;;
+      -t|--test)       TEST_MODE=true ;;
       -B|--builders)   shift; BUILDER_COUNT="$1" ;;
       -P|--big-builders) shift; BIG_BUILDER_COUNT="$1" ;;
       -j|--jobs)       shift; MAX_JOBS="$1" ;;
@@ -303,6 +306,9 @@ validate_options() {
   if [[ "$UPDATE_MODE" == true ]] && [[ "$OFFLINE_MODE" == true ]]; then
     error "Cannot update flake inputs in offline mode"
   fi
+  if [[ "$BOOT_MODE" == true ]] && [[ "$TEST_MODE" == true ]]; then
+    error "Cannot use --boot and --test together"
+  fi
 }
 
 # ------------------------------------------------------------------------------
@@ -312,6 +318,7 @@ validate_options() {
 main() {
   # Default values (performance-optimized)
   BOOT_MODE=false
+  TEST_MODE=false
   OFFLINE_MODE=false
   STOP_ON_ERROR=false
   NO_SUBSTITUTERS=false
@@ -362,7 +369,10 @@ main() {
 
   # Determine rebuild command
   local rebuild_cmd
-  if [[ "$BOOT_MODE" == true ]]; then
+  if [[ "$TEST_MODE" == true ]]; then
+    rebuild_cmd="test"
+    info "Testing configuration for: $hostname (will not survive reboot)"
+  elif [[ "$BOOT_MODE" == true ]]; then
     rebuild_cmd="boot"
     info "Rebuilding boot configuration for: $hostname"
   else

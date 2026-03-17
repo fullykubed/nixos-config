@@ -110,14 +110,20 @@ Examples:
 
 {\"type\": \"fix\", \"scope\": \"api\", \"description\": \"prevent race condition in cache invalidation\", \"body\": \"Multiple concurrent requests could read stale data when the cache was being refreshed. Add mutex lock around cache updates.\"}}"
 
-# Assemble user prompt
-user_prompt="${extra_context:+$extra_context
+# Write user prompt to a temp file to avoid CLI arg-parsing issues with
+# content that starts with dashes (e.g. PRD context headers)
+prompt_file=$(mktemp)
+trap 'rm -f "$prompt_file"' EXIT
 
-}Diff:
-$diff"
+{
+    if [[ -n "$extra_context" ]]; then
+        printf '%s\n\n' "$extra_context"
+    fi
+    printf 'Diff:\n%s\n' "$diff"
+} > "$prompt_file"
 
-# Call Claude
-if ! claude_response=$(claude-wrapper --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p "$user_prompt"); then
+# Call Claude (pipe prompt via stdin to bypass positional arg parsing entirely)
+if ! claude_response=$(claude-wrapper --system-prompt "$system_prompt" --output-format json --json-schema "$json_schema" --model sonnet --fallback-model haiku --no-session-persistence --tools "" --strict-mcp-config -p < "$prompt_file"); then
     echo "Error: Failed to generate commit message" >&2
     echo "Claude response: $claude_response" >&2
     exit 1

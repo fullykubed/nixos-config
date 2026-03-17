@@ -5,10 +5,6 @@
 }:
 
 {
-  # Use scudo memory allocator for improved security with better compatibility
-  # Options: "libc" (default), "graphene-hardened", "graphene-hardened-light", "scudo", "jemalloc", "mimalloc"
-  environment.memoryAllocator.provider = "graphene-hardened";
-
   # Get extra entropy since we disabled hardware entropy sources
   # Read more about why at the following URLs:
   # https://github.com/smuellerDD/jitterentropy-rngd/issues/27
@@ -296,14 +292,6 @@
   # Copies the EFI partition to a backup partition. This allows us to boot even if the first
   # drive becomes corrupted.
   system.activationScripts = {
-    secureboot-pki = lib.stringAfter [ "agenix" ] ''
-      mkdir -p /etc/secureboot/keys/{PK,KEK,db}
-      cp ${../../../secrets/secureboot-GUID} /etc/secureboot/GUID
-      cp ${../../../secrets/secureboot-pk.pem} /etc/secureboot/keys/PK/PK.pem
-      cp ${../../../secrets/secureboot-kek.pem} /etc/secureboot/keys/KEK/KEK.pem
-      cp ${../../../secrets/secureboot-db.pem} /etc/secureboot/keys/db/db.pem
-      chmod 644 /etc/secureboot/GUID /etc/secureboot/keys/*/*.pem
-    '';
     boot-sync.text = ''
       for dir in /boot[0-9]*; do
         [ "$dir" = "/boot1" ] && continue
@@ -341,11 +329,25 @@
     '';
   };
 
-  environment.systemPackages = with pkgs; [
-    tpm2-tools
-    tpm2-abrmd
-    efibootmgr
-    efitools
-    sbctl # secure boot key manager
-  ];
+  environment = {
+    # Use graphene-hardened memory allocator for improved security
+    # Options: "libc" (default), "graphene-hardened", "graphene-hardened-light", "scudo", "jemalloc", "mimalloc"
+    memoryAllocator.provider = "graphene-hardened";
+
+    # Secure Boot public certificates and GUID
+    etc = {
+      "secureboot/GUID".source = ../../../secrets/secureboot-GUID;
+      "secureboot/keys/PK/PK.pem".source = ../../../secrets/secureboot-pk.pem;
+      "secureboot/keys/KEK/KEK.pem".source = ../../../secrets/secureboot-kek.pem;
+      "secureboot/keys/db/db.pem".source = ../../../secrets/secureboot-db.pem;
+    };
+
+    systemPackages = with pkgs; [
+      tpm2-tools
+      tpm2-abrmd
+      efibootmgr
+      efitools
+      sbctl # secure boot key manager
+    ];
+  };
 }

@@ -121,12 +121,12 @@
             in
             nixpkgs.lib.nameValuePair "fullykubed-${name}" (mkNixosSystem {
               system = "x86_64-linux";
-              device-module = ./devices/${filename};
+              machine-module = ./machines/${filename};
             })
           )
           (
             nixpkgs.lib.filterAttrs (n: t: t == "regular" && nixpkgs.lib.hasSuffix ".nix" n) (
-              builtins.readDir ./devices
+              builtins.readDir ./machines
             )
           );
 

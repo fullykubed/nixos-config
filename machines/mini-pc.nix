@@ -14,6 +14,7 @@ in
   networking = {
     hostName = "fullykubed-mini-pc";
     hostId = "925bf177";
+    interfaces.enp87s0.useDHCP = true;
   };
 
   ######################################

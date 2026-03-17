@@ -1,5 +1,5 @@
 # NixOS system builder
-# Assembles a complete NixOS configuration from a device module and flake inputs
+# Assembles a complete NixOS configuration from a machine module and flake inputs
 {
   nixpkgs,
   nixpkgs-unstable,
@@ -16,7 +16,7 @@
   versions,
   cacheModule,
 }:
-{ system, device-module }:
+{ system, machine-module }:
 nixpkgs.lib.nixosSystem {
   inherit system;
   specialArgs = {
@@ -48,8 +48,8 @@ nixpkgs.lib.nixosSystem {
       ];
     })
 
-    # Load the device-specific module
-    device-module
+    # Load the machine-specific module
+    machine-module
 
     # Used for setting up secureboot (not yet upstreamed into NixOS)
     lanzaboote.nixosModules.lanzaboote

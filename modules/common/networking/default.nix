@@ -1,4 +1,6 @@
 _: {
+  imports = [ ./wifi.nix ];
+
   networking = {
     networkmanager = {
       enable = true;

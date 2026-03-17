@@ -10,19 +10,19 @@ Step-by-step guide for adding a new machine and installing NixOS using the custo
 
 ## Part 1: Prepare the Configuration (Existing Machine)
 
-### 1. Create the device file
+### 1. Create the machine file
 
-Copy an existing device config as a starting point:
+Copy an existing machine config as a starting point:
 
 ```bash
 # For a desktop
-cp devices/tower.nix devices/<machine-name>.nix
+cp machines/tower.nix machines/<machine-name>.nix
 
 # For a laptop
-cp devices/starfighter.nix devices/<machine-name>.nix
+cp machines/starfighter.nix machines/<machine-name>.nix
 ```
 
-Edit `devices/<machine-name>.nix` and adjust:
+Edit `machines/<machine-name>.nix` and adjust:
 
 | Section | What to change |
 |---------|---------------|
@@ -36,7 +36,7 @@ Edit `devices/<machine-name>.nix` and adjust:
 
 For laptops, omit `powerManagement.cpuFreqGovernor` — the `laptop.nix` module uses auto-cpufreq instead.
 
-The machine is automatically registered in `flake.nix` — any `.nix` file in `devices/` becomes a `fullykubed-<name>` nixosConfiguration.
+The machine is automatically registered in `flake.nix` — any `.nix` file in `machines/` becomes a `fullykubed-<name>` nixosConfiguration.
 
 ### 2. Generate a host key
 
@@ -85,7 +85,7 @@ Remove the USB drive and boot from the internal drive. Enter the ZFS passphrase 
 swaymsg -t get_outputs   # monitor output names and resolutions
 ```
 
-Update the `monitors` section in `devices/<machine-name>.nix` with the correct output names, resolutions, and positions. The installer warns if `cpuCount` doesn't match the actual hardware.
+Update the `monitors` section in `machines/<machine-name>.nix` with the correct output names, resolutions, and positions. The installer warns if `cpuCount` doesn't match the actual hardware.
 
 ### 8. Set up Secure Boot
 
@@ -118,6 +118,6 @@ systemctl --failed       # no failed services
 
 | Step | Where | What |
 |------|-------|------|
-| 1-3 | Existing machine | Create device config, generate host key (auto-rekeys), flash USB |
+| 1-3 | Existing machine | Create machine config, generate host key (auto-rekeys), flash USB |
 | 4-6 | New machine (installer USB) | Boot, run `install-machine`, reboot |
 | 7-10 | New machine (installed) | Verify monitors, Secure Boot, rebuild, verify |

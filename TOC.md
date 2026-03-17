@@ -14,7 +14,7 @@
 ## Directories
 
 - **modules/** - NixOS configuration modules split into shared common modules, hardware-specific utility modules, security patches, and shared utilities.
-- **devices/** - Per-machine hardware configurations defining monitors, CPU/GPU, storage, and kernel modules for each physical system.
+- **machines/** - Per-machine hardware configurations defining monitors, CPU/GPU, storage, and kernel modules for each physical system.
 - **docs/** - Documentation covering system commands, deployment, module/machine creation, secrets management, and remote builders.
 - **images/** - Hetzner Cloud disk image configurations for ephemeral remote build servers and the persistent binary cache server.
 - **lib/** - Extracted flake helper files including version pins, overlays, custom packages, and development shell configuration.

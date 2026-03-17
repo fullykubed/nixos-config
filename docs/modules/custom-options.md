@@ -1,6 +1,6 @@
 # Custom Options
 
-Modules can define options that device files set. This is the primary way to handle per-machine differences.
+Modules can define options that machine files set. This is the primary way to handle per-machine differences.
 
 ## Example
 
@@ -19,10 +19,10 @@ Modules can define options that device files set. This is the primary way to han
 }
 ```
 
-Device files then set the option:
+Machine files then set the option:
 
 ```nix
-# devices/tower.nix
+# machines/tower.nix
 {
   gpuVendor = "amd";
 }

@@ -25,7 +25,7 @@ The passphrase is case-sensitive and base64-encoded (includes uppercase, lowerca
 
 ### nixos-install fails
 
-Make sure the flake target name matches `networking.hostName` in the device file. The expected format is `fullykubed-<machine-name>`.
+Make sure the flake target name matches `networking.hostName` in the machine file. The expected format is `fullykubed-<machine-name>`.
 
 ## After First Boot
 
@@ -56,7 +56,7 @@ If they don't match, the host key on the target doesn't match the one used for r
 
 ```bash
 ip link show   # find the new name
-# Update devices/<machine-name>.nix, then rebuild
+# Update machines/<machine-name>.nix, then rebuild
 ./modules/common/scripts/scripts/un.sh
 ```
 

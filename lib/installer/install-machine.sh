@@ -116,7 +116,7 @@ DEVICE_NAME="${MACHINE#fullykubed-}"
 ACTUAL_CPUS=$(nproc)
 if [[ "$CPU_COUNT" != "$ACTUAL_CPUS" ]]; then
   echo -e "${RED}WARNING:${NC} cpuCount is set to ${CPU_COUNT} but this machine has ${ACTUAL_CPUS} threads."
-  echo "  Update cpuCount in devices/${DEVICE_NAME}.nix and rebuild."
+  echo "  Update cpuCount in machines/${DEVICE_NAME}.nix and rebuild."
 fi
 
 info "Installation complete!"
@@ -126,7 +126,7 @@ echo
 echo "  1. Reboot and remove the USB drive"
 echo "     Enter ZFS passphrase when prompted at boot"
 echo
-echo "  2. Verify hardware values in devices/${DEVICE_NAME}.nix:"
+echo "  2. Verify hardware values in machines/${DEVICE_NAME}.nix:"
 echo "     - monitors: swaymsg -t get_outputs (check output names and resolutions)"
 echo
 echo "  3. Set up Secure Boot:"

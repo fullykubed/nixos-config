@@ -6,15 +6,15 @@ NixOS desktop machines defined in a single flake, plus Hetzner Cloud disk images
 
 `flake.nix` calls `mkNixosSystem` (`lib/mk-nixos-system.nix`) once per machine. It wires all flake inputs together into a `nixpkgs.lib.nixosSystem` call with:
 
-1. **Device module** (`devices/*.nix`) -- sets hardware-specific values: filesystems, monitors, `cpuVendor`, `gpuVendor`, networking.
+1. **Machine module** (`machines/*.nix`) -- sets hardware-specific values: filesystems, monitors, `cpuVendor`, `gpuVendor`, networking.
 2. **Common modules** (`modules/default.nix`) -- modules imported unconditionally for every machine.
 3. **Flake-provided modules** -- Lanzaboote (Secure Boot), Stylix (theming), Home Manager, agenix (secrets), etc.
 
-All per-machine differentiation lives in the device module.
+All per-machine differentiation lives in the machine module.
 
 ## Key patterns
 
-**Custom options as the glue** -- `modules/common/global-options/` and individual modules define top-level options (`username`, `monitors`, `cpuVendor`, `cpuCount`, etc.). Device files set them; common modules consume them.
+**Custom options as the glue** -- `modules/common/global-options/` and individual modules define top-level options (`username`, `monitors`, `cpuVendor`, `cpuCount`, etc.). Machine files set them; common modules consume them.
 
 **Home Manager for user config** -- Home Manager is integrated via `modules/common/home-manager/`. User-level settings (shell aliases, program config, dotfiles) should go through `home-manager.users.${config.username}` rather than system-level options when possible. Most common modules already use this -- e.g. shell aliases in zsh, git config, SSH match blocks.
 
@@ -39,7 +39,7 @@ lib/
   nixpkgs-unstable.nix # Unstable channel as module argument
   versions.nix         # Pinned versions/hashes for custom packages
   devshell/            # nix develop shell with pre-commit hooks
-devices/               # Per-machine hardware config
+machines/              # Per-machine hardware config
 modules/
   default.nix          # Imports all common modules
   common/              # Shared modules (unconditional)
@@ -53,7 +53,7 @@ yubikeys/              # YubiKey public identities
 
 ## Further reading
 
-- [Installing a new machine](install/new-machine.md) -- end-to-end guide from device config to first boot
+- [Installing a new machine](install/new-machine.md) -- end-to-end guide from machine config to first boot
 - [Working with modules](modules/working-with-modules.md) -- organization, guidelines, and creating new modules
 - [Deployment](deployment.md) -- building and deploying system configurations
 - [Secrets](secrets.md) -- agenix secret management workflow

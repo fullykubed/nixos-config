@@ -5,5 +5,7 @@ useDefault = true
 description = "Allow known false positives"
 regexes = [
   # Public DNSCrypt minisign verification key (not a secret)
-  "minisign_key"
+  "minisign_key",
+  # Public DNSCrypt resolver list minisign verification key value
+  "RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3",
 ]
