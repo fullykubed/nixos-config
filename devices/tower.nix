@@ -1,15 +1,14 @@
-_:
-
+{ lib, ... }:
+let
+  disko = import ../lib/util/disko.nix;
+in
 {
 
   cpuVendor = "amd";
+  cpuCount = 32;
   gpuVendor = "amd";
+  deviceType = "desktop";
   disableWakeupTriggers = true;
-
-  # Enable thermal monitoring
-  environment.etc."sysconfig/lm_sensors".text = ''
-    HWMON_MODULES="k10temp nct6775 i2c-piix4 lm92"
-  '';
 
   ######################################
   ## Networking
@@ -17,7 +16,6 @@ _:
   networking = {
     hostName = "fullykubed-tower"; # Define your hostname.
     hostId = "925bf176";
-    interfaces.enp75s0.useDHCP = true;
   };
 
   ######################################
@@ -43,78 +41,45 @@ _:
   };
 
   ######################################
-  ## Boot Settings
+  ## Disk Layout (disko)
   ######################################
-  boot.zfs = {
-    requestEncryptionCredentials = [
-      "primary/nixos"
-    ];
-    # TODO: Re-evaluate this
-    forceImportAll = false;
-  };
-
-  ######################################
-  ## Filesystem
-  ######################################
-  fileSystems = {
-    "/" = {
-      device = "primary/nixos/root";
-      fsType = "zfs";
-    };
-
-    "/home" = {
-      device = "primary/nixos/home";
-      fsType = "zfs";
-    };
-
-    "/nix/store" = {
-      device = "primary/nixos/nix-store";
-      fsType = "zfs";
-    };
-
-    "/nix/var/nix/db" = {
-      device = "primary/nixos/nix-db";
-      fsType = "zfs";
-    };
-
-    "/tmp" = {
-      device = "primary/nixos/tmp";
-      fsType = "zfs";
-    };
-
-    # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
-    # us from booting.
-    "/boot" = {
-      device = "/dev/disk/by-uuid/3103-B6F3";
-      fsType = "vfat";
-      options = [ "nofail" ];
-    };
-
-    "/boot1" = {
-      device = "/dev/disk/by-uuid/3182-4B71";
-      fsType = "vfat";
-      options = [ "nofail" ];
+  # NOTE: Tower EFI migration required - one-time manual step:
+  #   Before this config will work, you must relabel the EFI partitions:
+  #   1. Boot into live USB
+  #   2. fatlabel /dev/disk/by-uuid/3103-B6F3 EFI_A
+  #   3. fatlabel /dev/disk/by-uuid/3182-4B71 EFI_B
+  #   4. Update fstab to use /boot1 and /boot2 mount points
+  #   5. Rebuild with this config
+  disko.devices.disk.main = {
+    type = "disk";
+    device = lib.mkDefault "/dev/nvme0n1";
+    content = {
+      type = "gpt";
+      partitions = {
+        boot1 = disko.mkBootPartition 1;
+        boot2 = disko.mkBootPartition 2;
+        swap1 = {
+          size = "16G";
+          content = {
+            type = "swap";
+            randomEncryption = true;
+          };
+        };
+        swap2 = {
+          size = "16G";
+          content = {
+            type = "swap";
+            randomEncryption = true;
+          };
+        };
+        zfs = {
+          size = "100%";
+          content = {
+            type = "zfs";
+            pool = "rpool";
+          };
+        };
+      };
     };
   };
-
-  # Again, "nofail" as these are not critical
-  swapDevices = [
-    {
-      device = "/dev/disk/by-partuuid/5c7ca6b5-ddd8-9442-b94e-e3eb55d8ca20";
-      randomEncryption = true;
-      options = [ "nofail" ];
-    }
-    {
-      device = "/dev/disk/by-partuuid/5ad84ba3-013c-084b-9685-02f979ac5dd0";
-      randomEncryption = true;
-      options = [ "nofail" ];
-    }
-  ];
-
-  ######################################
-  ## Misc Hardware Settings
-  ######################################
-  powerManagement.cpuFreqGovernor = "performance";
-
-  cpuCount = 32;
 }

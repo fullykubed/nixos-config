@@ -5,6 +5,7 @@
   nixpkgs-unstable,
   determinate,
   lanzaboote,
+  disko,
   stylix,
   home-manager,
   nix-index-database,
@@ -52,6 +53,9 @@ nixpkgs.lib.nixosSystem {
 
     # Used for setting up secureboot (not yet upstreamed into NixOS)
     lanzaboote.nixosModules.lanzaboote
+
+    # Declarative disk management
+    disko.nixosModules.disko
 
     # System-wide theming
     stylix.nixosModules.stylix

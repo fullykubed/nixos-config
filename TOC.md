@@ -18,6 +18,6 @@
 - **docs/** - Documentation covering system commands, deployment, module/machine creation, secrets management, and remote builders.
 - **images/** - Hetzner Cloud disk image configurations for ephemeral remote build servers and the persistent binary cache server.
 - **lib/** - Extracted flake helper files including version pins, overlays, custom packages, and development shell configuration.
-- **secrets/** - Agenix-encrypted secrets (SSH keys, API tokens) with per-machine rekeyed variants.
+- **secrets/** - Agenix-encrypted secrets (SSH keys, API tokens, Secure Boot keys) with per-machine rekeyed variants and Secure Boot public PKI files.
 - **yubikeys/** - Public key files for YubiKey hardware security tokens used for secret encryption.
 - **.claude/** - Claude Code AI configuration including hooks, settings, and skill definitions for CVE resolution.

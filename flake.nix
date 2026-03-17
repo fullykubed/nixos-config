@@ -23,6 +23,12 @@
       inputs.nixpkgs.follows = "nixpkgs-unstable";
     };
 
+    # Declarative disk management
+    disko = {
+      url = "github:nix-community/disko";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Home manager
     home-manager = {
       url = "https://flakehub.com/f/nix-community/home-manager/0.2511";
@@ -71,6 +77,7 @@
       home-manager,
       nixpkgs-unstable,
       lanzaboote,
+      disko,
       agenix,
       agenix-rekey,
       flake-utils,
@@ -92,6 +99,7 @@
           nixpkgs-unstable
           determinate
           lanzaboote
+          disko
           stylix
           home-manager
           nix-index-database
@@ -104,28 +112,49 @@
           ;
       };
 
+      machineConfigs =
+        nixpkgs.lib.mapAttrs'
+          (
+            filename: _:
+            let
+              name = nixpkgs.lib.removeSuffix ".nix" filename;
+            in
+            nixpkgs.lib.nameValuePair "fullykubed-${name}" (mkNixosSystem {
+              system = "x86_64-linux";
+              device-module = ./devices/${filename};
+            })
+          )
+          (
+            nixpkgs.lib.filterAttrs (n: t: t == "regular" && nixpkgs.lib.hasSuffix ".nix" n) (
+              builtins.readDir ./devices
+            )
+          );
+
+      mkInstaller =
+        targetMachine:
+        nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          specialArgs = { inherit self targetMachine; };
+          modules = [ ./lib/installer ];
+        };
+
     in
     {
-      nixosConfigurations = {
-        fullykubed-tower = mkNixosSystem {
-          system = "x86_64-linux";
-          device-module = ./devices/tower.nix;
-        };
-        fullykubed-mini-pc = mkNixosSystem {
-          system = "x86_64-linux";
-          device-module = ./devices/mini-pc.nix;
-        };
-      };
+      nixosConfigurations = machineConfigs;
 
       agenix-rekey = agenix-rekey.configure {
         userFlake = self;
-        inherit (self) nixosConfigurations;
+        nixosConfigurations = machineConfigs;
       };
 
       packages.x86_64-linux = {
         builder-image = import ./images/builder { inherit mkDiskImage niks3; };
         cache-image = import ./images/cache { inherit mkDiskImage niks3; };
-      };
+      }
+      // nixpkgs.lib.mapAttrs' (
+        name: _:
+        nixpkgs.lib.nameValuePair "installer-iso-${name}" (mkInstaller name).config.system.build.isoImage
+      ) machineConfigs;
 
       # Per-host package sets for building/comparing individual derivations:
       #   nix build .#fullykubed-tower.stable.k9s --no-link

@@ -37,6 +37,35 @@ let
     ];
     text = builtins.readFile ./check-bun-versions.sh;
   };
+  listMachines = pkgs.writeShellApplication {
+    name = "list-machines";
+    runtimeInputs = [ pkgs.jq ];
+    text = builtins.readFile ./list-machines.sh;
+  };
+  flashInstaller = pkgs.writeShellApplication {
+    name = "flash-installer";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.util-linux
+      pkgs.openssl
+      pkgs.rage
+      pkgs.pv
+      pkgs.dosfstools
+      listMachines
+    ];
+    text = builtins.readFile ./flash-installer.sh;
+  };
+  generateHostKey = pkgs.writeShellApplication {
+    name = "generate-host-key";
+    runtimeInputs = [
+      pkgs.jq
+      pkgs.rage
+      pkgs.openssh
+      pkgs.agenix-rekey
+      listMachines
+    ];
+    text = builtins.readFile ./generate-host-key.sh;
+  };
   ntScripts =
     builtins.map
       (
@@ -87,9 +116,13 @@ in
     packages = [
       nixfmt
       pkgs.agenix-rekey
+      pkgs.age
       pkgs.gitleaks
       pkgs.hcloud
       hcloud-upload-image
+      listMachines
+      flashInstaller
+      generateHostKey
     ]
     ++ ntScripts
     ++ self.checks.${system}.pre-commit-check.enabledPackages;

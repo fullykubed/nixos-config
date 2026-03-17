@@ -55,7 +55,11 @@ let
 in
 {
   boot = {
-    zfs.package = pkgs.zfs_2_4;
+    zfs = {
+      package = pkgs.zfs_2_4;
+      forceImportAll = false;
+      requestEncryptionCredentials = lib.mkDefault [ "rpool" ];
+    };
     kernelParams = [
       "nohibernate" # With ZFS we cannot hibernate (also poses a security issue due to RAM persistence)
       "zfs.zfs_max_recordsize=16777216" # Allow large 16M record sizes
@@ -72,6 +76,48 @@ in
   # ZFS support for podman
   virtualisation.podman = {
     extraPackages = [ config.boot.zfs.package ];
+  };
+
+  # Standard rpool layout — encryption at pool level, flat dataset names
+  disko.devices.zpool.rpool = {
+    type = "zpool";
+    rootFsOptions = {
+      mountpoint = "none";
+      compression = "zstd";
+      acltype = "posixacl";
+      xattr = "sa";
+      atime = "off";
+      encryption = "aes-256-gcm";
+      keyformat = "passphrase";
+      keylocation = "prompt";
+    };
+    datasets = {
+      "root" = {
+        type = "zfs_fs";
+        options.mountpoint = "legacy";
+        mountpoint = "/";
+      };
+      "home" = {
+        type = "zfs_fs";
+        options.mountpoint = "legacy";
+        mountpoint = "/home";
+      };
+      "nix" = {
+        type = "zfs_fs";
+        options.mountpoint = "legacy";
+        mountpoint = "/nix";
+      };
+      "var/log" = {
+        type = "zfs_fs";
+        options.mountpoint = "legacy";
+        mountpoint = "/var/log";
+      };
+      "tmp" = {
+        type = "zfs_fs";
+        options.mountpoint = "legacy";
+        mountpoint = "/tmp";
+      };
+    };
   };
 
   services.zfs = {

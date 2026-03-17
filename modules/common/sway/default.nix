@@ -92,6 +92,13 @@ in
   # Disable the login manager
   services.xserver.displayManager.lightdm.enable = false;
 
+  # Lid switch behavior (laptops only)
+  services.logind.settings.Login = lib.mkIf (config.deviceType == "laptop") {
+    HandleLidSwitch = "suspend";
+    HandleLidSwitchExternalPower = "ignore";
+    HandleLidSwitchDocked = "ignore";
+  };
+
   # Portals are the mechanism for sharing audio and video across applications
   xdg.portal = {
     enable = true;

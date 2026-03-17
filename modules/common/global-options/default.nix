@@ -16,6 +16,24 @@
       description = "The primary user's username on the system.";
     };
 
+    deviceType = mkOption {
+      type = types.enum [
+        "laptop"
+        "desktop"
+        "server"
+      ];
+      description = "The type of device — controls power management and other hardware-class defaults.";
+    };
+
+    firmwareType = mkOption {
+      type = types.enum [
+        "standard"
+        "coreboot"
+      ];
+      default = "standard";
+      description = "Firmware type — 'coreboot' enables fwupd and flashrom for coreboot-based firmware updates.";
+    };
+
     monitors = mkOption {
       default = { };
       type = types.attrsOf (

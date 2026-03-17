@@ -53,7 +53,7 @@ yubikeys/              # YubiKey public identities
 
 ## Further reading
 
-- [Adding machines](adding-machines.md) -- how to define a new device
+- [Installing a new machine](install/new-machine.md) -- end-to-end guide from device config to first boot
 - [Working with modules](modules/working-with-modules.md) -- organization, guidelines, and creating new modules
 - [Deployment](deployment.md) -- building and deploying system configurations
 - [Secrets](secrets.md) -- agenix secret management workflow

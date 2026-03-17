@@ -49,7 +49,7 @@ Personal [NixOS](https://nixos.org/) configuration for multiple machines using [
   - Parallel Nix evaluation with `eval-cores` and the `parallel-eval` experimental feature
   - Build isolation with cgroups
 - **Theming** - System-wide styling with [Stylix](https://github.com/danth/stylix)
-- **Storage** - [ZFS](https://openzfs.org/) filesystem with encryption and automated snapshots
+- **Storage** - [ZFS](https://openzfs.org/) filesystem with encryption and automated snapshots, declarative disk partitioning with [disko](https://github.com/nix-community/disko)
 
 ## Architecture
 

@@ -271,10 +271,74 @@
   # and performance, there usually isn't a need to disable this.
   zramSwap.enable = true;
 
+  # Shared Secure Boot PKI — private keys decrypted by agenix, public certs copied from repo
+  age.secrets = {
+    secureboot-pk-key = {
+      rekeyFile = ../../../secrets/secureboot-pk-key.age;
+      path = "/etc/secureboot/keys/PK/PK.key";
+      mode = "0400";
+      owner = "root";
+    };
+    secureboot-kek-key = {
+      rekeyFile = ../../../secrets/secureboot-kek-key.age;
+      path = "/etc/secureboot/keys/KEK/KEK.key";
+      mode = "0400";
+      owner = "root";
+    };
+    secureboot-db-key = {
+      rekeyFile = ../../../secrets/secureboot-db-key.age;
+      path = "/etc/secureboot/keys/db/db.key";
+      mode = "0400";
+      owner = "root";
+    };
+  };
+
   # Copies the EFI partition to a backup partition. This allows us to boot even if the first
   # drive becomes corrupted.
   system.activationScripts = {
-    boot-sync.text = "${pkgs.rsync}/bin/rsync -avq --delete /boot1/ /boot2/";
+    secureboot-pki = lib.stringAfter [ "agenix" ] ''
+      mkdir -p /etc/secureboot/keys/{PK,KEK,db}
+      cp ${../../../secrets/secureboot-GUID} /etc/secureboot/GUID
+      cp ${../../../secrets/secureboot-pk.pem} /etc/secureboot/keys/PK/PK.pem
+      cp ${../../../secrets/secureboot-kek.pem} /etc/secureboot/keys/KEK/KEK.pem
+      cp ${../../../secrets/secureboot-db.pem} /etc/secureboot/keys/db/db.pem
+      chmod 644 /etc/secureboot/GUID /etc/secureboot/keys/*/*.pem
+    '';
+    boot-sync.text = ''
+      for dir in /boot[0-9]*; do
+        [ "$dir" = "/boot1" ] && continue
+        ${pkgs.util-linux}/bin/mountpoint -q "$dir" && \
+          ${pkgs.rsync}/bin/rsync -avq --delete /boot1/ "$dir/"
+      done
+    '';
+  };
+
+  # Auto-enroll Secure Boot keys when UEFI firmware is in Setup Mode.
+  # After a fresh install, put the firmware in Setup Mode via BIOS and reboot —
+  # this service will enroll the keys automatically.
+  systemd.services.secureboot-enroll = {
+    description = "Enroll Secure Boot keys when firmware is in Setup Mode";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+    };
+    path = with pkgs; [
+      sbctl
+      jq
+    ];
+    script = ''
+      setup_mode=$(sbctl status --json | jq -r '.setup_mode')
+      if [[ "$setup_mode" != "true" ]]; then
+        echo "Setup Mode not active, skipping key enrollment"
+        exit 0
+      fi
+
+      echo "Setup Mode detected — enrolling Secure Boot keys..."
+      sbctl enroll-keys
+      echo "Keys enrolled. Secure Boot will be active on next reboot."
+    '';
   };
 
   environment.systemPackages = with pkgs; [

@@ -1,21 +1,19 @@
-_:
-
+{ lib, ... }:
+let
+  disko = import ../lib/util/disko.nix;
+in
 {
 
   cpuVendor = "intel";
-
-  # Enable thermal monitoring
-  environment.etc."sysconfig/lm_sensors".text = ''
-    HWMON_MODULES="k10temp nct6775 i2c-piix4 lm92"
-  '';
+  cpuCount = 16;
+  deviceType = "desktop";
 
   ######################################
   ## Networking
   ######################################
   networking = {
-    hostName = "fullykubed-mini-pc"; # Define your hostname.
+    hostName = "fullykubed-mini-pc";
     hostId = "925bf177";
-    interfaces.enp87s0.useDHCP = true;
   };
 
   ######################################
@@ -41,67 +39,45 @@ _:
   };
 
   ######################################
-  ## Boot Settings
-  ######################################
-  boot.zfs = {
-    requestEncryptionCredentials = [
-      "rpool"
-    ];
-    # TODO: Re-evaluate this
-    forceImportAll = false;
-  };
-
-  ######################################
   ## Filesystem
   ######################################
-  fileSystems = {
-    "/" = {
-      device = "rpool/root";
-      fsType = "zfs";
+  # Two NVMe drives in a ZFS mirror, each with its own EFI partition.
+  # No swap partitions — uses zram.
+  disko.devices = {
+    disk.nvme0 = {
+      type = "disk";
+      device = lib.mkDefault "/dev/nvme0n1";
+      content = {
+        type = "gpt";
+        partitions = {
+          boot = disko.mkBootPartition 1;
+          zfs = {
+            size = "100%";
+            content = {
+              type = "zfs";
+              pool = "rpool";
+            };
+          };
+        };
+      };
     };
-
-    "/home" = {
-      device = "rpool/home";
-      fsType = "zfs";
+    disk.nvme1 = {
+      type = "disk";
+      device = lib.mkDefault "/dev/nvme1n1";
+      content = {
+        type = "gpt";
+        partitions = {
+          boot = disko.mkBootPartition 2;
+          zfs = {
+            size = "100%";
+            content = {
+              type = "zfs";
+              pool = "rpool";
+            };
+          };
+        };
+      };
     };
-
-    "/nix" = {
-      device = "rpool/nix";
-      fsType = "zfs";
-    };
-
-    "/var/log" = {
-      device = "rpool/var/log";
-      fsType = "zfs";
-    };
-
-    "/tmp" = {
-      device = "rpool/tmp";
-      fsType = "zfs";
-    };
-
-    # We set "nofail" for the boot drives, b/c we don't want a drive failure to prevent
-    # us from booting.
-    "/boot1" = {
-      device = "/dev/disk/by-label/EFI_A";
-      fsType = "vfat";
-      options = [ "nofail" ];
-    };
-
-    "/boot2" = {
-      device = "/dev/disk/by-label/EFI_B";
-      fsType = "vfat";
-      options = [ "nofail" ];
-    };
+    zpool.rpool.mode = "mirror";
   };
-
-  ######################################
-  ## Misc Hardware Settings
-  ######################################
-  powerManagement.cpuFreqGovernor = "performance";
-
-  ######################################
-  ## CPU Configuration
-  ######################################
-  cpuCount = 16;
 }

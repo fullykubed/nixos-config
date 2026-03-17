@@ -59,6 +59,9 @@
     ./common/btop
     ./common/away-notify
     ./common/cpu
+    ./common/firmware
+    ./common/touchpad
+    ./common/backlight
     ./common/gpu
     ./common/wakeup
     ./common/hetzner
