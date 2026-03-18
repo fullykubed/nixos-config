@@ -4,6 +4,7 @@
  */
 
 import { existsSync } from "fs";
+
 import { connectToServer } from "./client";
 
 /**
@@ -31,7 +32,7 @@ export async function startServer(sessionId: string): Promise<void> {
   }
 
   const serverPath = import.meta.dir + "/server.ts";
-  const proc = Bun.spawn({
+  Bun.spawn({
     cmd: ["bun", "run", serverPath, sessionId],
     stdout: "inherit",
     stderr: "inherit",
@@ -65,7 +66,7 @@ export async function stopServer(sessionId: string): Promise<void> {
 
   try {
     const client = await connectToServer(sessionId);
-    await client.send({ method: "shutdown", params: {}, id: 1 });
+    await client.send({ method: "shutdown", params: {} });
     client.close();
   } catch (error) {
     console.error("Error sending shutdown signal:", error);

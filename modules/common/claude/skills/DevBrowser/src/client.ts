@@ -2,14 +2,21 @@
  * Socket client for communicating with dev-browser server
  */
 
-import type { JsonRpcRequest, JsonRpcResponse } from "./types";
 import { getSocketPath } from "./session";
+import type { JsonRpcRequest, JsonRpcResponse } from "./types";
+
+/**
+ * Socket data used to back-reference the DevBrowserClient instance
+ */
+interface ClientSocketData {
+  client: DevBrowserClient;
+}
 
 /**
  * Client for sending commands to dev-browser server
  */
 export class DevBrowserClient {
-  private socket: ReturnType<typeof Bun.connect>;
+  private socket: Bun.Socket<ClientSocketData>;
   private messageBuffer: string = "";
   private pendingResponses: Map<
     number,
@@ -20,7 +27,7 @@ export class DevBrowserClient {
   > = new Map();
   private nextId = 1;
 
-  constructor(socket: ReturnType<typeof Bun.connect>) {
+  constructor(socket: Bun.Socket<ClientSocketData>) {
     this.socket = socket;
   }
 
@@ -42,14 +49,14 @@ export class DevBrowserClient {
   /**
    * Handle incoming data from server
    */
-  private handleData(data: Buffer) {
+  handleData(data: Buffer) {
     // Append to buffer
     this.messageBuffer += data.toString();
 
     // Process all complete messages (newline-delimited)
     const lines = this.messageBuffer.split("\n");
     // Keep the last incomplete line in the buffer
-    this.messageBuffer = lines.pop() || "";
+    this.messageBuffer = lines.pop() ?? "";
 
     // Process each complete line
     for (const line of lines) {
@@ -64,11 +71,11 @@ export class DevBrowserClient {
    */
   private handleMessage(message: string) {
     try {
-      const response: JsonRpcResponse = JSON.parse(message);
+      const response = JSON.parse(message) as JsonRpcResponse;
 
       const pending = this.pendingResponses.get(response.id);
       if (!pending) {
-        console.error(`Received response for unknown request ID: ${response.id}`);
+        console.error(`Received response for unknown request ID: ${String(response.id)}`);
         return;
       }
 
@@ -101,24 +108,21 @@ export async function connectToServer(
   const socketPath = getSocketPath(sessionId);
 
   return new Promise((resolve, reject) => {
-    const socket = Bun.connect({
+    void Bun.connect<ClientSocketData>({
       unix: socketPath,
       socket: {
         data(socket, data) {
-          // Forward data to client instance
-          const client = (socket as any).client as DevBrowserClient;
-          client["handleData"](data);
+          socket.data.client.handleData(data);
         },
         open(socket) {
           const client = new DevBrowserClient(socket);
-          // Store client instance on socket for data handler
-          (socket as any).client = client;
+          socket.data = { client };
           resolve(client);
         },
-        error(socket, error) {
+        error(_socket, error) {
           reject(error);
         },
-        close(socket) {
+        close(_socket) {
           // Connection closed
         },
       },

@@ -2,16 +2,17 @@
  * Unix socket server for dev-browser IPC
  */
 
+import { unlink } from "node:fs/promises";
+
+import type { Socket } from "bun";
+
+import type { IdleTimeout } from "./timeout";
 import type {
-  JsonRpcRequest,
-  JsonRpcResponse,
-  JsonRpcSuccessResponse,
   JsonRpcErrorResponse,
+  JsonRpcRequest,
+  JsonRpcSuccessResponse,
   RpcHandler,
 } from "./types";
-import type { IdleTimeout } from "./timeout";
-import { unlink } from "node:fs/promises";
-import type { ServerWebSocket } from "bun";
 
 /**
  * Socket connection data tracker for partial message buffering
@@ -67,21 +68,21 @@ export function createSocketServer(
         // Process all complete messages (newline-delimited)
         const lines = socket.data.buffer.split("\n");
         // Keep the last incomplete line in the buffer
-        socket.data.buffer = lines.pop() || "";
+        socket.data.buffer = lines.pop() ?? "";
 
         // Process each complete line
         for (const line of lines) {
           if (line.trim()) {
-            handleMessage(socket, line, handlers);
+            void handleMessage(socket, line, handlers);
           }
         }
       },
 
-      close(socket) {
+      close(_socket) {
         console.log("Client disconnected");
       },
 
-      error(socket, error) {
+      error(_socket, error) {
         console.error("Socket error:", error);
       },
     },
@@ -94,16 +95,16 @@ export function createSocketServer(
  * Handles a single JSON-RPC message
  */
 async function handleMessage(
-  socket: ServerWebSocket<SocketData>,
+  socket: Socket<SocketData>,
   message: string,
   handlers: Map<string, RpcHandler>
 ) {
-  let request: JsonRpcRequest;
+  let parsed: unknown;
 
   // Parse JSON
   try {
-    request = JSON.parse(message);
-  } catch (error) {
+    parsed = JSON.parse(message) as unknown;
+  } catch {
     const response: JsonRpcErrorResponse = {
       error: {
         code: RPC_ERROR_CODES.PARSE_ERROR,
@@ -117,21 +118,32 @@ async function handleMessage(
 
   // Validate request format
   if (
-    typeof request !== "object" ||
-    request === null ||
-    typeof request.method !== "string" ||
-    typeof request.id !== "number"
+    typeof parsed !== "object" ||
+    parsed === null ||
+    !("method" in parsed) ||
+    typeof (parsed as { method: unknown }).method !== "string" ||
+    !("id" in parsed) ||
+    typeof (parsed as { id: unknown }).id !== "number"
   ) {
+    const id =
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "id" in parsed &&
+      typeof (parsed as { id: unknown }).id === "number"
+        ? (parsed as { id: number }).id
+        : 0;
     const response: JsonRpcErrorResponse = {
       error: {
         code: RPC_ERROR_CODES.INVALID_REQUEST,
         message: "Invalid Request: Missing required fields",
       },
-      id: request?.id ?? 0,
+      id,
     };
     socket.write(JSON.stringify(response) + "\n");
     return;
   }
+
+  const request = parsed as JsonRpcRequest;
 
   // Check if method exists
   const handler = handlers.get(request.method);
@@ -177,7 +189,7 @@ export async function cleanupSocket(socketPath: string) {
   } catch (error) {
     // Ignore error if file doesn't exist
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-      console.error(`Failed to remove socket file: ${error}`);
+      console.error(`Failed to remove socket file: ${String(error)}`);
     }
   }
 }

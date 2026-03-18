@@ -1,9 +1,10 @@
 import * as net from "node:net";
 import * as tls from "node:tls";
+
 import type { Config, CredentialMapping } from "./config";
-import { getDomainCert } from "./tls-manager";
 import { injectCredentials } from "./credential-injector";
 import * as log from "./logger";
+import { getDomainCert } from "./tls-manager";
 
 function parseHostPort(target: string): { host: string; port: number } {
   const colon = target.lastIndexOf(":");

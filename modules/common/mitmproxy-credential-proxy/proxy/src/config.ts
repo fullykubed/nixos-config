@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+
 import * as log from "./logger";
 
 export interface CredentialMapping {
@@ -21,7 +22,7 @@ export function loadConfig(): Config {
 
   try {
     const raw = readFileSync(configPath, "utf-8");
-    const mappings: CredentialMapping[] = JSON.parse(raw);
+    const mappings = JSON.parse(raw) as CredentialMapping[];
     const domainMap = new Map<string, CredentialMapping>();
     for (const m of mappings) {
       domainMap.set(m.domain, m);

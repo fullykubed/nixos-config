@@ -31,6 +31,11 @@ case "$FILE_PATH" in
     { "$CLAUDE_PROJECT_DIR/lib/devshell/check-bun-versions.sh" >"$TMPDIR/check-bun-versions" 2>&1 || echo "check-bun-versions" >>"$TMPDIR/failed"; } &
     { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
     ;;
+  *.ts | *.tsx)
+    { "$(dirname "$0")/typecheck.sh" "$FILE_PATH" >"$TMPDIR/tsc" 2>&1 || echo "tsc" >>"$TMPDIR/failed"; } &
+    { "$(dirname "$0")/eslint.sh" "$FILE_PATH" >"$TMPDIR/eslint" 2>&1 || echo "eslint" >>"$TMPDIR/failed"; } &
+    { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
+    ;;
   *.sh | *.bash)
     { shellcheck "$FILE_PATH" >"$TMPDIR/shellcheck" 2>&1 || echo "shellcheck" >>"$TMPDIR/failed"; } &
     { grep -nw 'jq' "$FILE_PATH" | grep -vE '^[0-9]+:[[:space:]]*#' >"$TMPDIR/no-jq" 2>&1 && echo "no-jq" >>"$TMPDIR/failed"; } &
@@ -83,6 +88,12 @@ while read -r tool; do
     git-untracked)
       ERRORS+="File is not tracked by git: $FILE_PATH"$'\n'
       ERRORS+="Nix flake builds only see git-tracked files. Run: git add \"$FILE_PATH\""$'\n'
+      ;;
+    tsc)
+      ERRORS+="$(cat "$TMPDIR/tsc")"$'\n'
+      ;;
+    eslint)
+      ERRORS+="$(cat "$TMPDIR/eslint")"$'\n'
       ;;
   esac
 done <"$TMPDIR/failed"

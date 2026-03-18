@@ -1,7 +1,7 @@
 import { loadConfig } from "./config";
-import { initCA } from "./tls-manager";
-import { createProxyServer } from "./proxy-server";
 import * as log from "./logger";
+import { createProxyServer } from "./proxy-server";
+import { initCA } from "./tls-manager";
 
 const LISTEN_HOST = "127.0.0.1";
 const LISTEN_PORT = 8080;

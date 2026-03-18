@@ -2,9 +2,9 @@
  * Browser management using Playwright with persistent context
  */
 
-import { chromium, type BrowserContext, type Page } from "playwright";
 import { homedir } from "os";
 import { join } from "path";
+import { type BrowserContext, chromium, type Page } from "playwright";
 
 /**
  * Manages a persistent Playwright browser instance
@@ -51,56 +51,56 @@ export class BrowserManager {
    * Navigate to a URL and return page information
    */
   async navigate(url: string): Promise<{ url: string; title: string }> {
-    await this.ensurePage();
-    await this.page!.goto(url, { waitUntil: "domcontentloaded" });
-    return { url: this.page!.url(), title: await this.page!.title() };
+    const page = await this.ensurePage();
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    return { url: page.url(), title: await page.title() };
   }
 
   /**
    * Click an element by selector
    */
   async click(selector: string): Promise<void> {
-    await this.ensurePage();
-    await this.page!.click(selector);
+    const page = await this.ensurePage();
+    await page.click(selector);
   }
 
   /**
    * Type text into an element
    */
   async type(selector: string, text: string): Promise<void> {
-    await this.ensurePage();
-    await this.page!.fill(selector, text);
+    const page = await this.ensurePage();
+    await page.fill(selector, text);
   }
 
   /**
    * Evaluate JavaScript in the page
    */
   async evaluate(script: string): Promise<unknown> {
-    await this.ensurePage();
-    return this.page!.evaluate(script);
+    const page = await this.ensurePage();
+    return page.evaluate(script);
   }
 
   /**
    * Wait for a selector to appear
    */
   async waitForSelector(selector: string, timeout = 30000): Promise<void> {
-    await this.ensurePage();
-    await this.page!.waitForSelector(selector, { timeout });
+    const page = await this.ensurePage();
+    await page.waitForSelector(selector, { timeout });
   }
 
   /**
    * Take a screenshot of the current page
    */
   async screenshot(path?: string): Promise<{ data?: string; path?: string }> {
-    await this.ensurePage();
+    const page = await this.ensurePage();
 
     if (path) {
       // Save to file
-      await this.page!.screenshot({ path, fullPage: false });
+      await page.screenshot({ path, fullPage: false });
       return { path };
     } else {
       // Return base64
-      const buffer = await this.page!.screenshot({ fullPage: false });
+      const buffer = await page.screenshot({ fullPage: false });
       return { data: buffer.toString("base64") };
     }
   }
@@ -136,7 +136,7 @@ export class BrowserManager {
   /**
    * Ensure page is ready, restart if crashed
    */
-  private async ensurePage(): Promise<void> {
+  private async ensurePage(): Promise<Page> {
     if (!this.page) {
       if (!this.context) {
         throw new Error("Browser not initialized");
@@ -144,5 +144,6 @@ export class BrowserManager {
       console.log("Page was crashed, creating new page");
       this.page = await this.context.newPage();
     }
+    return this.page;
   }
 }

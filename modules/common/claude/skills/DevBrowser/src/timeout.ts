@@ -29,7 +29,7 @@ export class IdleTimeout {
     this.intervalId = setInterval(() => {
       const elapsed = Date.now() - this.lastActivity;
       if (elapsed >= this.timeoutMs) {
-        console.log(`Idle timeout reached (${this.timeoutMs}ms), shutting down`);
+        console.log(`Idle timeout reached (${String(this.timeoutMs)}ms), shutting down`);
         this.stop();
         this.onTimeout();
       }

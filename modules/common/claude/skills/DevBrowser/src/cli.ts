@@ -4,18 +4,18 @@
  * dev-browser CLI - command-line interface for browser automation
  */
 
-import { startServer, stopServer, isServerRunning } from "./session";
 import { connectToServer } from "./client";
 import {
-  navigate,
   click,
-  type as typeCommand,
-  screenshot,
   evaluate,
-  wait,
+  navigate,
+  screenshot,
   snapshot,
   status,
+  type as typeCommand,
+  wait,
 } from "./commands";
+import { isServerRunning,startServer, stopServer } from "./session";
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
@@ -25,7 +25,7 @@ const command = args[0];
 let sessionId = crypto.randomUUID();
 const sessionIdx = args.indexOf("--session");
 if (sessionIdx !== -1 && args[sessionIdx + 1]) {
-  sessionId = args[sessionIdx + 1];
+  sessionId = args[sessionIdx + 1] as ReturnType<typeof crypto.randomUUID>;
 }
 
 /**
@@ -60,7 +60,7 @@ async function main() {
       await stopServer(sessionId);
       break;
 
-    default:
+    default: {
       // Auto-start server if not running for other commands
       if (!isServerRunning(sessionId)) {
         console.log("Server not running, auto-starting...");
@@ -142,10 +142,12 @@ async function main() {
       } finally {
         client.close();
       }
+      break;
+    }
   }
 }
 
-main().catch((error) => {
-  console.error("Error:", error.message);
+main().catch((error: unknown) => {
+  console.error("Error:", error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

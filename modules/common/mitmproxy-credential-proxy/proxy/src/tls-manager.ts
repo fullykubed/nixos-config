@@ -1,5 +1,7 @@
+import { existsSync, mkdirSync,readFileSync, writeFileSync } from "node:fs";
+
 import forge from "node-forge";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+
 import * as log from "./logger";
 
 interface CachedCert {
@@ -8,7 +10,7 @@ interface CachedCert {
 }
 
 let caCert: forge.pki.Certificate;
-let caKey: forge.pki.PrivateKey;
+let caKey: forge.pki.rsa.PrivateKey;
 const certCache = new Map<string, CachedCert>();
 
 export function initCA(stateDir: string): void {

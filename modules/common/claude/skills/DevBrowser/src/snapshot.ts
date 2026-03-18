@@ -83,7 +83,7 @@ const interactiveRoles = new Set([
 export async function generateSnapshot(page: Page): Promise<SnapshotResult> {
   const url = page.url();
   const title = await page.title();
-  const tree = await page.accessibility.snapshot();
+  const tree = await (page as unknown as { accessibility: { snapshot(): Promise<AccessibilityNode | null> } }).accessibility.snapshot();
 
   if (!tree) {
     return {
@@ -118,7 +118,7 @@ export async function generateSnapshot(page: Page): Promise<SnapshotResult> {
     // Assign locator to interactive elements
     if (interactiveRoles.has(node.role)) {
       locatorCounter++;
-      element.locator = `@e${locatorCounter}`;
+      element.locator = `@e${String(locatorCounter)}`;
       locatorMap.set(element.locator, node.name || node.role);
     }
 

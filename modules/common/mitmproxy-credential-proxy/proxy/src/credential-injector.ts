@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+
 import type { CredentialMapping } from "./config";
 import * as log from "./logger";
 
@@ -35,7 +36,7 @@ export function injectCredentials(
   } catch (e) {
     log.error(
       `Failed to read secret for ${mapping.domain} from ${mapping.secret_path} — ` +
-      `requests to this domain will not be authenticated: ${e instanceof Error ? e.message : e}`,
+      `requests to this domain will not be authenticated: ${e instanceof Error ? e.message : String(e)}`,
     );
     return rawRequest;
   }

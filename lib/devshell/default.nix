@@ -105,6 +105,19 @@ let
         "nt-check"
         "nt-hosts"
       ];
+  checkBunTypecheck = pkgs.writeShellApplication {
+    name = "check-bun-typecheck";
+    runtimeInputs = [
+      pkgs.bun
+      pkgs.typescript
+    ];
+    text = builtins.readFile ./check-bun-typecheck.sh;
+  };
+  checkBunEslint = pkgs.writeShellApplication {
+    name = "check-bun-eslint";
+    runtimeInputs = [ pkgs.bun ];
+    text = builtins.readFile ./check-bun-eslint.sh;
+  };
 in
 {
   checks = {
@@ -126,6 +139,20 @@ in
           entry = "${checkBunVersions}/bin/check-bun-versions";
           files = "package\\.json$";
           pass_filenames = false;
+        };
+        check-bun-typecheck = {
+          enable = true;
+          name = "check-bun-typecheck";
+          entry = "${checkBunTypecheck}/bin/check-bun-typecheck";
+          files = "\\.(ts|tsx)$";
+          pass_filenames = true;
+        };
+        check-bun-eslint = {
+          enable = true;
+          name = "check-bun-eslint";
+          entry = "${checkBunEslint}/bin/check-bun-eslint";
+          files = "\\.(ts|tsx)$";
+          pass_filenames = true;
         };
       };
     };
