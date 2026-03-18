@@ -110,6 +110,8 @@ agenix rekey
 secrets/
 ├── *.age              # Age-encrypted secret files
 ├── *.pub              # Corresponding public keys (where applicable)
+├── machines/          # Per-machine secrets (host keys, syncthing keys, etc.)
+│   └── <hostname>/
 └── rekeyed/           # Per-machine rekeyed secrets
     ├── jack-desktop/
     ├── jack-mini-pc/

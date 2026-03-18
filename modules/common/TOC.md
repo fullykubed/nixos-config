@@ -56,7 +56,7 @@
 - **file-explorer/** - Sets up Thunar GUI file manager and Ranger terminal file manager with custom configuration.
 - **image-viewer/** - Configures swayimg as the default Wayland-native image viewer.
 - **pdf/** - Sets up Okular as the default PDF viewer and editor.
-- **syncthing/** - File synchronization service across multiple devices (phones, laptops, desktops).
+- **syncthing/** - Thin wrapper that imports the utility syncthing module, wires global options (username, homeDir) into it, and declares agenix secrets for the host's Syncthing key and certificate.
 
 ## Communication
 

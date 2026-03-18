@@ -74,6 +74,18 @@ let
     ];
     text = builtins.readFile ./update-host-key.sh;
   };
+  generateSyncthingKey = pkgs.writeShellApplication {
+    name = "generate-syncthing-key";
+    runtimeInputs = [
+      pkgs.syncthing
+      pkgs.jq
+      pkgs.rage
+      pkgs.gnugrep
+      pkgs.agenix-rekey
+      listMachines
+    ];
+    text = builtins.readFile ./generate-syncthing-key.sh;
+  };
   ntScripts =
     builtins.map
       (
@@ -132,6 +144,7 @@ in
       flashInstaller
       generateHostKey
       updateHostKey
+      generateSyncthingKey
     ]
     ++ ntScripts
     ++ self.checks.${system}.pre-commit-check.enabledPackages;
