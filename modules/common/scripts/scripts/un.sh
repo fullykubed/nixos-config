@@ -57,6 +57,7 @@ Options:
 Options to disable defaults:
   --no-impure, --copy  Copy config to $NIXOS_CONFIG_DIR instead of building directly
   --no-nom             Disable nix-output-monitor
+  --no-notify          Don't send push notification on build failure
 
 Defaults (for speed):
   - Impure mode is ON: builds directly from repo without copying
@@ -297,6 +298,7 @@ parse_args() {
       --no-impure|--copy) IMPURE_MODE=false ;;
       -n|--nom)        USE_NOM=true ;;
       --no-nom)        USE_NOM=false ;;
+      --no-notify)     NOTIFY_ON_FAILURE=false ;;
       -h|--help)       show_help; exit 0 ;;
       *)               error "Unknown option: $1. Run '$SCRIPT_NAME --help' for usage." ;;
     esac
@@ -333,6 +335,7 @@ main() {
   UPDATE_MODE=false
   IMPURE_MODE=true
   USE_NOM=true
+  NOTIFY_ON_FAILURE=true
   MAX_JOBS="1"
   BUILDER_COUNT=""      # Empty = use all configured builders
   BIG_BUILDER_COUNT=""  # Empty = use all configured big builders
@@ -458,6 +461,11 @@ main() {
   local rebuild_flags=(--accept-flake-config)
   if [[ "$BOOT_MODE" == false ]] && [[ "$UPDATE_MODE" == false ]] && [[ "$OFFLINE_MODE" == false ]]; then
     rebuild_flags+=(--no-reexec)
+  fi
+
+  # Notify on failure (unless disabled)
+  if [[ "$NOTIFY_ON_FAILURE" == true ]] && command -v notify-if-away &>/dev/null; then
+    trap 'ec=$?; if [[ $ec -ne 0 ]]; then notify-if-away "Build Failed" "un $rebuild_cmd failed on $hostname (exit $ec)" || true; fi' EXIT
   fi
 
   # Execute rebuild
