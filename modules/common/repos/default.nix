@@ -96,9 +96,11 @@ let
           export GIT_WORK_TREE="$PWD/${repo.branch}"
         fi
       '';
-      onChange = "${pkgs.direnv}/bin/direnv allow ${reposBase}/${repo.path}/.envrc";
     }
   ) repos;
+
+  # Whitelist repo .envrc paths so direnv trusts them without manual approval
+  direnvWhitelist = lib.mapAttrsToList (_: repo: "${reposBase}/${repo.path}/.envrc") repos;
 
   # .workmux.yaml in the default branch directory
   workmuxFiles = lib.mapAttrs' (
@@ -219,6 +221,8 @@ in
           };
         };
       };
+
+      programs.direnv.config.whitelist.exact = direnvWhitelist;
 
       systemd.user.services = perRepoFetchServices;
       systemd.user.timers = perRepoFetchTimers;
