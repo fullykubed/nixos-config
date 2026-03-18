@@ -283,6 +283,7 @@
       claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
       claudeGitHub = pkgs.callPackage ./skills/GitHub { };
       claudeGit = pkgs.callPackage ./skills/Git { };
+      claudeTempScript = import ./skills/TempScript { };
     in
     {
       home-manager.users.${config.username} = {
@@ -392,7 +393,8 @@
         // claudeSurprises.homeFiles
         // claudeKeePassXC.homeFiles
         // claudeGitHub.homeFiles
-        // claudeGit.homeFiles;
+        // claudeGit.homeFiles
+        // claudeTempScript.homeFiles;
 
       };
 

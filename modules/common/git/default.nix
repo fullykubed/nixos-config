@@ -98,6 +98,7 @@ in
 
         ignores = [
           ".claude/prds/" # Ignore Claude Code PRD files in all repos
+          ".claude/tmp/" # Ignore Claude Code temp scripts in all repos
           ".claude/settings.local.json" # Ignore local Claude Code settings
         ];
 
