@@ -121,7 +121,7 @@ stop_spinner() {
 }
 
 # Remote script that collects all builder metrics in a single SSH call.
-# Outputs pipe-delimited: builds|cpu%|mem_used_kb|mem_total_kb|disk_read_sectors|disk_write_sectors|disk_total_kb|disk_used_kb|disk_pct|ssh_sessions|tunnel_status|queue_pending|queue_done|idle_count
+# Outputs pipe-delimited: builds|cpu%|mem_used_kb|mem_total_kb|disk_read_sectors|disk_write_sectors|disk_total_kb|disk_used_kb|disk_pct|ssh_sessions|tunnel_status|queue_pending|queue_done|idle_count|ccache_hits|ccache_misses|ccache_size_kb
 # Disk sectors are cumulative counters; the dashboard computes rates from deltas between refreshes.
 read -r -d '' REMOTE_STATS_CMD << 'STATSEOF' || true
 b=$(ps -eo user= 2>/dev/null | sort -u | grep -c '^nixbld' || true); b=${b:-0}
@@ -150,7 +150,22 @@ tun=$(systemctl is-active cache-tunnel.service 2>/dev/null || echo "dead")
 pq=$(find /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
 dq=$(find /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
 ic=$(cat /var/lib/inactivity-monitor/idle-count 2>/dev/null || echo 0)
-printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' "$b" "$cpu" "$mu" "$mt" "$dr" "$dw" "$dst" "$dsu" "$dsp" "$ss" "$tun" "$pq" "$dq" "$ic"
+ch=0; cm_cc=0; csz=0
+if command -v ccache >/dev/null 2>&1; then
+  cstats=$(ccache -d /var/cache/ccache --print-stats 2>/dev/null) || cstats=""
+  if [ -n "$cstats" ]; then
+    dh=$(echo "$cstats" | awk -F'\t' '/^direct_cache_hit/{print $2}')
+    ph=$(echo "$cstats" | awk -F'\t' '/^preprocessed_cache_hit/{print $2}')
+    cm_cc=$(echo "$cstats" | awk -F'\t' '/^cache_miss/{print $2}')
+    csz=$(echo "$cstats" | awk -F'\t' '/^cache_size_kibibyte/{print $2}')
+    ch=$(( ${dh:-0} + ${ph:-0} ))
+    cm_cc=${cm_cc:-0}
+    csz=${csz:-0}
+  fi
+fi
+printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
+  "$b" "$cpu" "$mu" "$mt" "$dr" "$dw" "$dst" "$dsu" "$dsp" "$ss" "$tun" "$pq" "$dq" "$ic" \
+  "$ch" "$cm_cc" "$csz"
 STATSEOF
 
 # --- Type helpers ---
@@ -213,6 +228,9 @@ Commands:
   list              List all active builders with details
   status            Show summary of builders and estimated costs
   dashboard         Live-updating resource dashboard for all builders
+  ssh <name>        SSH into a builder (as remotebuild)
+                    Options: --root (connect as root)
+                             -- <cmd> (run a single command)
   check <name>      Check SSH connectivity and Nix on a builder
   create <name>     Create a builder manually
   destroy <name>    Destroy a builder
@@ -547,6 +565,65 @@ cmd_check() {
     echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
   fi
 
+  # Check ccache R2 mount
+  echo -n "ccache R2 mount: "
+  local mount_status
+  if mount_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+      'mountpoint -q /var/cache/ccache-r2 2>/dev/null && echo "mounted" || echo "not-mounted"' 2>/dev/null); then
+    if [[ "$mount_status" == "mounted" ]]; then
+      echo -e "${GREEN}OK (/var/cache/ccache-r2 mounted)${NC}"
+    else
+      echo -e "${RED}FAILED (not mounted)${NC}"
+    fi
+  else
+    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
+  fi
+
+  # Check ccache R2 sync timer
+  echo -n "ccache R2 sync: "
+  local sync_status
+  if sync_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+      'systemctl is-active ccache-r2-sync.timer 2>/dev/null || echo inactive' 2>/dev/null); then
+    if [[ "$sync_status" == "active" ]]; then
+      echo -e "${GREEN}OK (timer active)${NC}"
+    else
+      echo -e "${YELLOW}$sync_status${NC}"
+    fi
+  else
+    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
+  fi
+
+  # Check ccache stats
+  echo -n "ccache stats: "
+  local ccache_output
+  if ccache_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+    if ! command -v ccache &>/dev/null; then echo "n/a"; exit 0; fi
+    stats=$(ccache -d /var/cache/ccache --print-stats 2>/dev/null) || { echo "n/a"; exit 0; }
+    dh=$(echo "$stats" | awk -F"\t" "/^direct_cache_hit/{print \$2}")
+    ph=$(echo "$stats" | awk -F"\t" "/^preprocessed_cache_hit/{print \$2}")
+    cm=$(echo "$stats" | awk -F"\t" "/^cache_miss/{print \$2}")
+    sz=$(echo "$stats" | awk -F"\t" "/^cache_size_kibibyte/{print \$2}")
+    dh=${dh:-0}; ph=${ph:-0}; cm=${cm:-0}; sz=${sz:-0}
+    total=$((dh + ph + cm))
+    if [ $total -gt 0 ]; then
+      rate=$(( (dh + ph) * 100 / total ))
+    else
+      rate=0
+    fi
+    printf "%s|%s|%s" "$rate" "$((dh + ph))" "$sz"
+  ' 2>/dev/null); then
+    if [[ "$ccache_output" == "n/a" ]]; then
+      echo -e "${YELLOW}n/a (ccache not available)${NC}"
+    else
+      local hit_rate hit_count size_kb size_mb
+      IFS='|' read -r hit_rate hit_count size_kb <<< "$ccache_output"
+      size_mb=$(( size_kb / 1024 ))
+      echo -e "${GREEN}${hit_rate}% hit rate (${hit_count} hits), ${size_mb} MB cache${NC}"
+    fi
+  else
+    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
+  fi
+
   # Inactivity shutdown estimate
   echo -n "Auto-shutdown: "
   local shutdown_info
@@ -579,6 +656,41 @@ cmd_check() {
   fi
 
   echo -e "${GREEN}Builder $name is healthy${NC}"
+}
+
+cmd_ssh() {
+  local name="$1"
+  shift
+
+  # Parse --root flag and collect remote command after --
+  local user="remotebuild"
+  local -a remote_cmd=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --root) user="root" ;;
+      --)     shift; remote_cmd=("$@"); break ;;
+      *)      echo -e "${RED}Unknown option: $1${NC}" >&2; exit 1 ;;
+    esac
+    shift
+  done
+
+  check_token
+
+  if ! hcloud server describe "$name" &>/dev/null; then
+    echo -e "${RED}Builder $name does not exist${NC}" >&2
+    exit 1
+  fi
+
+  local ip
+  ip=$(hcloud server describe "$name" -o json | jaq -r '.public_net.ipv4.ip')
+
+  setup_host_verification "$ip"
+
+  if [[ ${#remote_cmd[@]} -gt 0 ]]; then
+    exec ssh "${SSH_OPTS[@]}" "$user@$ip" "${remote_cmd[@]}"
+  else
+    exec ssh "${SSH_OPTS[@]}" "$user@$ip"
+  fi
 }
 
 cmd_create() {
@@ -942,8 +1054,8 @@ cmd_dashboard() {
       wait "${pids[@]}" 2>/dev/null || true
 
       # Table header
-      printf ' %-16s %-16s %6s  %4s  %4s   %-20s  %-22s  %-14s %-6s %-8s %s' \
-        "BUILDER" "IP" "BUILDS" "SSH" "CPU" "MEMORY" "DISK R/W" "/nix/store" "TUN" "CACHE Q" "SHUTDOWN"
+      printf ' %-16s %-16s %6s  %4s  %4s   %-20s  %-22s  %-14s %-6s %-8s %-6s %-7s %s' \
+        "BUILDER" "IP" "BUILDS" "SSH" "CPU" "MEMORY" "DISK R/W" "/nix/store" "TUN" "CACHE Q" "CCACHE" "CC SIZE" "SHUTDOWN"
       tput el; echo
 
       local sep
@@ -973,11 +1085,12 @@ cmd_dashboard() {
           continue
         fi
 
-        local builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count
-        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count <<< "$data"
+        local builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb
+        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb <<< "$data"
         builds=${builds:-0}; cpu=${cpu:-0}; mu=${mu:-0}; mt=${mt:-0}
         dr_sec=${dr_sec:-0}; dw_sec=${dw_sec:-0}; dst=${dst:-0}; dsu=${dsu:-0}; dsp=${dsp:-0}; ssh_sess=${ssh_sess:-0}; tun_stat=${tun_stat:-unknown}
         q_pending=${q_pending:-0}; q_done=${q_done:-0}; idle_count=${idle_count:-0}
+        cc_hits=${cc_hits:-0}; cc_misses=${cc_misses:-0}; cc_size_kb=${cc_size_kb:-0}
 
         total_builds=$((total_builds + builds))
 
@@ -1026,6 +1139,24 @@ cmd_dashboard() {
           printf ' %-8s' "$(printf '%b%s%b/%s' "$YELLOW" "$q_pending" "$NC" "$q_done")"
         else
           printf ' %-8s' "$q_pending/$q_done"
+        fi
+        # ccache hit rate
+        local cc_total=$((cc_hits + cc_misses))
+        if [[ $cc_total -gt 0 ]]; then
+          local cc_rate=$((cc_hits * 100 / cc_total))
+          local cc_inv=$((100 - cc_rate))
+          color_pct "$cc_inv" 70 90
+        else
+          printf '%6s' "--"
+        fi
+        printf ' '
+        # ccache size
+        if [[ $cc_size_kb -gt 0 ]]; then
+          local cc_size_gb
+          cc_size_gb=$(format_kb "$cc_size_kb")
+          printf '%-7s' "${cc_size_gb}G"
+        else
+          printf '%-7s' "--"
         fi
         # Auto-shutdown countdown
         local remaining=$(( 15 - idle_count ))
@@ -1084,6 +1215,16 @@ case "${1:-help}" in
     ;;
   dashboard)
     cmd_dashboard
+    ;;
+  ssh)
+    [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME ssh <name|N> [--root] [-- <cmd>]"; exit 1; }
+    _ssh_name="$(normalize_name "$2")"
+    if ! is_builder_name "$_ssh_name"; then
+      echo -e "${RED}Error: Invalid builder name '$2'. Use N, builder-N, or big-builder-N${NC}" >&2
+      exit 1
+    fi
+    shift 2
+    cmd_ssh "$_ssh_name" "$@"
     ;;
   check)
     [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME check <name|N>  (e.g., 1, builder-1, big-builder-1)"; exit 1; }
