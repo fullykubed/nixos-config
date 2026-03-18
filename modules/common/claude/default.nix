@@ -130,6 +130,14 @@
           "\${HOME}/.kube"
 
           "--ro-bind-try"
+          "/run/last-user-input"
+          "/run/last-user-input"
+
+          "--ro-bind-try"
+          "/run/agenix/pushover-token"
+          "/run/agenix/pushover-token"
+
+          "--ro-bind-try"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
         ];
@@ -360,6 +368,12 @@
                       {
                         type = "command";
                         command = "workmux set-window-status done";
+                      }
+                      {
+                        type = "command";
+                        command = "${claudeNotifyHook}/bin/claude-notify-hook";
+                        async = true;
+                        timeout = 120;
                       }
                       # TODO: re-enable surprise hook once stabilized
                       # {

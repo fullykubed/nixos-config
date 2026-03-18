@@ -6,24 +6,27 @@
 let
   pushoverUser = "ubeszsjqr12emacca1wgqgca5g3yau";
   idleThreshold = 300; # 5 minutes
+  timestampFile = "/run/last-user-input";
+
+  # Script to detect if the user is away (idle >= threshold)
+  isAway = pkgs.writeShellScriptBin "is-away" ''
+    set -euo pipefail
+
+    IDLE_THRESHOLD=${toString idleThreshold}
+    TIMESTAMP_FILE="${timestampFile}"
+
+    [[ ! -f "$TIMESTAMP_FILE" ]] && exit 1
+
+    last_input=$(${pkgs.coreutils}/bin/stat -c %Y "$TIMESTAMP_FILE")
+    now=$(${pkgs.coreutils}/bin/date +%s)
+    idle_seconds=$((now - last_input))
+
+    ((idle_seconds >= IDLE_THRESHOLD))
+  '';
 
   # Script to send notification if user is away
   notifyIfAway = pkgs.writeShellScriptBin "notify-if-away" ''
     set -euo pipefail
-
-    IDLE_THRESHOLD=${toString idleThreshold}
-    TIMESTAMP_FILE="/tmp/last-user-input"
-
-    is_user_away() {
-        [[ ! -f "$TIMESTAMP_FILE" ]] && return 1
-
-        local last_input now idle_seconds
-        last_input=$(${pkgs.coreutils}/bin/stat -c %Y "$TIMESTAMP_FILE")
-        now=$(${pkgs.coreutils}/bin/date +%s)
-        idle_seconds=$((now - last_input))
-
-        ((idle_seconds >= IDLE_THRESHOLD))
-    }
 
     send_notification() {
         local title="$1" message="$2" priority="''${3:-0}"
@@ -54,7 +57,7 @@ let
     title="$1"
     message="$2"
 
-    if $force || is_user_away; then
+    if $force || ${isAway}/bin/is-away; then
         send_notification "$title" "$message" "$priority"
         echo "Notification sent: $title"
     else
@@ -87,15 +90,19 @@ let
   '';
 
   inputTrackerScript = pkgs.writeShellScript "input-activity-tracker" ''
-    ${pkgs.coreutils}/bin/touch /tmp/last-user-input
+    ${pkgs.coreutils}/bin/touch "${timestampFile}"
+    ${pkgs.coreutils}/bin/chmod 644 "${timestampFile}"
     exec ${pkgs.libinput}/bin/libinput debug-events 2>/dev/null | \
       while IFS= read -r _; do
-        ${pkgs.coreutils}/bin/touch /tmp/last-user-input
+        ${pkgs.coreutils}/bin/touch "${timestampFile}"
       done
   '';
 in
 {
-  environment.systemPackages = [ notifyIfAway ];
+  environment.systemPackages = [
+    isAway
+    notifyIfAway
+  ];
 
   systemd.services.nix-build-failure-notify = {
     description = "Monitor nix builds and notify on failure when user is away";
@@ -109,22 +116,14 @@ in
     };
   };
 
-  home-manager.users.${config.username}.systemd.user.services.input-activity-tracker = {
-    Unit = {
-      Description = "Track user input activity for away detection";
-      PartOf = [ "graphical-session.target" ];
-      After = [ "graphical-session.target" ];
-    };
-
-    Service = {
+  systemd.services.input-activity-tracker = {
+    description = "Track user input activity for away detection";
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
       Type = "simple";
       ExecStart = "${inputTrackerScript}";
       Restart = "always";
       RestartSec = 5;
-    };
-
-    Install = {
-      WantedBy = [ "graphical-session.target" ];
     };
   };
 }

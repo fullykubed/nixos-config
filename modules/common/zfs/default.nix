@@ -129,8 +129,8 @@ in
     secrets = {
       pushover-token = {
         rekeyFile = ../../../secrets/pushover-token.age;
-        owner = "root";
-        group = "root";
+        owner = config.username;
+        group = "users";
         mode = "0400";
       };
     };
