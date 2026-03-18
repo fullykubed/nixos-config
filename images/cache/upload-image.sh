@@ -68,7 +68,7 @@ cleanup_upload_server() {
   echo -e "\n${YELLOW}Interrupted — cleaning up temporary upload server...${NC}"
   local servers
   servers=$(hcloud server list -o json 2>/dev/null \
-    | jq -r '.[] | select(.name | startswith("hcloud-upload-image-")) | .name' || true)
+    | jaq -r '.[] | select(.name | startswith("hcloud-upload-image-")) | .name' || true)
   for name in $servers; do
     echo -e "${YELLOW}Deleting $name...${NC}"
     hcloud server delete "$name" 2>/dev/null || true

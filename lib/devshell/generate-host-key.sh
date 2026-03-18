@@ -17,7 +17,7 @@ error() { echo ":: Error: $*" >&2; exit 1; }
 MACHINES_JSON=$(list-machines)
 [[ -n "$MACHINES_JSON" ]] || error "failed to discover machines"
 
-mapfile -t all_names < <(echo "$MACHINES_JSON" | jq -r '.[].name')
+mapfile -t all_names < <(echo "$MACHINES_JSON" | jaq -r '.[].name')
 [[ ${#all_names[@]} -gt 0 ]] || error "no machines found in flake"
 
 HOSTNAME="${1:-}"
@@ -33,7 +33,7 @@ else
   # Build display labels with key status
   labels=()
   for m in "${all_names[@]}"; do
-    has_key=$(echo "$MACHINES_JSON" | jq -r --arg name "$m" '.[] | select(.name == $name) | .hasHostKey')
+    has_key=$(echo "$MACHINES_JSON" | jaq -r --arg name "$m" '.[] | select(.name == $name) | .hasHostKey')
     if [[ "$has_key" == "true" ]]; then
       labels+=("$m [has key]")
     else

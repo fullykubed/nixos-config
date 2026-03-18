@@ -39,13 +39,13 @@ let
   };
   listMachines = pkgs.writeShellApplication {
     name = "list-machines";
-    runtimeInputs = [ pkgs.jq ];
+    runtimeInputs = [ pkgs.jaq ];
     text = builtins.readFile ./list-machines.sh;
   };
   flashInstaller = pkgs.writeShellApplication {
     name = "flash-installer";
     runtimeInputs = [
-      pkgs.jq
+      pkgs.jaq
       pkgs.util-linux
       pkgs.openssl
       pkgs.rage
@@ -58,7 +58,7 @@ let
   generateHostKey = pkgs.writeShellApplication {
     name = "generate-host-key";
     runtimeInputs = [
-      pkgs.jq
+      pkgs.jaq
       pkgs.rage
       pkgs.openssh
       pkgs.agenix-rekey
@@ -78,7 +78,7 @@ let
     name = "generate-syncthing-key";
     runtimeInputs = [
       pkgs.syncthing
-      pkgs.jq
+      pkgs.jaq
       pkgs.rage
       pkgs.gnugrep
       pkgs.agenix-rekey

@@ -11,7 +11,7 @@ fi
 # Extract all deps as "pkg_name\tfile\tversion" lines
 all_deps=""
 for file in "${files[@]}"; do
-  file_deps=$(jq -r '
+  file_deps=$(jaq -r '
     [(.dependencies // {}), (.devDependencies // {})] | add // {} |
     to_entries[] | "\(.key)\t\(.value)"
   ' "$file") || continue

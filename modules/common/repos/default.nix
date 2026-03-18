@@ -159,7 +159,7 @@ let
       after = [ "writeBoundary" ];
       before = [ "linkGeneration" ];
       data = ''
-        export PATH="${pkgs.jq}/bin:${pkgs.git}/bin:$PATH"
+        export PATH="${pkgs.jaq}/bin:${pkgs.git}/bin:$PATH"
         ${repoSyncActivate}/bin/repo-sync-activate "${perRepoManifests.${name}}" "${reposBase}" "${config.username}" || echo "repo-sync: WARNING: activation failed for ${name}" >&2
       '';
     }
@@ -224,7 +224,7 @@ in
             after = [ "writeBoundary" ];
             before = [ "linkGeneration" ];
             data = ''
-              export PATH="${pkgs.jq}/bin:$PATH"
+              export PATH="${pkgs.jaq}/bin:$PATH"
               ${repoSyncCleanup}/bin/repo-sync-cleanup "${currentRepoNames}" "${config.homeDir}/.local/state/repo-sync"
             '';
           };

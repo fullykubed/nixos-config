@@ -13,7 +13,7 @@ GREP_QUERY=$2
 swaymsg workspace "$WORKSPACE"
 
 # If the workspace does not have a window with a title matching the grep query, execute command
-swaymsg -t get_workspaces -r | jq -r '.[] | select(.focused == true).representation' | grep -q "$GREP_QUERY"
+swaymsg -t get_workspaces -r | jaq -r '.[] | select(.focused == true).representation' | grep -q "$GREP_QUERY"
 if [[ $? == 0 ]]; then
 	exit 0
 else

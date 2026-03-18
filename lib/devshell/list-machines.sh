@@ -7,11 +7,11 @@ cd "$REPO_ROOT" || exit
 
 mapfile -t machines < <(
   nix eval .#nixosConfigurations --apply 'x: builtins.attrNames x' --json \
-    | jq -r '.[]' \
+    | jaq -r '.[]' \
     | sort
 )
 
-jq -n --argjson count "${#machines[@]}" '
+jaq -n --argjson count "${#machines[@]}" '
   [inputs] | to_entries | map({
     name: .value.name,
     hasHostKey: .value.hasHostKey
@@ -20,7 +20,7 @@ jq -n --argjson count "${#machines[@]}" '
   for m in "${machines[@]}"; do
     has_key=false
     [[ -f "secrets/machines/${m}/ssh-host-key.age" ]] && has_key=true
-    jq -n --arg name "$m" --argjson hasHostKey "$has_key" \
+    jaq -n --arg name "$m" --argjson hasHostKey "$has_key" \
       '{name: $name, hasHostKey: $hasHostKey}'
   done
 )

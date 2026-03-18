@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 
 # Get the focused output from Sway
-focused_output=$(swaymsg -t get_outputs | jq -r 'map(select(.focused))[0].name')
+focused_output=$(swaymsg -t get_outputs | jaq -r 'map(select(.focused))[0].name')
 
 # Get the list of all outputs from Sway
-all_outputs=$(swaymsg -t get_outputs | jq -r '.[].name')
+all_outputs=$(swaymsg -t get_outputs | jaq -r '.[].name')
 
 # Iterate over each output
 for output in $all_outputs; do

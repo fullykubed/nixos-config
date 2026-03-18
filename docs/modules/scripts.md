@@ -11,4 +11,5 @@ The one exception is `modules/common/scripts/` — a catch-all for general-purpo
 All scripts and tools in this repo must be written in either **bash** or **TypeScript (Bun)**. No other languages or runtimes (Python, Ruby, Node, etc.) should be used for custom scripts.
 
 - [Shell Script Conventions](shell-scripts.md) — bash style, `writeShellApplication`, drop-in scripts
+- [Preferred Executables](preferred-executables.md) — tools replaced by preferred alternatives in scripted contexts
 - [Bun Tools](bun-tools.md) — TypeScript tool setup with `bun2nix`

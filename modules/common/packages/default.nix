@@ -38,6 +38,11 @@
     jaq # Fast JSON/YAML processor (jq-compatible, Rust)
 
     ################################
+    ##  Search
+    ################################
+    bfs # Breadth-first find (drop-in replacement for find)
+
+    ################################
     ##  Scriping Tools
     ################################
     unzip # ZIP archive management

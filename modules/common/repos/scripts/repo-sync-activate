@@ -21,11 +21,11 @@ REPOS_BASE="$2"
 OWNER="$3"
 STATE_DIR="${HOME}/.local/state/repo-sync"
 
-name=$(jq -r '.name' "$CONFIG")
-url=$(jq -r '.url' "$CONFIG")
-path=$(jq -r '.path' "$CONFIG")
-branch=$(jq -r '.branch' "$CONFIG")
-session=$(jq -r '.tmuxSession' "$CONFIG")
+name=$(jaq -r '.name' "$CONFIG")
+url=$(jaq -r '.url' "$CONFIG")
+path=$(jaq -r '.path' "$CONFIG")
+branch=$(jaq -r '.branch' "$CONFIG")
+session=$(jaq -r '.tmuxSession' "$CONFIG")
 dest="$REPOS_BASE/$path"
 
 mkdir -p "$STATE_DIR"
@@ -38,7 +38,7 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 
 # Move directory if path changed
-old_path=$(echo "$OLD_STATE" | jq -r '.path // empty')
+old_path=$(echo "$OLD_STATE" | jaq -r '.path // empty')
 if [[ -n "$old_path" ]] && [[ "$old_path" != "$dest" ]] && [[ -d "$old_path" ]]; then
   echo "repo-sync: moving $name from $old_path to $dest"
   mv "$old_path" "$dest"
@@ -51,7 +51,7 @@ elif [[ -d "$dest/.bare" ]]; then
   GIT_DIR="$dest/.bare" git remote set-url origin "$url"
   GIT_DIR="$dest/.bare" git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
   # Remove old worktree if default branch changed
-  old_branch=$(echo "$OLD_STATE" | jq -r '.branch // empty')
+  old_branch=$(echo "$OLD_STATE" | jaq -r '.branch // empty')
   if [[ -n "$old_branch" ]] && [[ "$old_branch" != "$branch" ]] && [[ -d "$dest/$old_branch" ]]; then
     if [[ -n $(GIT_DIR="$dest/.bare" GIT_WORK_TREE="$dest/$old_branch" git status --porcelain) ]]; then
       echo "ERROR: cannot change default branch for $name — worktree $old_branch has uncommitted changes" >&2
@@ -70,7 +70,7 @@ else
 fi
 
 # Rename tmux session if the name changed
-old_session=$(echo "$OLD_STATE" | jq -r '.session // empty')
+old_session=$(echo "$OLD_STATE" | jaq -r '.session // empty')
 if [[ -n "$old_session" ]] && [[ "$old_session" != "$session" ]]; then
   tmux rename-session -t "$old_session" "$session" 2>/dev/null || true
 fi
@@ -81,12 +81,12 @@ if ! tmux has-session -t "$session" 2>/dev/null; then
 fi
 
 # Generate .env from key-value pairs (values may be agenix secret paths)
-env_keys=$(jq -r '.env // {} | keys[]' "$CONFIG")
+env_keys=$(jaq -r '.env // {} | keys[]' "$CONFIG")
 if [[ -n "$env_keys" ]]; then
   env_file="$dest/$branch/.env"
   install -m 0600 -o "$OWNER" /dev/null "$env_file"
   while IFS= read -r env_key; do
-    env_val=$(jq -r --arg ek "$env_key" '.env[$ek]' "$CONFIG")
+    env_val=$(jaq -r --arg ek "$env_key" '.env[$ek]' "$CONFIG")
     if [[ -f "$env_val" ]]; then
       env_val=$(cat "$env_val")
     fi
@@ -96,11 +96,11 @@ fi
 
 # Add managed files to git exclude
 exclude_file="$dest/.bare/info/exclude"
-for entry in .workmux.yaml .env $(jq -r '.files // {} | keys[]' "$CONFIG"); do
+for entry in .workmux.yaml .env $(jaq -r '.files // {} | keys[]' "$CONFIG"); do
   if ! grep -qxF "$entry" "$exclude_file" 2>/dev/null; then
     echo "$entry" >> "$exclude_file"
   fi
 done
 
 # Write new state
-jq -n --arg p "$dest" --arg s "$session" --arg b "$branch" '{path: $p, session: $s, branch: $b}' > "$STATE_FILE"
+jaq -n --arg p "$dest" --arg s "$session" --arg b "$branch" '{path: $p, session: $s, branch: $b}' > "$STATE_FILE"

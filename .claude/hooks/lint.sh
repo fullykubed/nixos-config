@@ -3,7 +3,7 @@
 # Dispatches by file extension first, then runs only applicable tools in parallel.
 
 INPUT=$(cat)
-FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+FILE_PATH=$(echo "$INPUT" | jaq -r '.tool_input.file_path // empty')
 
 if [[ -z "$FILE_PATH" || ! -f "$FILE_PATH" ]]; then
   exit 0
@@ -25,6 +25,9 @@ case "$FILE_PATH" in
     ;;
   *.sh | *.bash)
     { shellcheck "$FILE_PATH" >"$TMPDIR/shellcheck" 2>&1 || echo "shellcheck" >>"$TMPDIR/failed"; } &
+    { grep -nw 'jq' "$FILE_PATH" | grep -vE '^[0-9]+:[[:space:]]*#' >"$TMPDIR/no-jq" 2>&1 && echo "no-jq" >>"$TMPDIR/failed"; } &
+    { grep -nw 'yq' "$FILE_PATH" | grep -vE '^[0-9]+:[[:space:]]*#' >"$TMPDIR/no-yq" 2>&1 && echo "no-yq" >>"$TMPDIR/failed"; } &
+    { grep -nw 'find' "$FILE_PATH" | grep -vE '^[0-9]+:[[:space:]]*#' >"$TMPDIR/no-find" 2>&1 && echo "no-find" >>"$TMPDIR/failed"; } &
     { gitleaks dir --config "$CLAUDE_PROJECT_DIR/gitleaks.toml" --no-banner "$FILE_PATH" >"$TMPDIR/gitleaks" 2>&1 || echo "gitleaks" >>"$TMPDIR/failed"; } &
     ;;
   *)
@@ -56,6 +59,15 @@ while read -r tool; do
       ;;
     shellcheck)
       ERRORS+="$(cat "$TMPDIR/shellcheck")"$'\n'
+      ;;
+    no-jq)
+      ERRORS+="jq usage detected — use jaq instead:"$'\n'"$(cat "$TMPDIR/no-jq")"$'\n'
+      ;;
+    no-yq)
+      ERRORS+="yq usage detected — use jaq instead:"$'\n'"$(cat "$TMPDIR/no-yq")"$'\n'
+      ;;
+    no-find)
+      ERRORS+="find usage detected — use bfs instead:"$'\n'"$(cat "$TMPDIR/no-find")"$'\n'
       ;;
     check-bun-versions)
       ERRORS+="$(cat "$TMPDIR/check-bun-versions")"$'\n'

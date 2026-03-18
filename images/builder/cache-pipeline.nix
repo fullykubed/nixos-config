@@ -69,7 +69,7 @@
         };
         path = with pkgs; [
           hcloud
-          jq
+          jaq
           openssh
           coreutils
           bash
@@ -87,7 +87,7 @@
           # Find cache server IP
           CACHE_IP=""
           while [ -z "$CACHE_IP" ]; do
-            CACHE_IP=$(hcloud server list -l cache=true -o json | jq -r '.[0].public_net.ipv4.ip // empty')
+            CACHE_IP=$(hcloud server list -l cache=true -o json | jaq -r '.[0].public_net.ipv4.ip // empty')
             if [ -z "$CACHE_IP" ]; then
               echo "WARNING: No cache server found (label cache=true). Retrying in 60s..."
               sleep 60

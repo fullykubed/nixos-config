@@ -130,17 +130,17 @@ if ! claude_response=$(claude-wrapper --system-prompt "$system_prompt" --output-
 fi
 
 # Validate JSON
-if ! echo "$claude_response" | jq empty 2>/dev/null; then
+if ! echo "$claude_response" | jaq empty 2>/dev/null; then
     echo "Error: Claude returned invalid JSON" >&2
     echo "Response: $claude_response" >&2
     exit 1
 fi
 
 # Extract from structured_output field (Claude wraps result in metadata)
-commit_type=$(echo "$claude_response" | jq -r '.structured_output.type')
-commit_scope=$(echo "$claude_response" | jq -r '.structured_output.scope // empty')
-commit_desc=$(echo "$claude_response" | jq -r '.structured_output.description')
-commit_body=$(echo "$claude_response" | jq -r '.structured_output.body // empty')
+commit_type=$(echo "$claude_response" | jaq -r '.structured_output.type')
+commit_scope=$(echo "$claude_response" | jaq -r '.structured_output.scope // empty')
+commit_desc=$(echo "$claude_response" | jaq -r '.structured_output.description')
+commit_body=$(echo "$claude_response" | jaq -r '.structured_output.body // empty')
 
 # Construct and output the commit message
 if [[ -n "$commit_scope" ]]; then

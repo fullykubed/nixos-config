@@ -314,10 +314,10 @@
     };
     path = with pkgs; [
       sbctl
-      jq
+      jaq
     ];
     script = ''
-      setup_mode=$(sbctl status --json | jq -r '.setup_mode')
+      setup_mode=$(sbctl status --json | jaq -r '.setup_mode')
       if [[ "$setup_mode" != "true" ]]; then
         echo "Setup Mode not active, skipping key enrollment"
         exit 0

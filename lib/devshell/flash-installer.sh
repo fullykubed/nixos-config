@@ -70,7 +70,7 @@ as_user() { runuser -u "$ORIG_USER" -- "$@"; }
 
 # --- Select target machine ---
 
-mapfile -t all_machines < <(as_user list-machines | jq -r '.[].name')
+mapfile -t all_machines < <(as_user list-machines | jaq -r '.[].name')
 [[ ${#all_machines[@]} -gt 0 ]] || error "no machines found in flake"
 
 if [[ -z "$MACHINE" ]]; then

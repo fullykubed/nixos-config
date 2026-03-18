@@ -114,7 +114,7 @@ handle_extension() {
 
 	## JSON
 	json)
-		jq --color-output . "${FILE_PATH}" && exit 5
+		jaq --color-output . "${FILE_PATH}" && exit 5
 		python -m json.tool -- "${FILE_PATH}" && exit 5
 		;;
 

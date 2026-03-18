@@ -17,7 +17,7 @@ error() { echo ":: Error: $*" >&2; exit 1; }
 MACHINES_JSON=$(list-machines)
 [[ -n "$MACHINES_JSON" ]] || error "failed to discover machines"
 
-mapfile -t all_names < <(echo "$MACHINES_JSON" | jq -r '.[].name')
+mapfile -t all_names < <(echo "$MACHINES_JSON" | jaq -r '.[].name')
 [[ ${#all_names[@]} -gt 0 ]] || error "no machines found in flake"
 
 HOSTNAME="${1:-}"

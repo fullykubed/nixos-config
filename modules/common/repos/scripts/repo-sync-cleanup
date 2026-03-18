@@ -25,9 +25,9 @@ fi
 for state_file in "$STATE_DIR"/*.json; do
   [[ -f "$state_file" ]] || continue
   name=$(basename "$state_file" .json)
-  if ! jq -e --arg k "$name" 'index($k) != null' "$CURRENT" > /dev/null; then
-    repo_path=$(jq -r '.path' "$state_file")
-    session=$(jq -r '.session // empty' "$state_file")
+  if ! jaq -e --arg k "$name" 'index($k) != null' "$CURRENT" > /dev/null; then
+    repo_path=$(jaq -r '.path' "$state_file")
+    session=$(jaq -r '.session // empty' "$state_file")
     echo "repo-sync: removing $name ($repo_path)"
     rm -rf "$repo_path"
     if [[ -n "$session" ]]; then
