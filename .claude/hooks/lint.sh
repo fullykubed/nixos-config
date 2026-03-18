@@ -12,6 +12,14 @@ fi
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
+# Universal check: file must be git-tracked for nix flake builds to see it
+{
+  if ! git ls-files --error-unmatch "$FILE_PATH" &>/dev/null &&
+     ! git check-ignore -q "$FILE_PATH" 2>/dev/null; then
+    echo "git-untracked" >>"$TMPDIR/failed"
+  fi
+} &
+
 case "$FILE_PATH" in
   *.nix)
     { nixfmt --check "$FILE_PATH" >"$TMPDIR/nixfmt" 2>&1 || echo "nixfmt" >>"$TMPDIR/failed"; } &
@@ -71,6 +79,10 @@ while read -r tool; do
       ;;
     check-bun-versions)
       ERRORS+="$(cat "$TMPDIR/check-bun-versions")"$'\n'
+      ;;
+    git-untracked)
+      ERRORS+="File is not tracked by git: $FILE_PATH"$'\n'
+      ERRORS+="Nix flake builds only see git-tracked files. Run: git add \"$FILE_PATH\""$'\n'
       ;;
   esac
 done <"$TMPDIR/failed"

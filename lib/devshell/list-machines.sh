@@ -20,6 +20,7 @@ jaq -n --argjson count "${#machines[@]}" '
   for m in "${machines[@]}"; do
     has_key=false
     [[ -f "secrets/machines/${m}/ssh-host-key.age" ]] && has_key=true
+    # shellcheck disable=SC2016
     jaq -n --arg name "$m" --argjson hasHostKey "$has_key" \
       '{name: $name, hasHostKey: $hasHostKey}'
   done

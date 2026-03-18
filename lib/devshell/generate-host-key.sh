@@ -33,6 +33,7 @@ else
   # Build display labels with key status
   labels=()
   for m in "${all_names[@]}"; do
+    # shellcheck disable=SC2016
     has_key=$(echo "$MACHINES_JSON" | jaq -r --arg name "$m" '.[] | select(.name == $name) | .hasHostKey')
     if [[ "$has_key" == "true" ]]; then
       labels+=("$m [has key]")
