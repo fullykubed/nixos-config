@@ -1,13 +1,6 @@
-#  Notes on SSH Keys
-#
-#  * All SSH private keys are stored in a keepass db and loaded to the ssh-agent when the keepass database
-#    is opened (and removed when the keepass database closes).
-#
-#  * The public keys are still written to disk via this configuration so they can be used to specify the SSH key
-#    to use on the directory-specific git setting.
-
 {
   config,
+  lib,
   pkgs,
   ...
 }:
@@ -26,8 +19,14 @@ let
     builtins.readFile ./scripts/git-clone-for-worktree
   );
 
-  allowedSignersFile = "git/allowed_signers";
-  githubPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAlCQ99fqK+ozVXBUCIhr8KY86XAtRjTKzTnM9UCaoI7";
+  allowedSignersPath = "${config.homeDir}/.config/git/allowed_signers";
+  githubPublicKey =
+    let
+      parts = builtins.filter builtins.isString (
+        builtins.split " " (lib.removeSuffix "\n" (builtins.readFile ../../../secrets/git-ssh-key.pub))
+      );
+    in
+    "${builtins.elemAt parts 0} ${builtins.elemAt parts 1}";
   githubEmail = "github@fullstackjack.io";
   githubHudsonPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBaDvNVFagHSDhKZrE4kH2U6+ynDNr9WXVeDdvSE7Jwp";
   githubHudsonEmail = "jack.langston@hudsonts.com";
@@ -41,18 +40,24 @@ in
     ./lazyworktree
   ];
 
+  age.secrets.git-ssh-key = {
+    rekeyFile = ../../../secrets/git-ssh-key.age;
+    mode = "0400";
+    owner = config.username;
+  };
+
   home-manager.users.${config.username} = {
 
-    xdg.configFile = {
-      allowedSigners = {
-        enable = true;
-        target = allowedSignersFile;
-        text = ''
-          ${githubEmail} ${githubPublicKey}
-          ${githubHudsonEmail} ${githubHudsonPublicKey}
-        '';
-      };
+    programs.ssh.matchBlocks."github.com" = {
+      identityFile = config.age.secrets.git-ssh-key.path;
+      identitiesOnly = true;
+      addKeysToAgent = "yes";
     };
+
+    xdg.configFile."git/allowed_signers".text = ''
+      ${githubEmail} ${githubPublicKey}
+      ${githubHudsonEmail} ${githubHudsonPublicKey}
+    '';
 
     home.file = {
       githubPublicKey = {
@@ -123,6 +128,7 @@ in
               };
 
               core = {
+                sshCommand = "ssh -o IdentitiesOnly=yes -i ${config.age.secrets.git-ssh-key.path}";
                 # Prevent line endings issues
                 autocrlf = "input";
                 safecrlf = true;
@@ -198,7 +204,7 @@ in
               gpg = {
                 format = "ssh"; # Use ssh signing
                 ssh = {
-                  allowedSignersFile = "~/.config/${allowedSignersFile}";
+                  allowedSignersFile = allowedSignersPath;
                 };
               };
 

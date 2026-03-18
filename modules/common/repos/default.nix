@@ -175,6 +175,15 @@ let
       Service = {
         Type = "oneshot";
         ExecStart = "${repoSyncFetch}/bin/repo-sync-fetch ${reposBase}/${repo.path}/.bare";
+        Environment = [
+          "PATH=${
+            lib.makeBinPath [
+              pkgs.git
+              pkgs.openssh
+            ]
+          }"
+          "GIT_SSH_COMMAND=\"ssh -i ${config.age.secrets.git-ssh-key.path} -o IdentitiesOnly=yes\""
+        ];
       };
     }
   ) repos;
