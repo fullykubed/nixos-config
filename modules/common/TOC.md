@@ -12,6 +12,7 @@
 - **home-manager/** - Home Manager user configuration with stylix theming, nix-index integration, and state versions.
 - **locale/** - Sets internationalization to en_US.UTF-8 with US keyboard layout and automatic timezone via geoclue2.
 - **networking/** - Sets up NetworkManager with dnscrypt-proxy2 for DNS-over-HTTPS encrypted DNS resolution.
+- **nightly-auto-upgrade/** - Nightly systemd timer that clones the latest main branch from GitHub and runs nixos-rebuild switch, with Pushover notifications on failure and automatic rollback.
 - **nix/** - Configures Nix daemon optimization, automatic garbage collection, and flake settings.
 - **systemd/** - Configures systemd daemon settings and file descriptor limits.
 - **time/** - Chrony NTP time synchronization with NTS security and multiple redundant time servers.

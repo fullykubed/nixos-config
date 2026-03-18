@@ -42,6 +42,7 @@ Usage: $SCRIPT_NAME [OPTIONS]
 NixOS rebuild script with performance-optimized defaults.
 
 Options:
+  -U, --upgrade         Trigger the nightly auto-upgrade service
   -b, --boot            Rebuild boot configuration only
   -t, --test            Test configuration without making it permanent
   -B, --builders N      Use N regular remote builders (0 to disable all, default: all configured)
@@ -282,6 +283,7 @@ warn_nom_missing() {
 parse_args() {
   while [[ $# -gt 0 ]]; do
     case $1 in
+      -U|--upgrade)    UPGRADE_MODE=true ;;
       -b|--boot)       BOOT_MODE=true ;;
       -t|--test)       TEST_MODE=true ;;
       -B|--builders)   shift; BUILDER_COUNT="$1" ;;
@@ -309,6 +311,11 @@ validate_options() {
   if [[ "$BOOT_MODE" == true ]] && [[ "$TEST_MODE" == true ]]; then
     error "Cannot use --boot and --test together"
   fi
+  if [[ "$UPGRADE_MODE" == true ]]; then
+    if [[ "$BOOT_MODE" == true ]] || [[ "$TEST_MODE" == true ]]; then
+      error "Cannot use --upgrade with --boot or --test"
+    fi
+  fi
 }
 
 # ------------------------------------------------------------------------------
@@ -317,6 +324,7 @@ validate_options() {
 
 main() {
   # Default values (performance-optimized)
+  UPGRADE_MODE=false
   BOOT_MODE=false
   TEST_MODE=false
   OFFLINE_MODE=false
@@ -335,6 +343,16 @@ main() {
   # Re-exec as root upfront so privileged operations don't prompt mid-build
   if [[ $EUID -ne 0 ]]; then
     exec doas "$0" "$@"
+  fi
+
+  if [[ "$UPGRADE_MODE" == true ]]; then
+    info "Triggering nightly auto-upgrade service..."
+    journalctl -u nixos-auto-upgrade.service -f --since "now" &
+    journal_pid=$!
+    systemctl start nixos-auto-upgrade.service
+    exit_code=$?
+    kill "$journal_pid" 2>/dev/null || true
+    exit "$exit_code"
   fi
 
   # Allow git to access user-owned repositories when running as root

@@ -1,7 +1,8 @@
 # Table of Contents — docs/
 
 - **commands.md** - Documents the `un.sh` rebuild script with options for quick rebuild, boot-only, flake updates, and offline builds.
-- **deployment.md** - Explains the deployment script that copies configuration to /etc/nixos and runs nixos-rebuild with appropriate flags.
+- **deployment.md** - Explains the `un` rebuild script, `una` AI autofix, and links to the nightly auto-upgrade docs.
+- **nightly-auto-upgrade.md** - Nightly systemd timer that clones upstream main and runs nixos-rebuild switch, with rollback on activation failure and Pushover notifications.
 - **adding-modules.md** - Instructions for creating new NixOS modules in the common or utility directories following the standard module pattern.
 - **install/** - Installation documentation: step-by-step new machine guide, installer architecture with diagrams, and troubleshooting.
 - **secrets.md** - Describes agenix-based secret management with per-machine rekeying and runtime decryption.

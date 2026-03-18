@@ -24,6 +24,7 @@ doas ./modules/common/scripts/scripts/un.sh
 
 | Flag | Description |
 |------|-------------|
+| `-U`, `--upgrade` | Trigger the nightly auto-upgrade service |
 | `-b`, `--boot` | Rebuild boot configuration only |
 | `-B N`, `--builders N` | Use N regular remote builders (0 disables all) |
 | `-P N`, `--big-builders N` | Use N big-parallel remote builders |
@@ -51,3 +52,7 @@ una               # build and auto-fix from the current worktree
 ```
 
 `una` must be run from inside the nixos-config repo or one of its worktrees.
+
+## Nightly auto-upgrade
+
+A systemd timer clones and applies the latest `main` branch every night at 1:00 AM. Use `un -U` to trigger it manually. See [nightly-auto-upgrade.md](nightly-auto-upgrade.md) for details.
