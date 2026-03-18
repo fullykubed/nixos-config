@@ -1,4 +1,5 @@
-_: {
+{ config, ... }:
+{
   imports = [ ./wifi.nix ];
 
   networking = {
@@ -34,6 +35,10 @@ _: {
     };
     # Ensures that network manager manages the DNS
     enableIPv6 = false;
+  };
+
+  home-manager.users.${config.username}.programs.zsh.shellAliases = {
+    network = "nmtui";
   };
 
   services.resolved.enable = false;
