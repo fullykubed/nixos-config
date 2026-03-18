@@ -228,6 +228,7 @@
           # fzf-tab configuration
           # Use tmux popup for completion menu if in tmux
           zstyle ':fzf-tab:*' fzf-command ftb-tmux-popup
+          zstyle ':fzf-tab:*' popup-min-size 120 0
 
           # Preview directory contents
           zstyle ':fzf-tab:complete:cd:*' fzf-preview 'eza -1 --color=always $realpath'
