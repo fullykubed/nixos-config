@@ -62,6 +62,7 @@
     ./common/firmware
     ./common/touchpad
     ./common/backlight
+    ./common/battery
     ./common/gpu
     ./common/wakeup
     ./common/hetzner

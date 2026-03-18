@@ -35,6 +35,32 @@ let
         background-color: #fdcb6e;
         color: #2d3436;
     }
+
+    /* Battery module styles */
+    #battery {
+        padding: 0 10px;
+    }
+
+    #battery.charging {
+        background-color: #a3d9a5;
+        color: #2d3436;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
+
+    #battery.warning:not(.charging) {
+        background-color: #ffeaa7;
+        color: #2d3436;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
+
+    #battery.critical:not(.charging) {
+        background-color: #ff7675;
+        color: #2d3436;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
     CUSTOM
   '';
 in
