@@ -361,12 +361,13 @@
                         type = "command";
                         command = "workmux set-window-status done";
                       }
-                      {
-                        type = "command";
-                        command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
-                        async = true;
-                        timeout = 900;
-                      }
+                      # TODO: re-enable surprise hook once stabilized
+                      # {
+                      #   type = "command";
+                      #   command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
+                      #   async = true;
+                      #   timeout = 900;
+                      # }
                     ];
                   }
                 ];
