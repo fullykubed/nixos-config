@@ -463,13 +463,28 @@ main() {
     rebuild_flags+=(--no-reexec)
   fi
 
-  # Notify on failure (unless disabled)
+  # Record build start time and set up notifications
+  local build_start
+  build_start=$(date +%s)
+  readonly LONG_BUILD_THRESHOLD=1800  # 30 minutes
+
   if [[ "$NOTIFY_ON_FAILURE" == true ]] && command -v notify-if-away &>/dev/null; then
     trap 'ec=$?; if [[ $ec -ne 0 ]]; then notify-if-away "Build Failed" "un $rebuild_cmd failed on $hostname (exit $ec)" || true; fi' EXIT
   fi
 
   # Execute rebuild
   run_nixos_rebuild "$rebuild_cmd" "$flake_path" "$hostname" "$USE_NOM" "$IMPURE_MODE" "${nix_flags[@]}" -- "${rebuild_flags[@]}"
+
+  # Notify on long builds
+  if [[ "$NOTIFY_ON_FAILURE" == true ]]; then
+    local elapsed=$(( $(date +%s) - build_start ))
+    if [[ $elapsed -ge $LONG_BUILD_THRESHOLD ]]; then
+      local duration=$(( elapsed / 60 ))
+      local msg="un $rebuild_cmd on $hostname completed after ${duration}m"
+      notify-if-away "Build Complete" "$msg" || true
+      as_user notify-send -a "un" "Build Complete" "$msg" || true
+    fi
+  fi
 }
 
 main "$@"
