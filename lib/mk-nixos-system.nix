@@ -15,6 +15,7 @@
   bun2nix,
   versions,
   cacheModule,
+  casModule,
 }:
 { system, machine-module }:
 nixpkgs.lib.nixosSystem {
@@ -32,6 +33,9 @@ nixpkgs.lib.nixosSystem {
 
     # Shared binary cache configuration
     cacheModule
+
+    # Content-addressable storage configuration
+    casModule
 
     # Load the Determinate module
     determinate.nixosModules.default

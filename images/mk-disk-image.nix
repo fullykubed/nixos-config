@@ -7,11 +7,13 @@
 }:
 let
   cacheModule = import ../modules/utility/cache-module.nix;
+  casModule = import ../modules/utility/cas-module.nix;
   pkgs = import nixpkgs { system = "x86_64-linux"; };
   system = nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules = [
       cacheModule
+      casModule
       determinate.nixosModules.default
       {
         fileSystems."/" = {

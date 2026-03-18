@@ -146,7 +146,7 @@
         "root"
         "admin"
       ];
-      experimental-features = [
+      extra-experimental-features = [
         "nix-command"
         "flakes"
       ];

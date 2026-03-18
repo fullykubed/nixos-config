@@ -4,22 +4,25 @@ Distributed build infrastructure for NixOS: a hardened custom stdenv, shared com
 
 ## Layers
 
-The build system has four layers, each building on the last:
+The build system has four layers, each building on the last. Content-addressed derivations (CAS) are a cross-cutting concern that affects all layers:
 
 ```
-┌────────────────────────────────────────────────────────────┐
-│  4. Binary Cache                                           │
-│     niks3 + Cloudflare R2 — stores and serves build output │
-├────────────────────────────────────────────────────────────┤
-│  3. Remote Builders                                        │
-│     Ephemeral Hetzner Cloud VMs — distributed compilation  │
-├────────────────────────────────────────────────────────────┤
-│  2. Compiler Cache (ccache)                                │
-│     R2-backed ccache — skip recompilation across machines  │
-├────────────────────────────────────────────────────────────┤
-│  1. Custom stdenv                                          │
-│     mold linker + hardening flags + ccache wrapping        │
-└────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  Content-Addressed Derivations (cross-cutting)                      │
+│  ca-derivations + contentAddressedByDefault — early cutoff          │
+├────────────────────────────────────────────────────────────────────┤
+│  4. Binary Cache                                                    │
+│     niks3 + Cloudflare R2 — stores and serves build output (+ CA)  │
+├────────────────────────────────────────────────────────────────────┤
+│  3. Remote Builders                                                 │
+│     Ephemeral Hetzner Cloud VMs — distributed compilation           │
+├────────────────────────────────────────────────────────────────────┤
+│  2. Compiler Cache (ccache)                                         │
+│     R2-backed ccache — skip recompilation across machines           │
+├────────────────────────────────────────────────────────────────────┤
+│  1. Custom stdenv                                                   │
+│     mold linker + hardening flags + ccache wrapping                 │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 **Layer 1** ([stdenv](stdenv.md)) overrides every package's build environment: the mold linker replaces GNU ld for faster linking, additional hardening flags are enabled globally, and every C/C++ compilation is wrapped with ccache. This is the foundation — it runs on local machines and remote builders alike.
@@ -134,6 +137,7 @@ The build system has four layers, each building on the last:
 | Component | What it does | Config |
 |---|---|---|
 | **Custom stdenv** | Overrides mkDerivation for all packages: mold linker, ccache wrapping, hardening flags | `modules/common/stdenv/default.nix` |
+| **CAS module** | Enables ca-derivations and contentAddressedByDefault globally | `modules/utility/cas-module.nix` |
 | **ccache module** | R2-backed compiler cache: s3fs mount, s5cmd sync, sandbox paths | `modules/common/ccache/default.nix` |
 | **SSH ProxyCommand** | Intercepts SSH to `builder-N`, provisions Hetzner VM if absent | `modules/common/remote-builders/proxy-command.sh` |
 | **Builder image** | Pre-built NixOS snapshot: nix-daemon, ccache, cache upload, inactivity monitor | `images/builder/image.nix` |
@@ -149,7 +153,7 @@ The build system has four layers, each building on the last:
 
 1. User runs `un.sh -B 3 -P 1`
 2. Nix evaluates the system configuration (custom stdenv applies mold, ccache, and hardening to every derivation)
-3. Nix checks `extra-substituters` — if the binary cache has the NAR, it downloads instead of building
+3. Nix checks substituters for CA realisations (`.doi` files) — upstream caches don't serve these, so our niks3 cache is the primary source. If a realisation exists, Nix uses the cached output.
 4. For uncached derivations, Nix schedules builds across local + remote builders
 5. SSH ProxyCommand provisions any missing builders from the Hetzner snapshot (~30-60s)
 6. Each builder's nix-daemon runs the build inside a sandbox with ccache directories mounted
@@ -157,7 +161,8 @@ The build system has four layers, each building on the last:
 8. On build completion, the post-build-hook enqueues the output to the upload queue
 9. `cache-upload.service` batches 32 paths and pushes them to niks3 via SSH tunnel
 10. niks3 signs the NAR and uploads to R2; Cloudflare CDN serves it for future reads
-11. After 60 minutes with no active builds, the inactivity monitor deletes the builder
+11. Early cutoff: if a rebuilt dependency produces identical content to its previous CA output, downstream dependents skip rebuilding
+12. After 60 minutes with no active builds, the inactivity monitor deletes the builder
 
 ## Secrets
 

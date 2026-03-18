@@ -22,6 +22,8 @@ All per-machine differentiation lives in the machine module.
 
 **Hardened stdenv with mold** -- `modules/patches/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via `__noMold = true` or the `moldExcludedNames` list.
 
+**Content-addressed derivations** -- `modules/utility/cas-module.nix` enables `ca-derivations` and `contentAddressedByDefault` globally. Store paths are derived from output content rather than input hashes, enabling early-cutoff optimisation (unchanged outputs skip downstream rebuilds). Still experimental; packages can opt out via `__noCas = true` or the `casExcludedNames` list in the stdenv module.
+
 **Patches** -- `modules/patches/` has per-package directories, each an overlay module. Patches cover CVEs not yet upstream, fixes for packages broken by our hardened stdenv, and any other upstream issues. A daily `vulnix` timer scans for new vulnerabilities.
 
 **Secrets** -- `agenix` + `agenix-rekey` with YubiKey master identities. Encrypted at rest in `secrets/`, rekeyed per-host, decrypted to `/run/agenix/` at activation.

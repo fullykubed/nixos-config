@@ -61,3 +61,12 @@ Compilers, assemblers, and test frameworks are excluded from the extra hardening
 
 - **`doCheck = false`** — Tests are disabled globally. Per-package test overrides caused by the custom stdenv live in `modules/patches/`.
 
+## CAS Exclusions
+
+Content-addressed derivations are enabled globally via `contentAddressedByDefault`. Packages that
+break with content-addressing can opt out via the `casExcludedNames` list or by setting `__noCas = true`
+via `overrideAttrs`, following the same pattern as mold and ccache exclusions.
+
+When a package is excluded, the stdenv sets `__contentAddressed = false` on the derivation, reverting
+it to input-addressed output hashing.
+

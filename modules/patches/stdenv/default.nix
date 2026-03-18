@@ -6,6 +6,7 @@
 # 3. Use ccache as a C/C++ compiler wrapper for all compatible packages
 # 4. Disable reference checks to allow CVE patches on bootstrap packages
 # 5. Exclude specific packages from aggressive hardening
+# 6. Exclude specific packages from content-addressing (CAS)
 #
 # Mold and ccache are built from a clean nixpkgs import (no overlays) to
 # avoid a circular dependency (they need stdenv, our stdenv adds them).
@@ -13,6 +14,7 @@
 # Per-package test/build overrides caused by the custom stdenv live in modules/patches/.
 # Packages can opt out of mold by setting __noMold = true via overrideAttrs.
 # Packages can opt out of ccache by setting __noCcache = true via overrideAttrs.
+# Packages can opt out of CAS by setting __noCas = true via overrideAttrs.
 {
   lib,
   system,
@@ -92,6 +94,11 @@ let
         "firefox-unwrapped" # elfhack passes --real-linker to ld.lld; mold doesn't support it
       ];
 
+      # Packages excluded from content-addressing by pname.
+      casExcludedNames = [
+        # Add packages here as CA breakage is discovered
+      ];
+
       addFlags =
         _stdenv: args:
         let
@@ -114,6 +121,9 @@ let
                 !isBootstrap
                 && !(a.__noCcache or false)
                 && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
+
+              useCas =
+                !isBootstrap && !(a.__noCas or false) && !(a ? pname && builtins.elem a.pname casExcludedNames);
 
               # Mold linker flags are injected into whichever location the
               # derivation already uses. If the derivation sets NIX_CFLAGS_LINK
@@ -241,6 +251,7 @@ let
               nativeBuildInputs =
                 (if useMold then (a.nativeBuildInputs or [ ]) ++ [ cleanMold ] else (a.nativeBuildInputs or [ ]))
                 ++ (if useCcache then [ cleanCcache ] else [ ]);
+              __contentAddressed = if !useCas then false else (a.__contentAddressed or false);
             }
             // cMoldFlags
             // rustMoldFlags

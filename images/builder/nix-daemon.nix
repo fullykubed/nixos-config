@@ -18,7 +18,7 @@ _: {
       fallback = true;
       timeout = 21600;
       allow-import-from-derivation = false;
-      experimental-features = [
+      extra-experimental-features = [
         "nix-command"
         "flakes"
         "cgroups"

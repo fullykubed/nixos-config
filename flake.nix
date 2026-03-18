@@ -90,6 +90,7 @@
     let
       versions = import ./lib/versions.nix;
       cacheModule = import ./modules/utility/cache-module.nix;
+      casModule = import ./modules/utility/cas-module.nix;
 
       mkDiskImage = import ./images/mk-disk-image.nix { inherit nixpkgs determinate; };
 
@@ -109,6 +110,7 @@
           bun2nix
           versions
           cacheModule
+          casModule
           ;
       };
 
