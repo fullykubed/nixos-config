@@ -69,6 +69,7 @@
     ./common/binary-cache
     ./common/ccache
     ./common/tailscale
+    ./common/repos
     ./patches
   ];
 
