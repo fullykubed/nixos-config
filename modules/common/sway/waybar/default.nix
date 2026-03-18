@@ -56,7 +56,7 @@ in
             lib.makeBinPath [
               pkgs.waybar
               waybarBuildersScript
-              pkgs.jq
+              pkgs.jaq
               pkgs.curl
               pkgs.findutils
             ]

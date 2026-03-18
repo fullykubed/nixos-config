@@ -4,8 +4,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
-JQ="@jq@"
+JAQ="@jaq@"
 
 usage() {
     echo "Usage: claude-PRD-get-task <prd-name> <task-name>"
@@ -48,8 +47,8 @@ LOG_FILE="${PRD_DIR}/log.md"
 
 # Check if PRD directory exists
 if [[ ! -d "$PRD_DIR" ]]; then
-    # shellcheck disable=SC2016 # $name/$prd are jq variables, not shell
-    $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
+    # shellcheck disable=SC2016 # $name/$prd are jaq variables, not shell
+    $JAQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "PRD directory not found"}'
     exit 0
 fi
@@ -57,7 +56,7 @@ fi
 # Check if tasks file exists
 if [[ ! -f "$TASKS_FILE" ]]; then
     # shellcheck disable=SC2016
-    $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
+    $JAQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "tasks.yaml not found"}'
     exit 0
 fi
@@ -69,7 +68,7 @@ if [[ -f "$LOG_FILE" ]]; then
 fi
 
 # Try to find the task (either as top-level leaf task or subtask)
-TASK_JSON=$($YQ -o=json "
+TASK_JSON=$($JAQ --from yaml "
     # First try top-level leaf tasks (have status field directly)
     (.[] | select(.name == \"$TASK_NAME\" and .status) | {
         \"name\": .name,
@@ -92,13 +91,13 @@ TASK_JSON=$($YQ -o=json "
 # Check if task was found
 if [[ "$TASK_JSON" == "null" || -z "$TASK_JSON" ]]; then
     # shellcheck disable=SC2016
-    $JQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
+    $JAQ -n --arg name "$TASK_NAME" --arg prd "$PRD_NAME" \
         '{found: false, name: $name, prd_name: $prd, error: "Task not found in tasks.yaml"}'
     exit 0
 fi
 
 # Get the spec path from the task
-SPEC_REL=$(echo "$TASK_JSON" | $JQ -r '.spec // ""')
+SPEC_REL=$(echo "$TASK_JSON" | $JAQ -r '.spec // ""')
 
 # Build full spec path
 if [[ -n "$SPEC_REL" ]]; then
@@ -115,7 +114,7 @@ fi
 
 # Add additional context to the task JSON
 # shellcheck disable=SC2016
-echo "$TASK_JSON" | $JQ \
+echo "$TASK_JSON" | $JAQ \
     --arg prd_name "$PRD_NAME" \
     --arg prd_path "$PRD_FILE" \
     --arg log_path "$LOG_FILE" \

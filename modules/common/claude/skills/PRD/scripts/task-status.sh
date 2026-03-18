@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 
 usage() {
     echo "Usage: task-status <prd-name>"
@@ -30,7 +30,7 @@ fi
 # Count statuses from both top-level leaf tasks and subtasks
 # Leaf tasks have a 'status' field directly
 # Parent tasks have 'subtasks' array where each subtask has a 'status'
-$YQ -o=json '
+$JAQ --from yaml '
 {
   "draft": [.[] | select(.status == "draft"), .[] | .subtasks[]? | select(.status == "draft")] | length,
   "defined": [.[] | select(.status == "defined"), .[] | .subtasks[]? | select(.status == "defined")] | length,

@@ -6,13 +6,13 @@ set -euo pipefail
 
 CHECK_JSONSCHEMA="@check-jsonschema@"
 SCHEMA_PATH="@schema-path@"
-JQ="@jq@"
+JAQ="@jaq@"
 
 # Read JSON input from stdin
 INPUT=$(cat)
 
 # Extract file path from tool_input
-FILE_PATH=$($JQ -r '.tool_input.file_path // empty' <<< "$INPUT")
+FILE_PATH=$($JAQ -r '.tool_input.file_path // empty' <<< "$INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0
@@ -55,14 +55,14 @@ while IFS= read -r entry; do
     if [[ ! "$ref" =~ $PERMALINK_RE ]]; then
         BAD_REFS+=("evidence: $ref")
     fi
-done < <($JQ -r '.evidence[]' "$FILE_PATH")
+done < <($JAQ -r '.evidence[]' "$FILE_PATH")
 
 # Check suggested_fixes change locations
 while IFS= read -r location; do
     if [[ ! "$location" =~ $PERMALINK_RE ]]; then
         BAD_REFS+=("suggested_fixes.changes.location: $location")
     fi
-done < <($JQ -r '.suggested_fixes[].changes[].location' "$FILE_PATH")
+done < <($JAQ -r '.suggested_fixes[].changes[].location' "$FILE_PATH")
 
 if [[ ${#BAD_REFS[@]} -gt 0 ]]; then
     echo "Source file references must be GitHub permalinks:" >&2

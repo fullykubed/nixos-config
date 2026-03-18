@@ -10,7 +10,7 @@ let
       pkgs.bash
       pkgs.gh
       pkgs.gitMinimal
-      pkgs.jq
+      pkgs.jaq
       pkgs.check-jsonschema
     ];
 
@@ -22,7 +22,7 @@ let
       substitute $src/repo-info.sh $out/bin/claude-GitHub-repo-info \
         --replace "@gh@" "${pkgs.gh}/bin/gh" \
         --replace "@git@" "${pkgs.gitMinimal}/bin/git" \
-        --replace "@jq@" "${pkgs.jq}/bin/jq"
+        --replace "@jaq@" "${pkgs.jaq}/bin/jaq"
       chmod +x $out/bin/claude-GitHub-repo-info
 
       substitute $src/file-issue.sh $out/bin/claude-GitHub-file-issue \
@@ -32,7 +32,7 @@ let
       substitute ${./hooks/validate-rca.sh} $out/bin/claude-GitHub-validate-rca \
         --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
         --replace "@schema-path@" "$out/share/claude/rca.schema.json" \
-        --replace "@jq@" "${pkgs.jq}/bin/jq"
+        --replace "@jaq@" "${pkgs.jaq}/bin/jaq"
       chmod +x $out/bin/claude-GitHub-validate-rca
     '';
   };

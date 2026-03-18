@@ -7,10 +7,10 @@
 input=$(cat)
 
 # Extract hook event name from the JSON payload
-HOOK_TYPE=$(echo "$input" | @jq@ -r '.hook_event_name // ""')
+HOOK_TYPE=$(echo "$input" | @jaq@ -r '.hook_event_name // ""')
 
 # Extract session ID from the JSON payload
-SESSION_ID=$(echo "$input" | @jq@ -r '.session_id // ""')
+SESSION_ID=$(echo "$input" | @jaq@ -r '.session_id // ""')
 
 # Mark for this Claude session's container (include both session ID and pane for uniqueness)
 if [ -n "$SESSION_ID" ] && [ -n "$TMUX_PANE" ]; then
@@ -36,7 +36,8 @@ send_notification() {
     # If we're in tmux, send notification with dismissal on focus
     if [ -n "$TMUX_PANE" ] && [ "$4" != "transient" ]; then
         # Send notification and get ID for dismissal
-        local notification_id=$(@notify-send@ \
+        local notification_id
+        notification_id=$(@notify-send@ \
             --urgency="$urgency" \
             --app-name="claude-code" \
             --icon="dialog-information" \
@@ -66,7 +67,7 @@ send_notification() {
             # If user clicked the focus action
             if [ "$action" = "focus" ]; then
                 swaymsg "[con_mark=\"$CLAUDE_MARK\"] focus"
-		tmux set-hook -ut $TMUX_PANE pane-focus-in
+		tmux set-hook -ut "$TMUX_PANE" pane-focus-in
                 tmux select-window -t "$TMUX_PANE"
             fi
         ) &
@@ -90,14 +91,17 @@ set_tmux_alert() {
         local pane_id="$TMUX_PANE"
         
         # Get Claude's window ID
-        local window_id=$(tmux display-message -t "$pane_id" -p '#{window_id}')
-        local active_window=$(tmux display-message -p '#{window_id}')
+        local window_id
+        window_id=$(tmux display-message -t "$pane_id" -p '#{window_id}')
+        local active_window
+        active_window=$(tmux display-message -p '#{window_id}')
         
         # Only change window name if Claude's window is not currently focused
         if [ "$window_id" != "$active_window" ]; then
             
             # Rename the window temporarily to show alert
-            local window_name=$(tmux display-message -t "$pane_id" -p '#{window_name}')
+            local window_name
+            window_name=$(tmux display-message -t "$pane_id" -p '#{window_name}')
             
             # Check if window name doesn't already have the red dot
             if [[ "$window_name" != "🔴 "* ]]; then
@@ -120,7 +124,7 @@ case "$HOOK_TYPE" in
         ;;
     "Notification")
         # Extract message from the JSON payload for notifications
-        message=$(echo "$input" | @jq@ -r '.message // "Needs your input"')
+        message=$(echo "$input" | @jaq@ -r '.message // "Needs your input"')
         send_notification "Claude Needs Input" "$message" "critical"
         set_tmux_alert
         ;;
@@ -163,7 +167,7 @@ case "$HOOK_TYPE" in
         fi
         
         # For stop hook, get transcript and generate summary
-        transcript_path=$(echo "$input" | @jq@ -r '.transcript_path // ""')
+        transcript_path=$(echo "$input" | @jaq@ -r '.transcript_path // ""')
         if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
             # Extract only user and assistant messages from the JSONL transcript
             # Use the extract-conversation script to get clean human-readable text

@@ -163,7 +163,7 @@
     wget
     htop
     hcloud
-    jq
+    jaq
     cloud-init
     postgresql # For manual DB queries
   ];

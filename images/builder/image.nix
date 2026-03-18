@@ -38,7 +38,7 @@
     wget
     htop
     hcloud # For self-deletion
-    jq # For parsing Hetzner metadata
+    jaq # For parsing Hetzner metadata
     iperf3 # For bandwidth testing via builders check
     fio # For disk performance testing via builders check
     niks3-cli # For pushing build results to cache

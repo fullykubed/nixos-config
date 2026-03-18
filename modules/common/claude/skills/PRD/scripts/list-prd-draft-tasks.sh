@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 
 if [[ $# -lt 1 ]]; then
     echo "Usage: claude-PRD-list-draft-tasks <prd-name>" >&2
@@ -26,8 +26,8 @@ fi
 
 # Extract all leaf tasks with draft status
 # Leaf tasks are either top-level tasks with a status field, or subtasks
-# shellcheck disable=SC2016 # $parent is a yq variable, not shell
-$YQ -o=json '
+# shellcheck disable=SC2016 # $parent is a jaq variable, not shell
+$JAQ --from yaml '
     [
         # Top-level leaf tasks (have status, no subtasks)
         (.[] | select(.status == "draft") | {

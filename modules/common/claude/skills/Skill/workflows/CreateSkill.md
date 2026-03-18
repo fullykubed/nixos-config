@@ -186,8 +186,8 @@ If the skill needs CLI tools for querying state or performing operations:
 
 | Tier | Dependencies | Example |
 |------|-------------|---------|
-| **Repository-level** | Use tools directly from `PATH` (e.g., `jq`, `yq`) | `jq -r '.name' file.json` |
-| **System-level** | Use `@tool@` substitution patterns for Nix dependency injection | `@jq@ -r '.name' file.json` |
+| **Repository-level** | Use tools directly from `PATH` (e.g., `jaq`) | `jaq -r '.name' file.json` |
+| **System-level** | Use `@tool@` substitution patterns for Nix dependency injection | `@jaq@ -r '.name' file.json` |
 
 **Do NOT use `@tool@` substitution in repository-level scripts** - they are not built by Nix and the patterns will not be resolved.
 

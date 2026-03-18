@@ -27,6 +27,8 @@
     let
       inherit (config) versions;
 
+      extractFrontmatter = pkgs.callPackage ./lib/extract-frontmatter.nix { };
+
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
         runScript = "${nixpkgs-unstable.claude-code}/bin/claude";
@@ -141,7 +143,7 @@
 
         buildInputs = [
           pkgs.bash
-          pkgs.jq
+          pkgs.jaq
         ];
 
         installPhase = ''
@@ -149,11 +151,11 @@
 
           substitute $src/notify-hook.sh $out/bin/claude-notify-hook \
             --replace "@notify-send@" "${pkgs.libnotify}/bin/notify-send" \
-            --replace "@jq@" "${pkgs.jq}/bin/jq" \
+            --replace "@jaq@" "${pkgs.jaq}/bin/jaq" \
             --replace "@claude@" "${claude-code-sandboxed}/bin/claude"
 
           substitute $src/extract-conversation.sh $out/bin/extract-conversation \
-            --replace "jq" "${pkgs.jq}/bin/jq" \
+            --replace "jq" "${pkgs.jaq}/bin/jaq" \
             --replace "grep" "${pkgs.gnugrep}/bin/grep"
 
           substituteInPlace $out/bin/claude-notify-hook \
@@ -247,7 +249,7 @@
         fi
 
         # Re-apply Nix-managed settings that Claude Code may have clobbered
-        ${pkgs.jq}/bin/jq '
+        ${pkgs.jaq}/bin/jaq '
           .theme = "dark" |
           .projects["/home/${config.username}"].hasTrustDialogAccepted = true |
           .autoCompactEnabled = true |
@@ -261,7 +263,7 @@
 
         if [[ -f "$EXA_TOKEN_PATH" ]]; then
           EXA_API_KEY="$(cat "$EXA_TOKEN_PATH")"
-          ${pkgs.jq}/bin/jq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
+          ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
             '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
             "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
           mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
@@ -270,7 +272,7 @@
         exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
       '';
 
-      claudeSkill = pkgs.callPackage ./skills/Skill { };
+      claudeSkill = pkgs.callPackage ./skills/Skill { extract-frontmatter = extractFrontmatter; };
 
       claudePRD = pkgs.callPackage ./skills/PRD { };
 

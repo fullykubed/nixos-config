@@ -24,7 +24,7 @@ let
     name = "cache";
     runtimeInputs = [
       pkgs.hcloud
-      pkgs.jq
+      pkgs.jaq
       pkgs.bc
       pkgs.ncurses
       pkgs.nix
@@ -37,7 +37,7 @@ let
     name = "hetzner-cache-proxy";
     runtimeInputs = [
       pkgs.hcloud
-      pkgs.jq
+      pkgs.jaq
       pkgs.netcat-gnu
       pkgs.socat
       pkgs.openssh
@@ -188,7 +188,7 @@ in
         };
         path = [
           pkgs.hcloud
-          pkgs.jq
+          pkgs.jaq
         ];
         script = ''
           export HCLOUD_TOKEN
@@ -215,7 +215,7 @@ in
         path = with pkgs; [
           openssh
           hcloud
-          jq
+          jaq
           coreutils
           bash
         ];
@@ -226,7 +226,7 @@ in
           # Find cache server IP
           CACHE_IP=""
           while [ -z "$CACHE_IP" ]; do
-            CACHE_IP=$(hcloud server list -l cache=true -o json | jq -r '.[0].public_net.ipv4.ip // empty')
+            CACHE_IP=$(hcloud server list -l cache=true -o json | jaq -r '.[0].public_net.ipv4.ip // empty')
             if [ -z "$CACHE_IP" ]; then
               echo "WARNING: No cache server found (label cache=true). Retrying in 30s..."
               sleep 30

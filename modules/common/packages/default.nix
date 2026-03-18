@@ -35,6 +35,7 @@
     ################################
     jq # JSON parser
     yq # YAML parser
+    jaq # Fast JSON/YAML processor (jq-compatible, Rust)
 
     ################################
     ##  Scriping Tools

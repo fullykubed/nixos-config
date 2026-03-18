@@ -22,7 +22,7 @@ resolve_snapshot_id() {
   fi
   local id
   id=$(hcloud image list -t snapshot -l type=builder -o json 2>/dev/null \
-    | jq -r 'sort_by(.created) | last | .id // empty')
+    | jaq -r 'sort_by(.created) | last | .id // empty')
   if [[ -z "$id" ]]; then
     echo -e "${RED}Error: No snapshot found with label type=builder${NC}" >&2
     echo "Upload a builder image first, or set HETZNER_BUILDER_SNAPSHOT." >&2
@@ -248,7 +248,7 @@ cmd_list() {
   servers_json=$(hcloud server list -o json 2>/dev/null || echo '[]')
 
   local builders
-  builders=$(echo "$servers_json" | jq -r '.[] | select(.name | test("^(big-)?builder-")) | "\(.name)\t\(.status)\t\(.public_net.ipv4.ip)\t\(.created)"' | sort)
+  builders=$(echo "$servers_json" | jaq -r '.[] | select(.name | test("^(big-)?builder-")) | "\(.name)\t\(.status)\t\(.public_net.ipv4.ip)\t\(.created)"' | sort)
 
   if [[ -z "$builders" ]]; then
     echo "No builders found."
@@ -265,8 +265,8 @@ cmd_status() {
   servers_json=$(hcloud server list -o json 2>/dev/null || echo '[]')
 
   local regular_count big_count
-  regular_count=$(echo "$servers_json" | jq '[.[] | select(.name | test("^builder-"))] | length')
-  big_count=$(echo "$servers_json" | jq '[.[] | select(.name | test("^big-builder-"))] | length')
+  regular_count=$(echo "$servers_json" | jaq '[.[] | select(.name | test("^builder-"))] | length')
+  big_count=$(echo "$servers_json" | jaq '[.[] | select(.name | test("^big-builder-"))] | length')
 
   local regular_cost big_cost total_cost
   regular_cost=$(echo "$regular_count * $REGULAR_HOURLY_COST" | bc)
@@ -284,7 +284,7 @@ cmd_status() {
 
   if [[ $total_count -gt 0 ]]; then
     echo "Builders:"
-    echo "$servers_json" | jq -r '.[] | select(.name | test("^(big-)?builder-")) | "  \(.name)\t\(.status)\t\(.public_net.ipv4.ip)"' | sort | column -t -s $'\t'
+    echo "$servers_json" | jaq -r '.[] | select(.name | test("^(big-)?builder-")) | "  \(.name)\t\(.status)\t\(.public_net.ipv4.ip)"' | sort | column -t -s $'\t'
   fi
 }
 
@@ -302,7 +302,7 @@ cmd_check() {
   fi
 
   local ip
-  ip=$(hcloud server describe "$name" -o json | jq -r '.public_net.ipv4.ip')
+  ip=$(hcloud server describe "$name" -o json | jaq -r '.public_net.ipv4.ip')
   echo -e "IP: ${GREEN}${ip}${NC}"
 
   # Set up host key verification for this builder
@@ -469,8 +469,8 @@ cmd_check() {
     if iperf_output=$(iperf3 -c 127.0.0.1 -t 30 -p "$iperf_port" -J 2>"$iperf_err"); then
       stop_spinner
       local send_bps receive_bps
-      send_bps=$(echo "$iperf_output" | jq '.end.sum_sent.bits_per_second // 0')
-      receive_bps=$(echo "$iperf_output" | jq '.end.sum_received.bits_per_second // 0')
+      send_bps=$(echo "$iperf_output" | jaq '.end.sum_sent.bits_per_second // 0')
+      receive_bps=$(echo "$iperf_output" | jaq '.end.sum_received.bits_per_second // 0')
       local send_mbps receive_mbps
       send_mbps=$(echo "scale=1; $send_bps / 1000000" | bc)
       receive_mbps=$(echo "scale=1; $receive_bps / 1000000" | bc)
@@ -478,7 +478,7 @@ cmd_check() {
     else
       stop_spinner
       local iperf_json_err
-      iperf_json_err=$(echo "$iperf_output" | jq -r '.error // empty' 2>/dev/null)
+      iperf_json_err=$(echo "$iperf_output" | jaq -r '.error // empty' 2>/dev/null)
       echo -e "Network bandwidth: ${YELLOW}SKIPPED${NC}"
       [[ -n "$iperf_json_err" ]] && echo -e "  ${RED}iperf3: ${iperf_json_err}${NC}"
     fi
@@ -515,10 +515,10 @@ cmd_check() {
        --filename=/tmp/fio-test --output-format=json --group_reporting 2>/dev/null && rm -f /tmp/fio-test" 2>/dev/null); then
     stop_spinner
     local read_iops read_bw_mb write_iops write_bw_mb
-    read_iops=$(echo "$fio_output" | jq '.jobs[0].read.iops // 0 | floor')
-    read_bw_mb=$(echo "$fio_output" | jq '.jobs[0].read.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
-    write_iops=$(echo "$fio_output" | jq '.jobs[0].write.iops // 0 | floor')
-    write_bw_mb=$(echo "$fio_output" | jq '.jobs[0].write.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
+    read_iops=$(echo "$fio_output" | jaq '.jobs[0].read.iops // 0 | floor')
+    read_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].read.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
+    write_iops=$(echo "$fio_output" | jaq '.jobs[0].write.iops // 0 | floor')
+    write_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].write.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
     echo -e "Disk performance: ${GREEN}read: ${read_iops} IOPS ${read_bw_mb} MB/s | write: ${write_iops} IOPS ${write_bw_mb} MB/s (4K randrw 70/30)${NC}"
   else
     stop_spinner
@@ -806,7 +806,7 @@ cmd_destroy_all() {
 
   local servers
   servers=$(hcloud server list -o json 2>/dev/null \
-    | jq -r '.[] | select(.name | test("^(big-)?builder-")) | .name' | sort)
+    | jaq -r '.[] | select(.name | test("^(big-)?builder-")) | .name' | sort)
 
   if [[ -z "$servers" ]]; then
     echo "No builders to destroy."
@@ -900,7 +900,7 @@ cmd_dashboard() {
       [[ -n "$name" ]] || continue
       names+=("$name")
       ips+=("$ip")
-    done < <(echo "$builders_json" | jq -r \
+    done < <(echo "$builders_json" | jaq -r\
       '.[] | select(.name | test("^(big-)?builder-")) | select(.status == "running") | "\(.name)|\(.public_net.ipv4.ip)"' \
       2>/dev/null | sort)
 
@@ -1113,7 +1113,7 @@ case "${1:-help}" in
     [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME debug-stats <name|N>"; exit 1; }
     _ds_name="$(normalize_name "$2")"
     check_token
-    _ds_ip=$(hcloud server describe "$_ds_name" -o json 2>/dev/null | jq -r '.public_net.ipv4.ip')
+    _ds_ip=$(hcloud server describe "$_ds_name" -o json 2>/dev/null | jaq -r '.public_net.ipv4.ip')
     [[ -z "$_ds_ip" || "$_ds_ip" == "null" ]] && { echo -e "${RED}Builder $_ds_name not found${NC}"; exit 1; }
     setup_host_verification "$_ds_ip"
     echo "=== Raw SSH output (with stderr) ==="

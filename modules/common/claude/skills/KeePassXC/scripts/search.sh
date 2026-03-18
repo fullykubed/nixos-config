@@ -9,12 +9,12 @@ FILTER="${1:-}"
 
 # secret-tool search with xdg:schema returns all KeePassXC-exposed entries.
 RAW=$(@secret-tool@ search --all xdg:schema org.freedesktop.Secret.Generic 2>/dev/null) || {
-  @jq@ -n '{"error": "Could not reach Secret Service. Is KeePassXC running and unlocked with FDO Secrets enabled?"}' >&2
+  @jaq@ -n '{"error": "Could not reach Secret Service. Is KeePassXC running and unlocked with FDO Secrets enabled?"}' >&2
   exit 1
 }
 
 if [[ -z "$RAW" ]]; then
-  @jq@ -n '{"entries": [], "message": "No entries found. Ensure KeePassXC has groups exposed via Database > Secret Service Integration."}'
+  @jaq@ -n '{"entries": [], "message": "No entries found. Ensure KeePassXC has groups exposed via Database > Secret Service Integration."}'
   exit 0
 fi
 
@@ -44,7 +44,7 @@ BEGIN { printf "["; first=1 }
 /^$/ { printf "}"; next }
 END { if (!first) printf "}"; printf "\n]\n" }
 ' | if [[ -n "$FILTER" ]]; then
-  @jq@ --arg f "$FILTER" '[.[] | select((.label // "") + " " + (.Title // "") | test($f; "i"))]'
+  @jaq@ --arg f "$FILTER" '[.[] | select((.label // "") + " " + (.Title // "") | test($f; "i"))]'
 else
-  @jq@ '.'
+  @jaq@ '.'
 fi

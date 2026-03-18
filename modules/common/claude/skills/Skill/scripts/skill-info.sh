@@ -16,47 +16,47 @@ skill_dir="$skills_dir/$skill_name"
 
 if [[ ! -d "$skill_dir" ]]; then
   # shellcheck disable=SC2016 # $name is a jq variable, not shell
-  @jq@ -n --arg name "$skill_name" '{error: "Skill \"\($name)\" not found", found: false}'
+  @jaq@ -n --arg name "$skill_name" '{error: "Skill \"\($name)\" not found", found: false}'
   exit 0
 fi
 
 skill_md="$skill_dir/SKILL.md"
 if [[ ! -f "$skill_md" ]]; then
   # shellcheck disable=SC2016 # $dir is a jq variable, not shell
-  @jq@ -n --arg dir "$skill_dir" '{error: "No SKILL.md found in \($dir)", found: false}'
+  @jaq@ -n --arg dir "$skill_dir" '{error: "No SKILL.md found in \($dir)", found: false}'
   exit 0
 fi
 
-name=$(@yq@ --front-matter=extract '.name' "$skill_md")
-description=$(@yq@ --front-matter=extract '.description' "$skill_md")
-model=$(@yq@ --front-matter=extract '.model // "default"' "$skill_md")
+name=$(@extract-frontmatter@ "$skill_md" | @jaq@ --from yaml -r '.name')
+description=$(@extract-frontmatter@ "$skill_md" | @jaq@ --from yaml -r '.description')
+model=$(@extract-frontmatter@ "$skill_md" | @jaq@ --from yaml -r '.model // "default"')
 
 # List workflows
 workflows="[]"
 if [[ -d "$skill_dir/workflows" ]]; then
-  workflows=$(find "$skill_dir/workflows" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jq@ -R . | @jq@ -s .)
+  workflows=$(find "$skill_dir/workflows" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jaq@ -R . | @jaq@ -s .)
 fi
 
 # List reference files
 references="[]"
 if [[ -d "$skill_dir/reference" ]]; then
-  references=$(find "$skill_dir/reference" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jq@ -R . | @jq@ -s .)
+  references=$(find "$skill_dir/reference" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jaq@ -R . | @jaq@ -s .)
 fi
 
 # List scripts
 scripts="[]"
 if [[ -d "$skill_dir/scripts" ]]; then
-  scripts=$(find "$skill_dir/scripts" -maxdepth 1 -name "*.sh" -exec basename {} .sh \; | sort | @jq@ -R . | @jq@ -s .)
+  scripts=$(find "$skill_dir/scripts" -maxdepth 1 -name "*.sh" -exec basename {} .sh \; | sort | @jaq@ -R . | @jaq@ -s .)
 fi
 
 # List schemas
 schemas="[]"
 if [[ -d "$skill_dir/schemas" ]]; then
-  schemas=$(find "$skill_dir/schemas" -maxdepth 1 -name "*.json" -exec basename {} \; | sort | @jq@ -R . | @jq@ -s .)
+  schemas=$(find "$skill_dir/schemas" -maxdepth 1 -name "*.json" -exec basename {} \; | sort | @jaq@ -R . | @jaq@ -s .)
 fi
 
 # shellcheck disable=SC2016 # $name/$description etc. are jq variables, not shell
-@jq@ -n \
+@jaq@ -n \
   --arg name "$name" \
   --arg description "$description" \
   --arg model "$model" \

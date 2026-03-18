@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 
 usage() {
     echo "Usage: claude-PRD-get-unanswered-research <prd-name>"
@@ -29,4 +29,4 @@ if [[ ! -f "$RESEARCH_FILE" ]]; then
 fi
 
 # Return unanswered questions (those without an answer)
-$YQ -o=json '[.[] | select(.answer == null or .answer == "") | {"text": .text, "mode": .mode}]' "$RESEARCH_FILE"
+$JAQ --from yaml '[.[] | select(.answer == null or .answer == "") | {"text": .text, "mode": .mode}]' "$RESEARCH_FILE"

@@ -8,8 +8,7 @@ let
 
     buildInputs = [
       pkgs.bash
-      pkgs.yq-go
-      pkgs.jq
+      pkgs.jaq
       pkgs.check-jsonschema
     ];
 
@@ -22,8 +21,7 @@ let
       installScript() {
         local src="$1" name="$2"; shift 2
         substitute "$src" "$out/bin/claude-PRD-$name" \
-          --replace "@yq@" "${pkgs.yq-go}/bin/yq" \
-          --replace "@jq@" "${pkgs.jq}/bin/jq" \
+          --replace "@jaq@" "${pkgs.jaq}/bin/jaq" \
           --replace "@check-jsonschema@" "${pkgs.check-jsonschema}/bin/check-jsonschema" \
           "$@"
         chmod +x "$out/bin/claude-PRD-$name"

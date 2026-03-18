@@ -10,7 +10,7 @@ let
       pkgs.bash
       pkgs.libsecret
       pkgs.gnugrep
-      pkgs.jq
+      pkgs.jaq
       pkgs.gawk
     ];
 
@@ -20,13 +20,13 @@ let
       substitute $src/search.sh $out/bin/claude-KeePassXC-search \
         --replace-fail "@grep@" "${pkgs.gnugrep}/bin/grep" \
         --replace-fail "@secret-tool@" "${pkgs.libsecret}/bin/secret-tool" \
-        --replace-fail "@jq@" "${pkgs.jq}/bin/jq" \
+        --replace-fail "@jaq@" "${pkgs.jaq}/bin/jaq" \
         --replace-fail "@awk@" "${pkgs.gawk}/bin/awk"
       chmod +x $out/bin/claude-KeePassXC-search
 
       substitute $src/lookup.sh $out/bin/claude-KeePassXC-lookup \
         --replace-fail "@secret-tool@" "${pkgs.libsecret}/bin/secret-tool" \
-        --replace-fail "@jq@" "${pkgs.jq}/bin/jq"
+        --replace-fail "@jaq@" "${pkgs.jaq}/bin/jaq"
       chmod +x $out/bin/claude-KeePassXC-lookup
     '';
   };

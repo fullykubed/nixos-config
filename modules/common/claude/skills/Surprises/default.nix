@@ -8,14 +8,14 @@ let
 
     buildInputs = [
       pkgs.bash
-      pkgs.jq
+      pkgs.jaq
     ];
 
     installPhase = ''
       mkdir -p $out/bin
 
       substitute $src/list.sh $out/bin/claude-Surprises-list \
-        --replace "@jq@" "${pkgs.jq}/bin/jq"
+        --replace "@jaq@" "${pkgs.jaq}/bin/jaq"
       chmod +x $out/bin/claude-Surprises-list
 
       cp $src/get.sh $out/bin/claude-Surprises-get
@@ -31,13 +31,13 @@ let
 
     buildInputs = [
       pkgs.bash
-      pkgs.jq
+      pkgs.jaq
     ];
 
     installPhase = ''
       mkdir -p $out/bin
       substitute $src/surprise-hook.sh $out/bin/claude-surprise-hook \
-        --replace "@jq@" "${pkgs.jq}/bin/jq" \
+        --replace "@jaq@" "${pkgs.jaq}/bin/jaq" \
         --replace "@claude@" "${nixpkgs-unstable.claude-code}/bin/claude"
       chmod +x $out/bin/claude-surprise-hook
     '';

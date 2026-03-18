@@ -6,14 +6,14 @@
 
 set -euo pipefail
 
-YQ="@yq@"
-JQ="@jq@"
+EXTRACT_FRONTMATTER="@extract-frontmatter@"
+JAQ="@jaq@"
 
 # Read JSON input from stdin
 INPUT=$(cat)
 
 # Extract file path from tool_input
-FILE_PATH=$($JQ -r '.tool_input.file_path // empty' <<< "$INPUT")
+FILE_PATH=$($JAQ -r '.tool_input.file_path // empty' <<< "$INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     exit 0
@@ -36,7 +36,7 @@ ERRORS=()
 # ---------------------------------------------------------------------------
 # Validate name field (required)
 # ---------------------------------------------------------------------------
-NAME=$($YQ --front-matter=extract '.name // ""' "$FILE_PATH" 2>/dev/null || echo "")
+NAME=$($EXTRACT_FRONTMATTER "$FILE_PATH" | $JAQ --from yaml -r '.name // ""' 2>/dev/null || echo "")
 
 if [[ -z "$NAME" || "$NAME" == "null" ]]; then
     ERRORS+=("Name field is missing or empty. It is required.")
@@ -45,7 +45,7 @@ fi
 # ---------------------------------------------------------------------------
 # Validate model field (optional, but must be an alias if set)
 # ---------------------------------------------------------------------------
-MODEL=$($YQ --front-matter=extract '.model // ""' "$FILE_PATH" 2>/dev/null || echo "")
+MODEL=$($EXTRACT_FRONTMATTER "$FILE_PATH" | $JAQ --from yaml -r '.model // ""' 2>/dev/null || echo "")
 
 if [[ -n "$MODEL" && "$MODEL" != "null" ]]; then
     ALLOWED_ALIASES=("opus" "sonnet" "haiku")
@@ -66,7 +66,7 @@ fi
 # ---------------------------------------------------------------------------
 # Validate description contains "USE WHEN"
 # ---------------------------------------------------------------------------
-DESCRIPTION=$($YQ --front-matter=extract '.description // ""' "$FILE_PATH" 2>/dev/null || echo "")
+DESCRIPTION=$($EXTRACT_FRONTMATTER "$FILE_PATH" | $JAQ --from yaml -r '.description // ""' 2>/dev/null || echo "")
 
 if [[ -n "$DESCRIPTION" && "$DESCRIPTION" != "null" ]]; then
     if [[ "$DESCRIPTION" != *"USE WHEN"* ]]; then
@@ -81,8 +81,8 @@ fi
 # ---------------------------------------------------------------------------
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
     REASON=$(printf "%s " "${ERRORS[@]}")
-    # shellcheck disable=SC2016 # $reason is a jq variable
-    $JQ -n \
+    # shellcheck disable=SC2016 # $reason is a jaq variable
+    $JAQ -n \
         --arg reason "Validation failed for $FILE_PATH: $REASON" \
         '{
             "decision": "block",

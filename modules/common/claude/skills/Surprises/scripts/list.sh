@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-JQ="@jq@"
+JAQ="@jaq@"
 
 MAIN_WORKTREE=$(git-worktree-path)
 
@@ -33,8 +33,8 @@ for file in "$SURPRISES_DIR"/*.md; do
     # Extract title from first H1 heading (line starting with "# ")
     title=$(awk '/^# /{sub(/^# /, ""); print; exit}' "$file")
 
-    # shellcheck disable=SC2016  # jq uses $var syntax, not shell expansion
-    results=$("$JQ" \
+    # shellcheck disable=SC2016  # jaq uses $var syntax, not shell expansion
+    results=$("$JAQ" \
         --arg slug "$slug" \
         --arg category "$category" \
         --arg title "$title" \
@@ -43,4 +43,4 @@ for file in "$SURPRISES_DIR"/*.md; do
         <<< "$results")
 done
 
-echo "$results" | "$JQ" '.'
+echo "$results" | "$JAQ" '.'

@@ -54,7 +54,7 @@ server_exists() {
 
 # Get server public IPv4 address
 get_server_ip() {
-  hcloud server describe "$TARGET_HOST" -o json | jq -r '.public_net.ipv4.ip'
+  hcloud server describe "$TARGET_HOST" -o json | jaq -r '.public_net.ipv4.ip'
 }
 
 # Wait for server to be reachable via SSH

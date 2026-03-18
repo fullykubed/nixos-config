@@ -163,8 +163,8 @@ System-level scripts are built by Nix and use `@tool@` substitution patterns for
 set -euo pipefail
 
 # @tool@ patterns are replaced at build time by Nix
-# @yq@ → yq-go binary path
-# @jq@ → jq binary path
+# @jaq@ → jaq binary path (JSON/YAML processor)
+# @extract-frontmatter@ → helper to extract YAML front-matter from markdown
 
 # Output JSON for machine-readable results
 # Use >&2 for error messages
@@ -212,11 +212,11 @@ let
     pname = "claude-<skillname>-scripts";
     version = "1.0.0";
     src = ./scripts;
-    buildInputs = [ pkgs.bash pkgs.yq-go pkgs.jq ];
+    buildInputs = [ pkgs.bash pkgs.jaq ];
     installPhase = ''
       mkdir -p $out/bin
       substitute $src/my-script.sh "$out/bin/claude-<SkillName>-my-script" \
-        --replace "@yq@" "${pkgs.yq-go}/bin/yq"
+        --replace "@jaq@" "${pkgs.jaq}/bin/jaq"
       chmod +x "$out/bin/claude-<SkillName>-my-script"
     '';
   };

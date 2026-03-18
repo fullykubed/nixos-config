@@ -12,6 +12,7 @@ QUEUE_DONE_DIR="/var/lib/cache-upload-queue/done"
 
 BUILDER_ICON=$'\uf233' # nf-fa-server
 CACHE_ON=$'\uf1c0'     # nf-fa-database
+# shellcheck disable=SC2034
 CACHE_OFF=$'\uf1c0'    # same icon, styled via class
 
 # Output JSON for waybar
@@ -20,7 +21,8 @@ output_json() {
   local tooltip="$2"
   local class="$3"
 
-  jq -cn \
+  # shellcheck disable=SC2016
+  jaq -cn \
     --arg text "$text" \
     --arg tooltip "$tooltip" \
     --arg class "$class" \
@@ -34,8 +36,8 @@ builder_active=false
 
 if [[ -s "$BUILDER_STATUS_FILE" ]]; then
   builders=$(cat "$BUILDER_STATUS_FILE")
-  regular_count=$(echo "$builders" | jq '[.[] | select(.name | startswith("big-") | not) | select(.name | startswith("builder-"))] | length')
-  big_count=$(echo "$builders" | jq '[.[] | select(.name | startswith("big-builder-"))] | length')
+  regular_count=$(echo "$builders" | jaq '[.[] | select(.name | startswith("big-") | not) | select(.name | startswith("builder-"))] | length')
+  big_count=$(echo "$builders" | jaq '[.[] | select(.name | startswith("big-builder-"))] | length')
   total=$((regular_count + big_count))
 
   if [[ "$total" -gt 0 ]]; then
@@ -50,7 +52,8 @@ if [[ -s "$BUILDER_STATUS_FILE" ]]; then
     fi
 
     builder_text="$BUILDER_ICON  $display"
-    builder_tooltip=$(echo "$builders" | jq -r '
+    # shellcheck disable=SC2016
+    builder_tooltip=$(echo "$builders" | jaq -r '
       (
         [.[] | select(.name | startswith("big-") | not) | select(.name | startswith("builder-"))] |
         if length > 0 then
@@ -100,11 +103,15 @@ cache_ok=false
 cache_tooltip="Cache: inactive"
 
 if [[ -s "$CACHE_STATUS_FILE" ]]; then
-  server_count=$(jq 'length' < "$CACHE_STATUS_FILE")
+  # shellcheck disable=SC2016
+  server_count=$(jaq 'length' < "$CACHE_STATUS_FILE")
   if [[ "$server_count" -gt 0 ]]; then
-    server_status=$(jq -r '.[0].status // "unknown"' < "$CACHE_STATUS_FILE")
-    server_name=$(jq -r '.[0].name // "cache"' < "$CACHE_STATUS_FILE")
-    server_ip=$(jq -r '.[0].public_net.ipv4.ip // "pending"' < "$CACHE_STATUS_FILE")
+    # shellcheck disable=SC2016
+    server_status=$(jaq -r '.[0].status // "unknown"' < "$CACHE_STATUS_FILE")
+    # shellcheck disable=SC2016
+    server_name=$(jaq -r '.[0].name // "cache"' < "$CACHE_STATUS_FILE")
+    # shellcheck disable=SC2016
+    server_ip=$(jaq -r '.[0].public_net.ipv4.ip // "pending"' < "$CACHE_STATUS_FILE")
 
     if [[ "$server_status" == "running" ]] && [[ -f "$NIKS3_URL_FILE" ]]; then
       cache_ok=true

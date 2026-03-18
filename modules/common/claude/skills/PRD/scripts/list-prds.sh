@@ -3,8 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
-JQ="@jq@"
+JAQ="@jaq@"
 
 PRDS_DIR=".claude/prds"
 
@@ -23,21 +22,22 @@ for prd_dir in "$PRDS_DIR"/*/; do
     tasks_file="${prd_dir}tasks.yaml"
 
     if [[ ! -f "$tasks_file" ]]; then
-        results=$($JQ --arg name "$prd_name" \
+        # shellcheck disable=SC2016 # $name is a jaq variable, not a shell variable
+        results=$($JAQ --arg name "$prd_name" \
             '. += [{"name": $name, "status": "no-tasks", "completed": 0, "total": 0}]' <<< "$results")
         continue
     fi
 
     # Count completed and total tasks (both top-level leaf tasks and subtasks)
-    counts=$($YQ -o=json '
+    counts=$($JAQ --from yaml '
         {
             "completed": [.[] | select(.status == "completed"), .[] | .subtasks[]? | select(.status == "completed")] | length,
             "total": [.[] | select(.status), .[] | .subtasks[]? | select(.status)] | length
         }
     ' "$tasks_file" 2>/dev/null || echo '{"completed":0,"total":0}')
 
-    completed=$($JQ -r '.completed' <<< "$counts")
-    total=$($JQ -r '.total' <<< "$counts")
+    completed=$($JAQ -r '.completed' <<< "$counts")
+    total=$($JAQ -r '.total' <<< "$counts")
 
     if [[ "$total" -eq 0 ]]; then
         status="no-tasks"
@@ -49,9 +49,10 @@ for prd_dir in "$PRDS_DIR"/*/; do
         status="in-progress"
     fi
 
-    results=$($JQ --arg name "$prd_name" --arg status "$status" \
+    # shellcheck disable=SC2016 # $name/$status/$completed/$total are jaq variables, not shell variables
+    results=$($JAQ --arg name "$prd_name" --arg status "$status" \
         --argjson completed "$completed" --argjson total "$total" \
         '. += [{"name": $name, "status": $status, "completed": $completed, "total": $total}]' <<< "$results")
 done
 
-echo "$results" | $JQ '.'
+echo "$results" | $JAQ '.'

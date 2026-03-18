@@ -23,19 +23,19 @@ scan_dir() {
       continue
     fi
 
-    name=$(@yq@ --front-matter=extract '.name' "$skill_md")
-    description=$(@yq@ --front-matter=extract '.description' "$skill_md")
+    name=$(@extract-frontmatter@ "$skill_md" | @jaq@ --from yaml -r '.name')
+    description=$(@extract-frontmatter@ "$skill_md" | @jaq@ --from yaml -r '.description')
 
     # Count and list workflows
     workflows="[]"
     workflow_count=0
     if [[ -d "${skill_dir}workflows" ]]; then
-      workflows=$(find "${skill_dir}workflows" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jq@ -R . | @jq@ -s .)
-      workflow_count=$(echo "$workflows" | @jq@ 'length')
+      workflows=$(find "${skill_dir}workflows" -maxdepth 1 -name "*.md" -exec basename {} .md \; | sort | @jaq@ -R . | @jaq@ -s .)
+      workflow_count=$(echo "$workflows" | @jaq@ 'length')
     fi
 
     # shellcheck disable=SC2016 # $name/$dir/$desc/$tier etc. are jq variables, not shell
-    results=$(echo "$results" | @jq@ \
+    results=$(echo "$results" | @jaq@ \
       --arg name "$name" \
       --arg desc "$description" \
       --arg dir "$(basename "$skill_dir")" \
@@ -57,4 +57,4 @@ if [[ -d "$SYSTEM_SKILLS_DIR" ]]; then
   scan_dir "$SYSTEM_SKILLS_DIR" "system"
 fi
 
-echo "$results" | @jq@ .
+echo "$results" | @jaq@ .

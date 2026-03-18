@@ -3,16 +3,15 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 CHECK_JSONSCHEMA="@check-jsonschema@"
 SCHEMA_PATH="@schema-path@"
-JQ="@jq@"
 
 # Read JSON input from stdin
 INPUT=$(cat)
 
 # Extract file path from tool_input
-FILE_PATH=$($JQ -r '.tool_input.file_path // empty' <<< "$INPUT")
+FILE_PATH=$($JAQ -r '.tool_input.file_path // empty' <<< "$INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     # Not a file operation, skip
@@ -42,7 +41,7 @@ fi
 
 # Step 2: Check that tasks with status 'defined' have existing spec files
 PRD_DIR=$(dirname "$FILE_PATH")
-SPEC_PATHS=$($YQ '
+SPEC_PATHS=$($JAQ --from yaml '
     [.[] | select(.status == "defined") | {"name": .name, "spec": .spec},
      .[] | .subtasks[]? | select(.status == "defined") | {"name": .name, "spec": .spec}]
     | .[] | .name + "|" + .spec
@@ -66,8 +65,8 @@ fi
 
 if [[ $ERRORS -gt 0 ]]; then
     # Output structured response for Claude
-    # shellcheck disable=SC2016 # $reason is a jq variable, not shell
-    $JQ -n \
+    # shellcheck disable=SC2016 # $reason is a jaq variable, not shell
+    $JAQ -n \
         --arg reason "Validation failed for $FILE_PATH: $ERROR_MESSAGES" \
         '{
             "decision": "block",

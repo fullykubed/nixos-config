@@ -13,8 +13,8 @@ if [[ -z "$TITLE" ]]; then
 fi
 
 SECRET=$(@secret-tool@ lookup Title "$TITLE" 2>/dev/null) || {
-  @jq@ -n --arg title "$TITLE" '{"error": "No entry found with Title=\($title). Use claude-KeePassXC-search to list available entries."}' >&2
+  @jaq@ -n --arg title "$TITLE" '{"error": "No entry found with Title=\($title). Use claude-KeePassXC-search to list available entries."}' >&2
   exit 1
 }
 
-@jq@ -n --arg title "$TITLE" --arg secret "$SECRET" '{"title": $title, "secret": $secret}'
+@jaq@ -n --arg title "$TITLE" --arg secret "$SECRET" '{"title": $title, "secret": $secret}'

@@ -26,11 +26,11 @@ set -euo pipefail
 
 GH="@gh@"
 GIT="@git@"
-JQ="@jq@"
+JAQ="@jaq@"
 
 # Check if we are inside a git working tree.
 if ! "$GIT" rev-parse --is-inside-work-tree &>/dev/null; then
-  "$JQ" -n '{
+  "$JAQ" -n '{
     in_git_repo: false,
     owner: null,
     repo: null,
@@ -55,7 +55,7 @@ auth_user=$("$GH" auth status --json user -q '.user.login' 2>/dev/null || echo "
 
 # Construct and emit the output JSON.
 # shellcheck disable=SC2016  # jq uses $var syntax, not shell expansion
-"$JQ" -n \
+"$JAQ" -n \
   --argjson repo "$repo_json" \
   --arg branch "$current_branch" \
   --arg user "$auth_user" \

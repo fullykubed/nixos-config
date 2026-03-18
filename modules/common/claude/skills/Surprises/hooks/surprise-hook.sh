@@ -14,9 +14,9 @@ if [ "${CLAUDE_HOOK_RECURSIVE:-}" = "1" ]; then
 fi
 
 # Extract fields from the JSON payload
-transcript_path=$(echo "$input" | @jq@ -r '.transcript_path // ""')
-stop_hook_active=$(echo "$input" | @jq@ -r '.stop_hook_active // false')
-cwd=$(echo "$input" | @jq@ -r '.cwd // ""')
+transcript_path=$(echo "$input" | @jaq@ -r '.transcript_path // ""')
+stop_hook_active=$(echo "$input" | @jaq@ -r '.stop_hook_active // false')
+cwd=$(echo "$input" | @jaq@ -r '.cwd // ""')
 
 # Also exit if stop_hook_active is true (another stop hook is already running)
 if [ "$stop_hook_active" = "true" ]; then
@@ -29,7 +29,7 @@ if [ -z "$transcript_path" ] || [ ! -f "$transcript_path" ]; then
 fi
 
 # Parse transcript JSONL to extract all file paths from Read tool_use entries, deduplicated
-read_files=$(@jq@ -r '
+read_files=$(@jaq@ -r '
   select(.message.role == "assistant") |
   .message.content[]? |
   select(.type == "tool_use" and .name == "Read") |
@@ -54,7 +54,7 @@ mkdir -p "$MAIN_WORKTREE/.claude/surprises"
 # strip tool_result content, drop thinking blocks, drop non-message lines
 # (progress, snapshots, queue ops), and drop per-message envelope metadata.
 condensed_transcript=$(mktemp "${TMPDIR:-/tmp}/surprise-transcript.XXXXXX")
-@jq@ -c '
+@jaq@ -c '
   select(.type == "user" or .type == "assistant") |
   if .type == "user" then
     {type, message: {role: .message.role, content: [

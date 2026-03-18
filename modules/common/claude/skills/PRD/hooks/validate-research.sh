@@ -5,13 +5,13 @@ set -euo pipefail
 
 CHECK_JSONSCHEMA="@check-jsonschema@"
 SCHEMA_PATH="@schema-path@"
-JQ="@jq@"
+JAQ="@jaq@"
 
 # Read JSON input from stdin
 INPUT=$(cat)
 
 # Extract file path from tool_input
-FILE_PATH=$($JQ -r '.tool_input.file_path // empty' <<< "$INPUT")
+FILE_PATH=$($JAQ -r '.tool_input.file_path // empty' <<< "$INPUT")
 
 if [[ -z "$FILE_PATH" ]]; then
     # Not a file operation, skip
@@ -32,7 +32,8 @@ echo "Validating: $FILE_PATH" >&2
 
 if ! $CHECK_JSONSCHEMA --schemafile "$SCHEMA_PATH" "$FILE_PATH" 2>&1; then
     # Output structured response for Claude
-    $JQ -n \
+    # shellcheck disable=SC2016 # $reason is a jaq variable, not shell
+    $JAQ -n \
         --arg reason "Schema validation failed for $FILE_PATH. Please fix the YAML structure." \
         '{
             "decision": "block",

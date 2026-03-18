@@ -28,7 +28,7 @@ let
     name = "builders";
     runtimeInputs = [
       pkgs.hcloud
-      pkgs.jq
+      pkgs.jaq
       pkgs.bc
       pkgs.iperf3
       pkgs.ncurses
@@ -41,7 +41,7 @@ let
     name = "hetzner-builder-proxy";
     runtimeInputs = [
       pkgs.hcloud
-      pkgs.jq
+      pkgs.jaq
       pkgs.netcat-gnu
       pkgs.socat
       pkgs.openssh
@@ -179,7 +179,7 @@ in
     };
     path = [
       pkgs.hcloud
-      pkgs.jq
+      pkgs.jaq
     ];
     script = ''
       export HCLOUD_TOKEN

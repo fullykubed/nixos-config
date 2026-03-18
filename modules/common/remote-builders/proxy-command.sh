@@ -51,7 +51,7 @@ server_exists() {
     # Server doesn't exist or API error
     return 1
   fi
-  echo "$output" | jq -e '.id' > /dev/null 2>&1
+  echo "$output" | jaq -e '.id' > /dev/null 2>&1
 }
 
 # Get the public IPv4 address of the server
@@ -61,7 +61,7 @@ get_server_ip() {
     echo "ERROR: Failed to get server info: $output" >&2
     exit 1
   fi
-  echo "$output" | jq -r '.public_net.ipv4.ip'
+  echo "$output" | jaq -r '.public_net.ipv4.ip'
 }
 
 # Wait until SSH port is reachable on the given IP

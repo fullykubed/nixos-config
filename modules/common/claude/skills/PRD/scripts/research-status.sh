@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 
 usage() {
     echo "Usage: claude-PRD-research-status <prd-name>"
@@ -30,7 +30,7 @@ fi
 
 # Count questions by status
 # A question is 'complete' if it has an answer, 'draft' otherwise
-$YQ -o=json '
+$JAQ --from yaml '
 {
   "draft": [.[] | select(.answer == null or .answer == "")] | length,
   "complete": [.[] | select((.answer == null or .answer == "") | not)] | length,

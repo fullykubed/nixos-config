@@ -148,7 +148,7 @@
                   --output-format json \
                   --json-schema '{"type":"object","properties":{"branch":{"type":"string","pattern":"^[a-z0-9][a-z0-9/-]*[a-z0-9]$"}},"required":["branch"],"additionalProperties":false}' \
                   --system-prompt "Generate a concise git branch name. Rules: kebab-case (lowercase with hyphens), 2-4 words max, focus on core task or feature not implementation details. By default avoid prefixes like feat/ or fix/, but if the repository examples use that pattern, follow it. Repository branch examples: $repo_branches" \
-                  "$prompt" | jq -r '.structured_output.branch')
+                  "$prompt" | jaq -r '.structured_output.branch')
                 workmux add -b -p "$prompt" "$branch_name"
               }
             '';

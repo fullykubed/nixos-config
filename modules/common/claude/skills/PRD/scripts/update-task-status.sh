@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-YQ="@yq@"
+JAQ="@jaq@"
 
 usage() {
     echo "Usage: update-task-status <prd-name> <task-name> <new-status>"
@@ -39,7 +39,7 @@ if [[ "$NEW_STATUS" != "draft" && "$NEW_STATUS" != "defined" && "$NEW_STATUS" !=
 fi
 
 # Check if task exists (either as top-level or subtask)
-TASK_EXISTS=$($YQ "
+TASK_EXISTS=$($JAQ --from yaml "
     [.[] | select(.name == \"$TASK_NAME\" and .status),
      .[] | .subtasks[]? | select(.name == \"$TASK_NAME\")] | length
 " "$TASKS_FILE")
@@ -51,7 +51,7 @@ fi
 
 # Update the task status
 # This handles both top-level leaf tasks and subtasks
-$YQ -i "
+$JAQ -i --from yaml --to yaml "
     (.[] | select(.name == \"$TASK_NAME\" and .status) | .status) = \"$NEW_STATUS\" |
     (.[] | .subtasks[]? | select(.name == \"$TASK_NAME\") | .status) = \"$NEW_STATUS\"
 " "$TASKS_FILE"

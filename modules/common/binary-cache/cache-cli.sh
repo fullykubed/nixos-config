@@ -43,7 +43,7 @@ resolve_snapshot_id() {
   fi
   local id
   id=$(hcloud image list -t snapshot -l type=cache -o json 2>/dev/null \
-    | jq -r 'sort_by(.created) | last | .id // empty')
+    | jaq -r 'sort_by(.created) | last | .id // empty')
   if [[ -z "$id" ]]; then
     echo -e "${RED}Error: No snapshot found with label type=cache${NC}" >&2
     echo "Upload a cache image first, or set HETZNER_CACHE_SNAPSHOT." >&2
@@ -57,9 +57,9 @@ resolve_snapshot_id() {
 find_cache_server() {
   local server_json
   server_json=$(hcloud server list -l cache=true -o json 2>/dev/null)
-  CACHE_NAME=$(echo "$server_json" | jq -r '.[0].name // empty')
-  CACHE_IP=$(echo "$server_json" | jq -r '.[0].public_net.ipv4.ip // empty')
-  CACHE_STATUS=$(echo "$server_json" | jq -r '.[0].status // empty')
+  CACHE_NAME=$(echo "$server_json" | jaq -r '.[0].name // empty')
+  CACHE_IP=$(echo "$server_json" | jaq -r '.[0].public_net.ipv4.ip // empty')
+  CACHE_STATUS=$(echo "$server_json" | jaq -r '.[0].status // empty')
   [[ -n "$CACHE_NAME" ]]
 }
 
@@ -417,7 +417,7 @@ cmd_check() {
     fi
     echo "---errors---"
     if [ -f /var/lib/cloud/data/result.json ]; then
-      errs=$(jq -r '.v1.errors[]' /var/lib/cloud/data/result.json 2>/dev/null)
+      errs=$(jaq -r '.v1.errors[]' /var/lib/cloud/data/result.json 2>/dev/null)
       if [ -n "$errs" ]; then
         echo "$errs"
       else

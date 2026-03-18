@@ -31,7 +31,7 @@ let
   checkBunVersions = pkgs.writeShellApplication {
     name = "check-bun-versions";
     runtimeInputs = [
-      pkgs.jq
+      pkgs.jaq
       pkgs.findutils
       pkgs.gawk
     ];
