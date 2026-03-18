@@ -8,18 +8,17 @@ let
   maxRegularBuilders = 3;
   maxBigBuilders = 1;
 
-  # Base64-encoded builder host public key for nix buildMachines publicHostKey.
+  # Builder host public key for SSH host key verification
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
-  builderHostPublicKeyBase64 = builtins.replaceStrings [ "\n" ] [ "" ] (
-    builtins.readFile ../../../secrets/builder-host-key.pub.b64
-  );
 
   # Known hosts file for SSH host key verification
   builderKnownHosts = pkgs.writeText "builder-known-hosts" (
     let
       hostKey = lib.removeSuffix "\n" builderHostPublicKey;
-      regularEntries = lib.genList (n: "builder-${toString (n + 1)} ${hostKey}") maxRegularBuilders;
-      bigEntries = lib.genList (n: "big-builder-${toString (n + 1)} ${hostKey}") maxBigBuilders;
+      regularEntries = lib.genList (
+        n: "[builder-${toString (n + 1)}]:3098 ${hostKey}"
+      ) maxRegularBuilders;
+      bigEntries = lib.genList (n: "[big-builder-${toString (n + 1)}]:3098 ${hostKey}") maxBigBuilders;
     in
     lib.concatStringsSep "\n" (regularEntries ++ bigEntries) + "\n"
   );
@@ -65,7 +64,10 @@ let
       "benchmark"
     ];
     mandatoryFeatures = [ ];
-    publicHostKey = builderHostPublicKeyBase64;
+    # publicHostKey is intentionally omitted — Nix creates known_hosts entries
+    # without port qualifiers, which fail StrictHostKeyChecking on port 3098.
+    # SSH falls back to the system-wide UserKnownHostsFile (builderKnownHosts)
+    # which has correct [hostname]:3098 entries.
   };
 
   # Big-parallel builders: 1 job using all cores
@@ -83,7 +85,6 @@ let
       "benchmark"
     ];
     mandatoryFeatures = [ ];
-    publicHostKey = builderHostPublicKeyBase64;
   };
 
   regularBuilders = lib.genList (n: mkRegularBuilder (n + 1)) maxRegularBuilders;

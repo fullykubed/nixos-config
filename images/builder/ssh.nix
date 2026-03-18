@@ -36,10 +36,11 @@ _: {
     ssh_deletekeys: false
   '';
 
-  # Ensure sshd starts after cloud-init writes the host key
+  # Ensure sshd starts after cloud-config writes the host key via write_files
+  # (cloud-init.service only fetches user-data; cloud-config.service applies it)
   systemd.services.sshd = {
-    after = [ "cloud-init.service" ];
-    wants = [ "cloud-init.service" ];
+    after = [ "cloud-config.service" ];
+    wants = [ "cloud-config.service" ];
   };
 
   # Firewall - only SSH
