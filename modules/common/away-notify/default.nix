@@ -99,6 +99,15 @@ let
   '';
 in
 {
+  age.secrets = {
+    pushover-token = {
+      rekeyFile = ../../../secrets/pushover-token.age;
+      owner = config.username;
+      group = "users";
+      mode = "0400";
+    };
+  };
+
   environment.systemPackages = [
     isAway
     notifyIfAway

@@ -125,17 +125,6 @@ in
     trim.enable = true;
   };
 
-  age = {
-    secrets = {
-      pushover-token = {
-        rekeyFile = ../../../secrets/pushover-token.age;
-        owner = config.username;
-        group = "users";
-        mode = "0400";
-      };
-    };
-  };
-
   # Disk notifications
   services.zfs.zed.settings = {
     ZED_PUSHOVER_USER = pushover-user;
