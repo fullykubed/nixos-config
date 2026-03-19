@@ -8,6 +8,17 @@ let
   waybarBuildersScript = pkgs.writeShellScriptBin "waybar-builders" (
     builtins.readFile ./waybar-builders.sh
   );
+  cloudStatusScript = pkgs.writeShellApplication {
+    name = "cloud-status";
+    runtimeInputs = [
+      pkgs.curl
+      pkgs.jaq
+      pkgs.coreutils
+      pkgs.systemd
+      pkgs.util-linux # for mountpoint
+    ];
+    text = builtins.readFile ./cloud-status.sh;
+  };
   waybarStyle = pkgs.runCommand "waybar-style.css" { } ''
         cat ${pkgs.waybar}/etc/xdg/waybar/style.css > $out
         cat >> $out << 'CUSTOM'
@@ -65,6 +76,39 @@ let
   '';
 in
 {
+  age.secrets.cloudflare-api-token = {
+    rekeyFile = ../../../../secrets/cloudflare-api-token.age;
+    path = "/run/agenix/cloudflare-api-token";
+    mode = "0400";
+    owner = "root";
+  };
+
+  systemd.services.cloud-status = {
+    description = "Collect R2 bucket sizes and ccache health for waybar";
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RuntimeDirectory = "cloud-status";
+      RuntimeDirectoryPreserve = "yes";
+    };
+    path = [ cloudStatusScript ];
+    script = ''
+      export CF_API_TOKEN
+      CF_API_TOKEN=$(cat ${config.age.secrets.cloudflare-api-token.path})
+      cloud-status
+    '';
+  };
+
+  systemd.timers.cloud-status = {
+    description = "Poll R2 bucket sizes and ccache health every 5 minutes";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnBootSec = "30s";
+      OnUnitActiveSec = "5min";
+    };
+  };
+
   home-manager.users.${config.username} = {
     # Waybar status bar systemd service
     systemd.user.services.waybar = {

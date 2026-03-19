@@ -6,6 +6,7 @@ set -euo pipefail
 
 BUILDER_STATUS_FILE="/run/builder-status/status.json"
 CACHE_STATUS_FILE="/run/cache-status/status.json"
+CLOUD_STATUS_FILE="/run/cloud-status/status.json"
 NIKS3_URL_FILE="/run/niks3-server-url"
 QUEUE_PENDING_DIR="/var/lib/cache-upload-queue/pending"
 QUEUE_DONE_DIR="/var/lib/cache-upload-queue/done"
@@ -27,6 +28,18 @@ output_json() {
     --arg tooltip "$tooltip" \
     --arg class "$class" \
     '{text: $text, tooltip: $tooltip, class: $class}'
+}
+
+# Convert bytes to human-readable size
+format_bytes() {
+  local bytes=$1
+  if [[ $bytes -ge 1073741824 ]]; then
+    echo "$(( bytes / 1073741824 )).$(( (bytes % 1073741824) * 10 / 1073741824 )) GB"
+  elif [[ $bytes -ge 1048576 ]]; then
+    echo "$(( bytes / 1048576 )) MB"
+  else
+    echo "$(( bytes / 1024 )) KB"
+  fi
 }
 
 # --- Builders ---
@@ -128,9 +141,97 @@ queue_tooltip="Queue: ${queued} pending, ${uploaded} uploaded (last upload: ${up
 cache_tooltip="${cache_tooltip}
 ${queue_tooltip}"
 
+# --- Cloud Status (R2 / ccache) ---
+cloud_r2_tooltip=""
+cloud_ccache_tooltip=""
+ccache_healthy=true
+
+if [[ -s "$CLOUD_STATUS_FILE" ]]; then
+  # Extract R2 fields
+  r2_ccache_size=$(jaq -r '.r2.ccache.payloadSize // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  r2_ccache_count=$(jaq -r '.r2.ccache.objectCount // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  r2_nixos_size=$(jaq -r '.r2."nixos-cache".payloadSize // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  r2_nixos_count=$(jaq -r '.r2."nixos-cache".objectCount // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+
+  # Extract ccache fields
+  ccache_local_dir=$(jaq -r '.ccache.localDir // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  ccache_r2_mount=$(jaq -r '.ccache.r2Mount // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  ccache_sync_timer=$(jaq -r '.ccache.syncTimer // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  ccache_hit_rate=$(jaq -r '.ccache.stats.hitRate // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  ccache_cache_size=$(jaq -r '.ccache.stats.cacheSize // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+
+  # Extract timestamp for staleness check
+  cloud_timestamp=$(jaq -r '.timestamp // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+
+  # Staleness check
+  stale_label=""
+  if [[ -n "$cloud_timestamp" ]]; then
+    now_epoch=$(date +%s)
+    data_epoch=$(date -d "$cloud_timestamp" +%s 2>/dev/null || echo "$now_epoch")
+    age_seconds=$(( now_epoch - data_epoch ))
+    age_minutes=$(( age_seconds / 60 ))
+    if [[ $age_minutes -ge 15 ]]; then
+      stale_label=" (stale - last updated ${age_minutes} min ago)"
+    fi
+  fi
+
+  # Build R2 tooltip section
+  if [[ -n "$r2_ccache_size" ]] && [[ -n "$r2_nixos_size" ]]; then
+    r2_ccache_human=$(format_bytes "$r2_ccache_size")
+    r2_nixos_human=$(format_bytes "$r2_nixos_size")
+    r2_ccache_count_fmt=$(printf "%'.0f" "$r2_ccache_count" 2>/dev/null || echo "$r2_ccache_count")
+    r2_nixos_count_fmt=$(printf "%'.0f" "$r2_nixos_count" 2>/dev/null || echo "$r2_nixos_count")
+    cloud_r2_tooltip="R2 Storage${stale_label}:
+  ccache: ${r2_ccache_human} (${r2_ccache_count_fmt} objects)
+  nixos-cache: ${r2_nixos_human} (${r2_nixos_count_fmt} objects)"
+  else
+    cloud_r2_tooltip="R2 Storage: unavailable"
+  fi
+
+  # Build ccache health tooltip section
+  local_dir_status="OK"
+  r2_mount_status="OK"
+  sync_timer_status="OK"
+
+  if [[ "$ccache_local_dir" == "false" ]]; then
+    local_dir_status="DOWN"
+    ccache_healthy=false
+  fi
+  if [[ "$ccache_r2_mount" == "false" ]]; then
+    r2_mount_status="DOWN"
+    ccache_healthy=false
+  fi
+  if [[ "$ccache_sync_timer" == "false" ]]; then
+    sync_timer_status="DOWN"
+    ccache_healthy=false
+  fi
+
+  cloud_ccache_tooltip="ccache Health:
+  Local cache: ${local_dir_status}
+  R2 mount: ${r2_mount_status}
+  Sync timer: ${sync_timer_status}"
+
+  if [[ -n "$ccache_hit_rate" ]] && [[ -n "$ccache_cache_size" ]]; then
+    cloud_ccache_tooltip="${cloud_ccache_tooltip}
+  Hit rate: ${ccache_hit_rate} | Cache: ${ccache_cache_size}"
+  fi
+fi
+
 # --- Combine ---
 tooltip="${builder_tooltip}
 ${cache_tooltip}"
+
+if [[ -n "$cloud_r2_tooltip" ]]; then
+  tooltip="${tooltip}
+
+${cloud_r2_tooltip}"
+fi
+
+if [[ -n "$cloud_ccache_tooltip" ]]; then
+  tooltip="${tooltip}
+
+${cloud_ccache_tooltip}"
+fi
 
 UPLOAD_FAIL=$'\uf071' # nf-fa-warning
 
@@ -163,7 +264,7 @@ else
   exit 0
 fi
 
-if [[ "$upload_status" == "failed" ]]; then
+if [[ "$upload_status" == "failed" ]] || ! $ccache_healthy; then
   class="warning"
 elif $builder_active && $cache_ok; then
   class="active"
