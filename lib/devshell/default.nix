@@ -74,6 +74,15 @@ let
     ];
     text = builtins.readFile ./update-host-key.sh;
   };
+  createSecret = pkgs.writeShellApplication {
+    name = "create-secret";
+    runtimeInputs = [
+      pkgs.rage
+      pkgs.gnugrep
+      pkgs.agenix-rekey
+    ];
+    text = builtins.readFile ./create-secret.sh;
+  };
   generateSyncthingKey = pkgs.writeShellApplication {
     name = "generate-syncthing-key";
     runtimeInputs = [
@@ -172,6 +181,7 @@ in
       generateHostKey
       updateHostKey
       generateSyncthingKey
+      createSecret
     ]
     ++ ntScripts
     ++ self.checks.${system}.pre-commit-check.enabledPackages;
