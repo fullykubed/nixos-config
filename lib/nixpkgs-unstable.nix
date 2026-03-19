@@ -24,7 +24,11 @@
 
   config.nixpkgs-unstable.pkgs = import nixpkgs-unstable-input {
     inherit system;
-    config.allowUnfree = true;
+    config = {
+      allowUnfree = true;
+      # Disabled until https://github.com/NixOS/nix/issues/15003 is resolved
+      contentAddressedByDefault = false;
+    };
     inherit (config.nixpkgs-unstable) overlays;
   };
 

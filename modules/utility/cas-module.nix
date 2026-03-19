@@ -1,11 +1,7 @@
 # Shared CAS configuration applied to all NixOS systems and disk images
-# Enables content-addressed experimental features on the Nix daemon:
-#   ca-derivations  — allow content-addressed derivation outputs
-#   blake3-hashes   — faster multi-threaded content hashing
-#   git-hashing     — Git-native store object hashing
-#
-# contentAddressedByDefault is NOT enabled yet — these features are available
-# for per-package opt-in via __contentAddressed = true.
+# Enables content-addressed derivation outputs globally via nixpkgs config.
+# The ca-derivations experimental feature must be enabled on the Nix daemon
+# for this to work.
 {
   nix.settings = {
     extra-experimental-features = [
@@ -14,4 +10,9 @@
       "git-hashing"
     ];
   };
+
+  # Disabled until https://github.com/NixOS/nix/issues/15003 is resolved —
+  # closure-info cannot parse CA placeholder paths on Nix 2.33.x, crashing
+  # the daemon during full NixOS system builds.
+  nixpkgs.config.contentAddressedByDefault = false;
 }
