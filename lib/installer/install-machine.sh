@@ -98,12 +98,6 @@ info "Installing NixOS system (offline, from pre-built closure)..."
 nixos-install --system "$TOPLEVEL" --no-channel-copy --no-root-passwd --option substituters "" 
 echo
 
-# Set root password
-info "Setting root password..."
-echo "  You will be prompted to set a root password inside the installed system."
-nixos-enter --root /mnt -- passwd root
-echo
-
 # Copy the repository source to the target
 REPO_SOURCE="/etc/installer/repo"
 TARGET_REPO="/mnt/etc/nixos"

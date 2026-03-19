@@ -112,28 +112,44 @@ in
 
   # Systemd target so that we can start and stop background services
   # that depend on a sway session
-  systemd.user.targets.sway-session = {
-    description = "sway compositor session";
-    documentation = [ "man:systemd.special" ];
-    bindsTo = [ "graphical-session.target" ];
-    wants = [ "graphical-session-pre.target" ];
-    after = [ "graphical-session-pre.target" ];
-  };
-
-  # Starts swayrd for window switching
-  systemd.user.services.swayrd = {
-    description = "swayrd";
-    enable = true;
-    startLimitBurst = 3;
-    startLimitIntervalSec = 15;
-    wantedBy = [ "sway-session.target" ];
-    after = [ "sway-session.target" ];
-    path = [ pkgs.wofi ];
-    environment = {
-      RUST_BACKTRACE = "1";
+  systemd.user = {
+    targets.sway-session = {
+      description = "sway compositor session";
+      documentation = [ "man:systemd.special" ];
+      bindsTo = [ "graphical-session.target" ];
+      wants = [ "graphical-session-pre.target" ];
+      after = [ "graphical-session-pre.target" ];
     };
-    serviceConfig = {
-      ExecStart = "${nixpkgs-unstable.swayr}/bin/swayrd";
+
+    # Starts the polkit authentication agent for GUI privilege escalation
+    services.polkit-gnome-authentication-agent-1 = {
+      description = "polkit-gnome-authentication-agent-1";
+      wantedBy = [ "sway-session.target" ];
+      after = [ "sway-session.target" ];
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+        Restart = "on-failure";
+        RestartSec = 1;
+        TimeoutStopSec = 10;
+      };
+    };
+
+    # Starts swayrd for window switching
+    services.swayrd = {
+      description = "swayrd";
+      enable = true;
+      startLimitBurst = 3;
+      startLimitIntervalSec = 15;
+      wantedBy = [ "sway-session.target" ];
+      after = [ "sway-session.target" ];
+      path = [ pkgs.wofi ];
+      environment = {
+        RUST_BACKTRACE = "1";
+      };
+      serviceConfig = {
+        ExecStart = "${nixpkgs-unstable.swayr}/bin/swayrd";
+      };
     };
   };
 
