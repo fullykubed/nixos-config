@@ -14,6 +14,7 @@
     "sway/window"
   ],
   "modules-right": [
+    "custom/secureboot",
     "custom/systemd-failed",
     "custom/builders",
     "custom/voxtype",
@@ -191,6 +192,14 @@
     "exec": "voxtype status --follow --format json",
     "return-type": "json",
     "format": "{}",
+    "tooltip": true
+  },
+  "custom/secureboot": {
+    "exec": "waybar-secureboot-status",
+    "exec-if": "which waybar-secureboot-status",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 300,
     "tooltip": true
   },
   "custom/systemd-failed": {

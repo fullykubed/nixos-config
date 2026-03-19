@@ -19,6 +19,14 @@ let
     ];
     text = builtins.readFile ./cloud-status.sh;
   };
+  waybarSecurebootScript = pkgs.writeShellApplication {
+    name = "waybar-secureboot-status";
+    runtimeInputs = [
+      pkgs.sbctl
+      pkgs.jaq
+    ];
+    text = builtins.readFile ./waybar-secureboot-status.sh;
+  };
   waybarStyle = pkgs.runCommand "waybar-style.css" { } ''
         cat ${pkgs.waybar}/etc/xdg/waybar/style.css > $out
         cat >> $out << 'CUSTOM'
@@ -44,6 +52,33 @@ let
 
     #custom-builders.warning {
         background-color: #fdcb6e;
+        color: #2d3436;
+    }
+
+    /* Secure Boot module styles */
+    #custom-secureboot {
+        padding: 0 10px;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
+
+    #custom-secureboot.ok {
+        background-color: transparent;
+        color: #ffffff;
+    }
+
+    #custom-secureboot.warning {
+        background-color: #fdcb6e;
+        color: #2d3436;
+    }
+
+    #custom-secureboot.error {
+        background-color: #ff7675;
+        color: #2d3436;
+    }
+
+    #custom-secureboot.setup {
+        background-color: #ffeaa7;
         color: #2d3436;
     }
 
@@ -126,6 +161,7 @@ in
             lib.makeBinPath [
               pkgs.waybar
               waybarBuildersScript
+              waybarSecurebootScript
               pkgs.jaq
               pkgs.curl
               pkgs.findutils
