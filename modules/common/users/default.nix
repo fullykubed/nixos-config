@@ -16,6 +16,7 @@
         "lp"
         "corectrl"
         "plugdev"
+        "systemd-journal"
       ];
       openssh.authorizedKeys.keys = [
         (lib.strings.trim (builtins.readFile ../../../secrets/remote-access-ssh-key.pub))

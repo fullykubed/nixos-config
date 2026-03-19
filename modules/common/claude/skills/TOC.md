@@ -8,3 +8,4 @@ Reusable skill packages providing domain-specific workflows and tooling for Clau
 - `PRD/` — Product requirements management skill for creating, planning, and implementing PRDs.
 - `Skill/` — Meta-skill for creating and managing Claude Code skills, workflows, and references.
 - `Surprises/` — Documentation surprise reviewer skill for fixing documentation discrepancies discovered by the surprise hook.
+- `Systemd/` — Diagnostic skill for querying systemd journal logs, inspecting service status, analyzing boot performance, and reviewing timers.
