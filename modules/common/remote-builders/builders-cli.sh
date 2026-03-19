@@ -147,8 +147,8 @@ dst=$(echo "$dline" | tr -s ' ' | cut -d' ' -f2)
 dsu=$(echo "$dline" | tr -s ' ' | cut -d' ' -f3)
 dsp=$(echo "$dline" | tr -s ' ' | cut -d' ' -f5 | tr -d '%')
 tun=$(systemctl is-active cache-tunnel.service 2>/dev/null || echo "dead")
-pq=$(find /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
-dq=$(find /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
+pq=$(bfs /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
+dq=$(bfs /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
 ic=$(cat /var/lib/inactivity-monitor/idle-count 2>/dev/null || echo 0)
 ch=0; cm_cc=0; csz=0
 if command -v ccache >/dev/null 2>&1; then
@@ -814,11 +814,11 @@ write_files:
     permissions: '0400'
     content: |
       $niks3_token
-  - path: /run/sccache-r2-access-key
+  - path: /run/ccache-r2-access-key
     permissions: '0400'
     content: |
       $ccache_r2_access_key
-  - path: /run/sccache-r2-secret-key
+  - path: /run/ccache-r2-secret-key
     permissions: '0400'
     content: |
       $ccache_r2_secret_key
@@ -869,11 +869,11 @@ write_files:
     permissions: '0400'
     content: |
       $niks3_token
-  - path: /run/sccache-r2-access-key
+  - path: /run/ccache-r2-access-key
     permissions: '0400'
     content: |
       $ccache_r2_access_key
-  - path: /run/sccache-r2-secret-key
+  - path: /run/ccache-r2-secret-key
     permissions: '0400'
     content: |
       $ccache_r2_secret_key
@@ -1182,8 +1182,8 @@ cmd_dashboard() {
       big_cost=$(echo "$big_count * $BIG_HOURLY_COST" | bc)
       total_cost=$(echo "$regular_cost + $big_cost" | bc)
       local local_pending=0 local_done=0
-      [[ -d /var/lib/cache-upload-queue/pending ]] && local_pending=$(find /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
-      [[ -d /var/lib/cache-upload-queue/done ]] && local_done=$(find /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
+      [[ -d /var/lib/cache-upload-queue/pending ]] && local_pending=$(bfs /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
+      [[ -d /var/lib/cache-upload-queue/done ]] && local_done=$(bfs /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
       local footer
       footer=$(printf '%d regular + %d big | %d builds | est %s/hr | local queue: %d pending, %d uploaded' "$regular_count" "$big_count" "$total_builds" "$total_cost" "$local_pending" "$local_done")
       local controls="[q] quit  [r] refresh"
