@@ -40,6 +40,13 @@
         unshareUts = true;
         privateTmp = true;
 
+        # Exclude /run from auto-mounts so agenix secrets aren't exposed.
+        # We mount a clean tmpfs and selectively bind only what's needed.
+        extraPreBwrapCmds = ''
+          ignored+=(/run)
+          _run_uid=$(id -u)
+        '';
+
         extraBwrapArgs = [
           "--hostname"
           "claude-sandbox"
@@ -129,10 +136,16 @@
           "\${HOME}/.kube"
           "\${HOME}/.kube"
 
+          "--tmpfs"
+          "/run"
+          "--dir"
+          "/run/user"
+          "--bind-try"
+          "/run/user/$_run_uid"
+          "/run/user/$_run_uid"
           "--ro-bind-try"
           "/run/last-user-input"
           "/run/last-user-input"
-
           "--dir"
           "/run/agenix"
           "--ro-bind-try"
