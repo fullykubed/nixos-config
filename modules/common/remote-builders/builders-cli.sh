@@ -231,7 +231,18 @@ Commands:
   ssh <name>        SSH into a builder (as remotebuild)
                     Options: --root (connect as root)
                              -- <cmd> (run a single command)
-  check <name>      Check SSH connectivity and Nix on a builder
+  check <name>      Run all health checks on a builder
+                    Flags (run only specific checks):
+                      --nix       Nix version
+                      --hw        CPU and memory info
+                      --cpu       CPU performance benchmark (~30s)
+                      --net       Network bandwidth (~30s)
+                      --disk      Disk space and performance (~30s)
+                      --cache     Cache tunnel status
+                      --ccache    ccache mount, sync, and stats
+                      --shutdown  Auto-shutdown countdown
+                    SSH connectivity is always checked.
+                    Multiple flags can be combined.
   create <name>     Create a builder manually
   destroy <name>    Destroy a builder
   destroy -a        Destroy all builders (requires confirmation)
@@ -244,6 +255,7 @@ Examples:
   $SCRIPT_NAME create builder-1
   $SCRIPT_NAME create big-builder-1
   $SCRIPT_NAME check builder-1
+  $SCRIPT_NAME check 1 --disk --ccache
   $SCRIPT_NAME destroy big-builder-1
 EOF
 }
@@ -307,7 +319,40 @@ cmd_status() {
 }
 
 cmd_check() {
-  local name="$1"
+  local name=""
+  local run_all=true
+  local check_nix=false check_hw=false check_cpu=false check_net=false
+  local check_disk=false check_cache=false check_ccache=false check_shutdown=false
+
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --nix)      check_nix=true; run_all=false ;;
+      --hw)       check_hw=true; run_all=false ;;
+      --cpu)      check_cpu=true; run_all=false ;;
+      --net)      check_net=true; run_all=false ;;
+      --disk)     check_disk=true; run_all=false ;;
+      --cache)    check_cache=true; run_all=false ;;
+      --ccache)   check_ccache=true; run_all=false ;;
+      --shutdown) check_shutdown=true; run_all=false ;;
+      -*)         echo -e "${RED}Unknown flag: $1${NC}" >&2; return 1 ;;
+      *)
+        if [[ -z "$name" ]]; then
+          name="$1"
+        else
+          echo -e "${RED}Unknown argument: $1${NC}" >&2
+          return 1
+        fi
+        ;;
+    esac
+    shift
+  done
+
+  if [[ -z "$name" ]]; then
+    echo "Usage: $SCRIPT_NAME check <name|N> [--FLAG...]" >&2
+    return 1
+  fi
+
+  should_run() { [[ "$run_all" == "true" || "${1}" == "true" ]]; }
 
   check_token
 
@@ -379,13 +424,15 @@ cmd_check() {
   fi
 
   # Check Nix
-  echo -n "Nix version: "
-  local nix_ver
-  if nix_ver=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" "nix --version" 2>/dev/null); then
-    echo -e "${GREEN}${nix_ver}${NC}"
-  else
-    echo -e "${RED}FAILED${NC}"
-    return 1
+  if should_run "$check_nix"; then
+    echo -n "Nix version: "
+    local nix_ver
+    if nix_ver=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" "nix --version" 2>/dev/null); then
+      echo -e "${GREEN}${nix_ver}${NC}"
+    else
+      echo -e "${RED}FAILED${NC}"
+      return 1
+    fi
   fi
 
   # Experimental features
@@ -403,270 +450,282 @@ cmd_check() {
   fi
 
   # CPU and memory info (single SSH call)
-  echo -n "CPU: "
-  local hw_info
-  if hw_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
-    cores=$(nproc)
-    model=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | xargs)
-    kb=$(awk "/^MemTotal:/{print \$2}" /proc/meminfo)
-    gb_w=$((kb / 1048576)); gb_f=$(( (kb % 1048576) * 10 / 1048576 ))
-    printf "%s|%s|%s.%s" "$cores" "$model" "$gb_w" "$gb_f"
-  ' 2>/dev/null); then
-    local hw_cores hw_model hw_mem
-    IFS='|' read -r hw_cores hw_model hw_mem <<< "$hw_info"
-    echo -e "${GREEN}${hw_cores}x ${hw_model}${NC}"
-    echo -e "Memory: ${GREEN}${hw_mem} GB${NC}"
-  else
-    echo -e "${YELLOW}SKIPPED${NC}"
+  if should_run "$check_hw"; then
+    echo -n "CPU: "
+    local hw_info
+    if hw_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      cores=$(nproc)
+      model=$(grep -m1 "model name" /proc/cpuinfo | cut -d: -f2 | xargs)
+      kb=$(awk "/^MemTotal:/{print \$2}" /proc/meminfo)
+      gb_w=$((kb / 1048576)); gb_f=$(( (kb % 1048576) * 10 / 1048576 ))
+      printf "%s|%s|%s.%s" "$cores" "$model" "$gb_w" "$gb_f"
+    ' 2>/dev/null); then
+      local hw_cores hw_model hw_mem
+      IFS='|' read -r hw_cores hw_model hw_mem <<< "$hw_info"
+      echo -e "${GREEN}${hw_cores}x ${hw_model}${NC}"
+      echo -e "Memory: ${GREEN}${hw_mem} GB${NC}"
+    else
+      echo -e "${YELLOW}SKIPPED${NC}"
+    fi
   fi
 
   # CPU perf benchmark: SHA256 hash + xz compression
   # These are the two most CPU-bound operations during Nix builds:
   #   - SHA256: Nix hashes every store path and build output
   #   - xz: Nix compresses NAR archives for the binary cache
-  start_spinner "CPU perf (30s):"
-  local bench_output
-  if bench_output=$(ssh -o ConnectTimeout=45 "${SSH_OPTS[@]}" "remotebuild@$ip" '
-    cores=$(nproc)
+  if should_run "$check_cpu"; then
+    start_spinner "CPU perf (30s):"
+    local bench_output
+    if bench_output=$(ssh -o ConnectTimeout=45 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      cores=$(nproc)
 
-    # Single-core SHA256 for ~15s (nix hashes every store path)
-    s=$(date +%s%N)
-    deadline=$(( $(date +%s) + 15 ))
-    total=0
-    while [ $(date +%s) -lt $deadline ]; do
-      dd if=/dev/zero bs=1M count=256 2>/dev/null | sha256sum >/dev/null
-      total=$((total + 256))
-    done
-    e=$(date +%s%N)
-    elapsed_ms=$(( (e - s) / 1000000 ))
-    if [ $elapsed_ms -gt 0 ]; then hash_mbs=$((total * 1000 / elapsed_ms)); else hash_mbs=0; fi
+      # Single-core SHA256 for ~15s (nix hashes every store path)
+      s=$(date +%s%N)
+      deadline=$(( $(date +%s) + 15 ))
+      total=0
+      while [ $(date +%s) -lt $deadline ]; do
+        dd if=/dev/zero bs=1M count=256 2>/dev/null | sha256sum >/dev/null
+        total=$((total + 256))
+      done
+      e=$(date +%s%N)
+      elapsed_ms=$(( (e - s) / 1000000 ))
+      if [ $elapsed_ms -gt 0 ]; then hash_mbs=$((total * 1000 / elapsed_ms)); else hash_mbs=0; fi
 
-    # All-core xz for ~15s (nix compresses NAR archives)
-    s=$(date +%s%N)
-    deadline=$(( $(date +%s) + 15 ))
-    total=0
-    while [ $(date +%s) -lt $deadline ]; do
-      dd if=/dev/zero bs=1M count=32 2>/dev/null | xz -T0 -6 >/dev/null
-      total=$((total + 32))
-    done
-    e=$(date +%s%N)
-    elapsed_ms=$(( (e - s) / 1000000 ))
-    if [ $elapsed_ms -gt 0 ]; then xz_mbs=$((total * 1000 / elapsed_ms)); else xz_mbs=0; fi
+      # All-core xz for ~15s (nix compresses NAR archives)
+      s=$(date +%s%N)
+      deadline=$(( $(date +%s) + 15 ))
+      total=0
+      while [ $(date +%s) -lt $deadline ]; do
+        dd if=/dev/zero bs=1M count=32 2>/dev/null | xz -T0 -6 >/dev/null
+        total=$((total + 32))
+      done
+      e=$(date +%s%N)
+      elapsed_ms=$(( (e - s) / 1000000 ))
+      if [ $elapsed_ms -gt 0 ]; then xz_mbs=$((total * 1000 / elapsed_ms)); else xz_mbs=0; fi
 
-    printf "%s|%s|%s" "$hash_mbs" "$xz_mbs" "$cores"
-  ' 2>/dev/null); then
-    stop_spinner
-    local hash_mbs xz_mbs bench_cores
-    IFS='|' read -r hash_mbs xz_mbs bench_cores <<< "$bench_output"
-    echo -e "CPU perf: ${GREEN}SHA256: ${hash_mbs} MB/s (1 core) | xz -6: ${xz_mbs} MB/s (${bench_cores} cores)${NC}"
-  else
-    stop_spinner
-    echo -e "CPU perf: ${YELLOW}SKIPPED${NC}"
+      printf "%s|%s|%s" "$hash_mbs" "$xz_mbs" "$cores"
+    ' 2>/dev/null); then
+      stop_spinner
+      local hash_mbs xz_mbs bench_cores
+      IFS='|' read -r hash_mbs xz_mbs bench_cores <<< "$bench_output"
+      echo -e "CPU perf: ${GREEN}SHA256: ${hash_mbs} MB/s (1 core) | xz -6: ${xz_mbs} MB/s (${bench_cores} cores)${NC}"
+    else
+      stop_spinner
+      echo -e "CPU perf: ${YELLOW}SKIPPED${NC}"
+    fi
   fi
 
   # iperf3 bandwidth test over SSH tunnel (30s)
-  local iperf_port
-  iperf_port=$(find_free_port)
+  if should_run "$check_net"; then
+    local iperf_port
+    iperf_port=$(find_free_port)
 
-  # Start iperf3 server on builder and wait for it to be listening
-  local _iperf_ready=false
-  if ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" "
-    pkill -x iperf3 2>/dev/null
-    sleep 1
-    iperf3 -s -D -p $iperf_port --bind 127.0.0.1
-    for i in \$(seq 1 10); do
-      ss -tln | grep -q ':$iperf_port ' && exit 0
-      sleep 0.5
-    done
-    exit 1
-  " 2>/dev/null; then
-    _iperf_ready=true
+    # Start iperf3 server on builder and wait for it to be listening
+    local _iperf_ready=false
+    if ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" "
+      pkill -x iperf3 2>/dev/null
+      sleep 1
+      iperf3 -s -D -p $iperf_port --bind 127.0.0.1
+      for i in \$(seq 1 10); do
+        ss -tln | grep -q ':$iperf_port ' && exit 0
+        sleep 0.5
+      done
+      exit 1
+    " 2>/dev/null; then
+      _iperf_ready=true
+    fi
+
+    # Open SSH tunnel: forward local iperf_port to builder's localhost:iperf_port
+    local ssh_ctl
+    ssh_ctl=$(mktemp -u /tmp/ssh-tunnel-XXXXXX)
+    if [[ "$_iperf_ready" == "true" ]]; then
+      ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" -f -N \
+          -o ControlMaster=yes -o "ControlPath=$ssh_ctl" \
+          -L "$iperf_port:127.0.0.1:$iperf_port" "remotebuild@$ip" 2>/dev/null
+      _TUNNEL_CTLS+=("$ssh_ctl")
+      sleep 1
+    fi
+
+    if [[ "$_iperf_ready" == "true" ]]; then
+      start_spinner "Network bandwidth (30s):"
+      local iperf_output iperf_err
+      iperf_err=$(mktemp)
+      if iperf_output=$(iperf3 -c 127.0.0.1 -t 30 -p "$iperf_port" -J 2>"$iperf_err"); then
+        stop_spinner
+        local send_bps receive_bps
+        send_bps=$(echo "$iperf_output" | jaq '.end.sum_sent.bits_per_second // 0')
+        receive_bps=$(echo "$iperf_output" | jaq '.end.sum_received.bits_per_second // 0')
+        local send_mbps receive_mbps
+        send_mbps=$(echo "scale=1; $send_bps / 1000000" | bc)
+        receive_mbps=$(echo "scale=1; $receive_bps / 1000000" | bc)
+        echo -e "Network bandwidth: ${GREEN}${send_mbps} Mbit/s send, ${receive_mbps} Mbit/s receive${NC}"
+      else
+        stop_spinner
+        local iperf_json_err
+        iperf_json_err=$(echo "$iperf_output" | jaq -r '.error // empty' 2>/dev/null)
+        echo -e "Network bandwidth: ${YELLOW}SKIPPED${NC}"
+        [[ -n "$iperf_json_err" ]] && echo -e "  ${RED}iperf3: ${iperf_json_err}${NC}"
+      fi
+      rm -f "$iperf_err"
+    else
+      echo -e "Network bandwidth: ${YELLOW}SKIPPED (iperf3 server failed to start on builder)${NC}"
+    fi
+
+    # Clean up: stop remote iperf3 server and SSH tunnel
+    ssh -o ConnectTimeout=5 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        "pkill -x iperf3" 2>/dev/null || true
+    ssh -o "ControlPath=$ssh_ctl" -O exit remotebuild@"$ip" 2>/dev/null || true
+    rm -f "$ssh_ctl"
+    _TUNNEL_CTLS=("${_TUNNEL_CTLS[@]/$ssh_ctl/}")
   fi
 
-  # Open SSH tunnel: forward local iperf_port to builder's localhost:iperf_port
-  local ssh_ctl
-  ssh_ctl=$(mktemp -u /tmp/ssh-tunnel-XXXXXX)
-  if [[ "$_iperf_ready" == "true" ]]; then
-    ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" -f -N \
-        -o ControlMaster=yes -o "ControlPath=$ssh_ctl" \
-        -L "$iperf_port:127.0.0.1:$iperf_port" "remotebuild@$ip" 2>/dev/null
-    _TUNNEL_CTLS+=("$ssh_ctl")
-    sleep 1
-  fi
+  # Disk space check and disk performance
+  if should_run "$check_disk"; then
+    echo -n "Disk space: "
+    local disk_output
+    if disk_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        "df -h /nix/store --output=size,used,avail,pcent | tail -1" 2>/dev/null); then
+      local size _used avail pct
+      read -r size _used avail pct <<< "$disk_output"
+      echo -e "${GREEN}${avail} available / ${size} total (${pct} used)${NC}"
+    else
+      echo -e "${YELLOW}SKIPPED${NC}"
+    fi
 
-  if [[ "$_iperf_ready" == "true" ]]; then
-    start_spinner "Network bandwidth (30s):"
-    local iperf_output iperf_err
-    iperf_err=$(mktemp)
-    if iperf_output=$(iperf3 -c 127.0.0.1 -t 30 -p "$iperf_port" -J 2>"$iperf_err"); then
+    # Disk performance (fio)
+    start_spinner "Disk performance (30s):"
+    local fio_output
+    if fio_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        "fio --name=test --ioengine=libaio --direct=1 --bs=4k --size=256M \
+         --rw=randrw --rwmixread=70 --iodepth=32 --runtime=30 --time_based \
+         --filename=/tmp/fio-test --output-format=json --group_reporting 2>/dev/null && rm -f /tmp/fio-test" 2>/dev/null); then
       stop_spinner
-      local send_bps receive_bps
-      send_bps=$(echo "$iperf_output" | jaq '.end.sum_sent.bits_per_second // 0')
-      receive_bps=$(echo "$iperf_output" | jaq '.end.sum_received.bits_per_second // 0')
-      local send_mbps receive_mbps
-      send_mbps=$(echo "scale=1; $send_bps / 1000000" | bc)
-      receive_mbps=$(echo "scale=1; $receive_bps / 1000000" | bc)
-      echo -e "Network bandwidth: ${GREEN}${send_mbps} Mbit/s send, ${receive_mbps} Mbit/s receive${NC}"
+      local read_iops read_bw_mb write_iops write_bw_mb
+      read_iops=$(echo "$fio_output" | jaq '.jobs[0].read.iops // 0 | floor')
+      read_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].read.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
+      write_iops=$(echo "$fio_output" | jaq '.jobs[0].write.iops // 0 | floor')
+      write_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].write.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
+      echo -e "Disk performance: ${GREEN}read: ${read_iops} IOPS ${read_bw_mb} MB/s | write: ${write_iops} IOPS ${write_bw_mb} MB/s (4K randrw 70/30)${NC}"
     else
       stop_spinner
-      local iperf_json_err
-      iperf_json_err=$(echo "$iperf_output" | jaq -r '.error // empty' 2>/dev/null)
-      echo -e "Network bandwidth: ${YELLOW}SKIPPED${NC}"
-      [[ -n "$iperf_json_err" ]] && echo -e "  ${RED}iperf3: ${iperf_json_err}${NC}"
+      echo -e "Disk performance: ${YELLOW}SKIPPED (fio failed)${NC}"
     fi
-    rm -f "$iperf_err"
-  else
-    echo -e "Network bandwidth: ${YELLOW}SKIPPED (iperf3 server failed to start on builder)${NC}"
-  fi
-
-  # Clean up: stop remote iperf3 server and SSH tunnel
-  ssh -o ConnectTimeout=5 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      "pkill -x iperf3" 2>/dev/null || true
-  ssh -o "ControlPath=$ssh_ctl" -O exit remotebuild@"$ip" 2>/dev/null || true
-  rm -f "$ssh_ctl"
-  _TUNNEL_CTLS=("${_TUNNEL_CTLS[@]/$ssh_ctl/}")
-
-  # Disk space check
-  echo -n "Disk space: "
-  local disk_output
-  if disk_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      "df -h /nix/store --output=size,used,avail,pcent | tail -1" 2>/dev/null); then
-    local size _used avail pct
-    read -r size _used avail pct <<< "$disk_output"
-    echo -e "${GREEN}${avail} available / ${size} total (${pct} used)${NC}"
-  else
-    echo -e "${YELLOW}SKIPPED${NC}"
-  fi
-
-  # Disk performance (fio)
-  start_spinner "Disk performance (30s):"
-  local fio_output
-  if fio_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      "fio --name=test --ioengine=libaio --direct=1 --bs=4k --size=256M \
-       --rw=randrw --rwmixread=70 --iodepth=32 --runtime=30 --time_based \
-       --filename=/tmp/fio-test --output-format=json --group_reporting 2>/dev/null && rm -f /tmp/fio-test" 2>/dev/null); then
-    stop_spinner
-    local read_iops read_bw_mb write_iops write_bw_mb
-    read_iops=$(echo "$fio_output" | jaq '.jobs[0].read.iops // 0 | floor')
-    read_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].read.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
-    write_iops=$(echo "$fio_output" | jaq '.jobs[0].write.iops // 0 | floor')
-    write_bw_mb=$(echo "$fio_output" | jaq '.jobs[0].write.bw // 0' | xargs -I{} echo "scale=1; {} / 1024" | bc)
-    echo -e "Disk performance: ${GREEN}read: ${read_iops} IOPS ${read_bw_mb} MB/s | write: ${write_iops} IOPS ${write_bw_mb} MB/s (4K randrw 70/30)${NC}"
-  else
-    stop_spinner
-    echo -e "Disk performance: ${YELLOW}SKIPPED (fio failed)${NC}"
   fi
 
   # Check cache tunnel
-  echo -n "Cache tunnel: "
-  local tun_status
-  if tun_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      'systemctl is-active cache-tunnel.service 2>/dev/null || echo inactive' 2>/dev/null); then
-    if [[ "$tun_status" == "active" ]]; then
-      # Verify tunnel endpoint
-      local tun_health
-      tun_health=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-        'curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:9751/health 2>/dev/null || echo 000' 2>/dev/null)
-      if [[ "$tun_health" == "200" ]]; then
-        echo -e "${GREEN}OK (tunnel active, niks3 reachable)${NC}"
+  if should_run "$check_cache"; then
+    echo -n "Cache tunnel: "
+    local tun_status
+    if tun_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        'systemctl is-active cache-tunnel.service 2>/dev/null || echo inactive' 2>/dev/null); then
+      if [[ "$tun_status" == "active" ]]; then
+        # Verify tunnel endpoint
+        local tun_health
+        tun_health=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+          'curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:9751/health 2>/dev/null || echo 000' 2>/dev/null)
+        if [[ "$tun_health" == "200" ]]; then
+          echo -e "${GREEN}OK (tunnel active, niks3 reachable)${NC}"
+        else
+          echo -e "${YELLOW}DEGRADED (tunnel active, niks3 HTTP $tun_health)${NC}"
+        fi
       else
-        echo -e "${YELLOW}DEGRADED (tunnel active, niks3 HTTP $tun_health)${NC}"
+        echo -e "${YELLOW}$tun_status${NC}"
       fi
     else
-      echo -e "${YELLOW}$tun_status${NC}"
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
-  else
-    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
   fi
 
-  # Check ccache R2 mount
-  echo -n "ccache R2 mount: "
-  local mount_status
-  if mount_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      'mountpoint -q /var/cache/ccache-r2 2>/dev/null && echo "mounted" || echo "not-mounted"' 2>/dev/null); then
-    if [[ "$mount_status" == "mounted" ]]; then
-      echo -e "${GREEN}OK (/var/cache/ccache-r2 mounted)${NC}"
+  # Check ccache R2 mount, sync timer, and stats
+  if should_run "$check_ccache"; then
+    echo -n "ccache R2 mount: "
+    local mount_status
+    if mount_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        'mountpoint -q /var/cache/ccache-r2 2>/dev/null && echo "mounted" || echo "not-mounted"' 2>/dev/null); then
+      if [[ "$mount_status" == "mounted" ]]; then
+        echo -e "${GREEN}OK (/var/cache/ccache-r2 mounted)${NC}"
+      else
+        echo -e "${RED}FAILED (not mounted)${NC}"
+      fi
     else
-      echo -e "${RED}FAILED (not mounted)${NC}"
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
-  else
-    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
-  fi
 
-  # Check ccache R2 sync timer
-  echo -n "ccache R2 sync: "
-  local sync_status
-  if sync_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      'systemctl is-active ccache-r2-sync.timer 2>/dev/null || echo inactive' 2>/dev/null); then
-    if [[ "$sync_status" == "active" ]]; then
-      echo -e "${GREEN}OK (timer active)${NC}"
+    echo -n "ccache R2 sync: "
+    local sync_status
+    if sync_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        'systemctl is-active ccache-r2-sync.timer 2>/dev/null || echo inactive' 2>/dev/null); then
+      if [[ "$sync_status" == "active" ]]; then
+        echo -e "${GREEN}OK (timer active)${NC}"
+      else
+        echo -e "${YELLOW}$sync_status${NC}"
+      fi
     else
-      echo -e "${YELLOW}$sync_status${NC}"
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
-  else
-    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
-  fi
 
-  # Check ccache stats
-  echo -n "ccache stats: "
-  local ccache_output
-  if ccache_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
-    if ! command -v ccache &>/dev/null; then echo "n/a"; exit 0; fi
-    stats=$(ccache -d /var/cache/ccache --print-stats 2>/dev/null) || { echo "n/a"; exit 0; }
-    dh=$(echo "$stats" | awk -F"\t" "/^direct_cache_hit/{print \$2}")
-    ph=$(echo "$stats" | awk -F"\t" "/^preprocessed_cache_hit/{print \$2}")
-    cm=$(echo "$stats" | awk -F"\t" "/^cache_miss/{print \$2}")
-    sz=$(echo "$stats" | awk -F"\t" "/^cache_size_kibibyte/{print \$2}")
-    dh=${dh:-0}; ph=${ph:-0}; cm=${cm:-0}; sz=${sz:-0}
-    total=$((dh + ph + cm))
-    if [ $total -gt 0 ]; then
-      rate=$(( (dh + ph) * 100 / total ))
+    echo -n "ccache stats: "
+    local ccache_output
+    if ccache_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      if ! command -v ccache &>/dev/null; then echo "n/a"; exit 0; fi
+      stats=$(ccache -d /var/cache/ccache --print-stats 2>/dev/null) || { echo "n/a"; exit 0; }
+      dh=$(echo "$stats" | awk -F"\t" "/^direct_cache_hit/{print \$2}")
+      ph=$(echo "$stats" | awk -F"\t" "/^preprocessed_cache_hit/{print \$2}")
+      cm=$(echo "$stats" | awk -F"\t" "/^cache_miss/{print \$2}")
+      sz=$(echo "$stats" | awk -F"\t" "/^cache_size_kibibyte/{print \$2}")
+      dh=${dh:-0}; ph=${ph:-0}; cm=${cm:-0}; sz=${sz:-0}
+      total=$((dh + ph + cm))
+      if [ $total -gt 0 ]; then
+        rate=$(( (dh + ph) * 100 / total ))
+      else
+        rate=0
+      fi
+      printf "%s|%s|%s" "$rate" "$((dh + ph))" "$sz"
+    ' 2>/dev/null); then
+      if [[ "$ccache_output" == "n/a" ]]; then
+        echo -e "${YELLOW}n/a (ccache not available)${NC}"
+      else
+        local hit_rate hit_count size_kb size_mb
+        IFS='|' read -r hit_rate hit_count size_kb <<< "$ccache_output"
+        size_mb=$(( size_kb / 1024 ))
+        echo -e "${GREEN}${hit_rate}% hit rate (${hit_count} hits), ${size_mb} MB cache${NC}"
+      fi
     else
-      rate=0
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
-    printf "%s|%s|%s" "$rate" "$((dh + ph))" "$sz"
-  ' 2>/dev/null); then
-    if [[ "$ccache_output" == "n/a" ]]; then
-      echo -e "${YELLOW}n/a (ccache not available)${NC}"
-    else
-      local hit_rate hit_count size_kb size_mb
-      IFS='|' read -r hit_rate hit_count size_kb <<< "$ccache_output"
-      size_mb=$(( size_kb / 1024 ))
-      echo -e "${GREEN}${hit_rate}% hit rate (${hit_count} hits), ${size_mb} MB cache${NC}"
-    fi
-  else
-    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
   fi
 
   # Inactivity shutdown estimate
-  echo -n "Auto-shutdown: "
-  local shutdown_info
-  if shutdown_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
-    timer=$(systemctl is-active inactivity-monitor.timer 2>/dev/null || echo inactive)
-    idle=$(cat /var/lib/inactivity-monitor/idle-count 2>/dev/null || echo 0)
-    active=0
-    ps -eo user= 2>/dev/null | sort -u | grep -q "^nixbld" && active=1
-    printf "%s|%s|%s" "$timer" "$idle" "$active"
-  ' 2>/dev/null); then
-    local timer_state idle_count is_active
-    IFS='|' read -r timer_state idle_count is_active <<< "$shutdown_info"
-    idle_count=${idle_count:-0}
-    if [[ "$timer_state" != "active" ]]; then
-      echo -e "${YELLOW}timer not running${NC}"
-    elif [[ "$is_active" == "1" ]]; then
-      echo -e "${GREEN}idle counter reset (builder active)${NC}"
-    else
-      local remaining=$(( 15 - idle_count ))
-      if [[ $remaining -le 2 ]]; then
-        echo -e "${RED}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
-      elif [[ $remaining -le 5 ]]; then
-        echo -e "${YELLOW}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
+  if should_run "$check_shutdown"; then
+    echo -n "Auto-shutdown: "
+    local shutdown_info
+    if shutdown_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      timer=$(systemctl is-active inactivity-monitor.timer 2>/dev/null || echo inactive)
+      idle=$(cat /var/lib/inactivity-monitor/idle-count 2>/dev/null || echo 0)
+      active=0
+      ps -eo user= 2>/dev/null | sort -u | grep -q "^nixbld" && active=1
+      printf "%s|%s|%s" "$timer" "$idle" "$active"
+    ' 2>/dev/null); then
+      local timer_state idle_count is_active
+      IFS='|' read -r timer_state idle_count is_active <<< "$shutdown_info"
+      idle_count=${idle_count:-0}
+      if [[ "$timer_state" != "active" ]]; then
+        echo -e "${YELLOW}timer not running${NC}"
+      elif [[ "$is_active" == "1" ]]; then
+        echo -e "${GREEN}idle counter reset (builder active)${NC}"
       else
-        echo -e "${GREEN}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
+        local remaining=$(( 15 - idle_count ))
+        if [[ $remaining -le 2 ]]; then
+          echo -e "${RED}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
+        elif [[ $remaining -le 5 ]]; then
+          echo -e "${YELLOW}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
+        else
+          echo -e "${GREEN}~${remaining} min remaining (idle ${idle_count}/15 min)${NC}"
+        fi
       fi
+    else
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
-  else
-    echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
   fi
 
   echo -e "${GREEN}Builder $name is healthy${NC}"
@@ -1241,8 +1300,14 @@ case "${1:-help}" in
     cmd_ssh "$_ssh_name" "$@"
     ;;
   check)
-    [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME check <name|N>  (e.g., 1, builder-1, big-builder-1)"; exit 1; }
-    cmd_check "$(normalize_name "$2")"
+    [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME check <name|N> [--FLAG...]"; exit 1; }
+    _check_name="$(normalize_name "$2")"
+    if ! is_builder_name "$_check_name"; then
+      echo -e "${RED}Error: Invalid builder name '$2'. Use N, builder-N, or big-builder-N${NC}" >&2
+      exit 1
+    fi
+    shift 2
+    cmd_check "$_check_name" "$@"
     ;;
   create)
     [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME create <name|N>  (e.g., 1, builder-1, big-builder-1)"; exit 1; }
