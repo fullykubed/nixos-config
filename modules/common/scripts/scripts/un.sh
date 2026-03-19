@@ -51,6 +51,7 @@ Options:
   -o, --offline         Build without network access (use local store only)
   -S, --no-substituters Skip all binary cache lookups (build everything locally)
   -u, --update          Update flake inputs before rebuilding
+  -d, --dry-run         Show what would be built without building
   -s, --stop-on-error   Stop on first build failure (override keep-going)
   -h, --help            Show this help message
 
@@ -72,6 +73,7 @@ Examples:
   $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
   $SCRIPT_NAME -s            # Stop on first failure for debugging
   $SCRIPT_NAME -t            # Test config (activates but doesn't survive reboot)
+  $SCRIPT_NAME -d            # Show what would be built (dry run)
   $SCRIPT_NAME -S            # Skip binary cache queries (faster with custom stdenv)
 EOF
 }
@@ -179,7 +181,8 @@ run_nixos_rebuild() {
   local hostname="$3"
   local use_nom="$4"
   local impure_mode="$5"
-  shift 5
+  local dry_run="$6"
+  shift 6
 
   # Split args on "--" separator: nix_flags -- rebuild_flags
   local nix_flags=()
@@ -197,9 +200,13 @@ run_nixos_rebuild() {
 
   # In impure mode, build as user then activate as root
   if [[ "$impure_mode" == true ]]; then
-    run_nixos_rebuild_split "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}"
+    run_nixos_rebuild_split "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "$dry_run" "${nix_flags[@]}"
   else
-    run_nixos_rebuild_direct "$rebuild_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}" "${rebuild_flags[@]}"
+    local effective_cmd="$rebuild_cmd"
+    if [[ "$dry_run" == true ]]; then
+      effective_cmd="dry-build"
+    fi
+    run_nixos_rebuild_direct "$effective_cmd" "$flake_path" "$hostname" "$use_nom" "${nix_flags[@]}" "${rebuild_flags[@]}"
   fi
 }
 
@@ -227,10 +234,17 @@ run_nixos_rebuild_split() {
   local flake_path="$2"
   local hostname="$3"
   local use_nom="$4"
-  shift 4
+  local dry_run="$5"
+  shift 5
   local nix_flags=("$@")
 
   local flake_attr="$flake_path#nixosConfigurations.$hostname.config.system.build.toplevel"
+
+  if [[ "$dry_run" == true ]]; then
+    info "Dry run: showing what would be built..."
+    as_user nix build --dry-run --no-link "${nix_flags[@]}" "$flake_attr"
+    return
+  fi
 
   info "Building as ${DOAS_USER:-$(whoami)}..."
 
@@ -292,6 +306,7 @@ parse_args() {
       -j|--jobs)       shift; MAX_JOBS="$1" ;;
       -o|--offline)    OFFLINE_MODE=true ;;
       -S|--no-substituters) NO_SUBSTITUTERS=true ;;
+      -d|--dry-run)     DRY_RUN=true ;;
       -s|--stop-on-error) STOP_ON_ERROR=true ;;
       -u|--update)     UPDATE_MODE=true ;;
       -i|--impure)     IMPURE_MODE=true ;;
@@ -318,6 +333,9 @@ validate_options() {
       error "Cannot use --upgrade with --boot or --test"
     fi
   fi
+  if [[ "$DRY_RUN" == true ]] && [[ "$UPGRADE_MODE" == true ]]; then
+    error "Cannot use --dry-run with --upgrade"
+  fi
 }
 
 # ------------------------------------------------------------------------------
@@ -329,6 +347,7 @@ main() {
   UPGRADE_MODE=false
   BOOT_MODE=false
   TEST_MODE=false
+  DRY_RUN=false
   OFFLINE_MODE=false
   STOP_ON_ERROR=false
   NO_SUBSTITUTERS=false
@@ -344,7 +363,8 @@ main() {
   validate_options
 
   # Re-exec as root upfront so privileged operations don't prompt mid-build
-  if [[ $EUID -ne 0 ]]; then
+  # Dry-run doesn't need root — it only evaluates, never activates
+  if [[ "$DRY_RUN" == false ]] && [[ $EUID -ne 0 ]]; then
     exec doas "$0" "$@"
   fi
 
@@ -473,7 +493,7 @@ main() {
   fi
 
   # Execute rebuild
-  run_nixos_rebuild "$rebuild_cmd" "$flake_path" "$hostname" "$USE_NOM" "$IMPURE_MODE" "${nix_flags[@]}" -- "${rebuild_flags[@]}"
+  run_nixos_rebuild "$rebuild_cmd" "$flake_path" "$hostname" "$USE_NOM" "$IMPURE_MODE" "$DRY_RUN" "${nix_flags[@]}" -- "${rebuild_flags[@]}"
 
   # Notify on long builds
   if [[ "$NOTIFY_ON_FAILURE" == true ]]; then
