@@ -96,6 +96,7 @@
     hdparm # Interfacing with hard didks
     nvme-cli # Interfacing with nvme disks
     gptfdisk # GPT partition table manipulation (sgdisk)
+    parted # Partition editor (partprobe, parted)
 
     ################################
     ##  System Debugging + Monitoring
