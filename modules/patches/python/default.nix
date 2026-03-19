@@ -12,13 +12,15 @@ let
           ];
         });
 
-        # anyio: Skip test_single_thread — threading.active_count() race condition
-        # Thread cleanup after BlockingPortalProvider.__exit__() is non-deterministic;
-        # pytest-xdist workers skew the count. Same class of bug as upstream-disabled test_multiple_threads.
+        # anyio: Skip flaky threading tests — race conditions in test teardown
+        # test_single_thread: threading.active_count() non-deterministic with pytest-xdist
+        # test_thread_cancelled_and_abandoned: uvloop event loop closes before worker thread
+        #   calls call_soon_threadsafe, causing RuntimeError in teardown
         # See: https://github.com/NixOS/nixpkgs/issues/448125
         anyio = pyprev.anyio.overrideAttrs (old: {
           disabledTests = (old.disabledTests or [ ]) ++ [
             "test_single_thread"
+            "test_thread_cancelled_and_abandoned"
           ];
         });
 
