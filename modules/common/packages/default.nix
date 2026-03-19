@@ -95,6 +95,7 @@
     smartmontools # SMART cli for disk health checking
     hdparm # Interfacing with hard didks
     nvme-cli # Interfacing with nvme disks
+    gptfdisk # GPT partition table manipulation (sgdisk)
 
     ################################
     ##  System Debugging + Monitoring
