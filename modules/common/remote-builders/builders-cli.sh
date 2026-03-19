@@ -388,6 +388,20 @@ cmd_check() {
     return 1
   fi
 
+  # Experimental features
+  echo -n "Experimental features: "
+  local exp_features
+  if exp_features=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+      "nix show-config 2>/dev/null | grep '^experimental-features' | cut -d= -f2 | xargs" 2>/dev/null); then
+    if [[ -n "$exp_features" ]]; then
+      echo -e "${GREEN}${exp_features}${NC}"
+    else
+      echo -e "${YELLOW}none${NC}"
+    fi
+  else
+    echo -e "${YELLOW}SKIPPED${NC}"
+  fi
+
   # CPU and memory info (single SSH call)
   echo -n "CPU: "
   local hw_info
