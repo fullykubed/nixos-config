@@ -6,7 +6,7 @@
     # Secrets management
     agenix.url = "https://flakehub.com/f/ryantm/agenix/0.15.0";
     agenix-rekey = {
-      url = "github:oddlama/agenix-rekey?ref=42362b12f59978aabf3ec3334834ce2f3662013d";
+      url = "github:IanHollow/agenix-rekey?ref=fix-string-context-derivation-warning";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 

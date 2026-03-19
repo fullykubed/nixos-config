@@ -30,16 +30,15 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1759699908,
-        "narHash": "sha256-kYVGY8sAfqwpNch706Fy2+/b+xbtfidhXSnzvthAhIQ=",
-        "owner": "oddlama",
+        "lastModified": 1771543789,
+        "owner": "IanHollow",
         "repo": "agenix-rekey",
-        "rev": "42362b12f59978aabf3ec3334834ce2f3662013d",
+        "rev": "10918814fdefc2c7410333fae3c408a90edefa51",
         "type": "github"
       },
       "original": {
-        "owner": "oddlama",
-        "ref": "42362b12f59978aabf3ec3334834ce2f3662013d",
+        "owner": "IanHollow",
+        "ref": "fix-string-context-derivation-warning",
         "repo": "agenix-rekey",
         "type": "github"
       }
