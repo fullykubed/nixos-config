@@ -133,6 +133,8 @@
           "/run/last-user-input"
           "/run/last-user-input"
 
+          "--dir"
+          "/run/agenix"
           "--ro-bind-try"
           "/run/agenix/pushover-token"
           "/run/agenix/pushover-token"
