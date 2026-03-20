@@ -14,6 +14,9 @@ CACHE_HOST_PUBKEY_FILE="/etc/ssh/cache-host-key.pub"
 NIKS3_TOKEN_FILE="/run/agenix/niks3-api-token"
 CCACHE_R2_ACCESS_KEY_FILE="/run/agenix/ccache-r2-access-key"
 CCACHE_R2_SECRET_KEY_FILE="/run/agenix/ccache-r2-secret-key"
+HEADSCALE_API_KEY_FILE="/run/agenix/headscale-api-key"
+HEADSCALE_API_URL="https://headscale.panfactumcf.com/api/v1"
+HEADSCALE_USER_ID="1"
 # Resolve the latest builder snapshot by label (or use explicit override)
 resolve_snapshot_id() {
   if [[ -n "${HETZNER_BUILDER_SNAPSHOT:-}" ]]; then
@@ -49,7 +52,8 @@ BIG_HOURLY_COST="0.0950"
 # Base SSH options (host key verification added dynamically per IP)
 # -F /dev/null: skip user/system SSH config to avoid failures when HOME points
 # to a home-manager-managed ~/.ssh/config owned by nobody (Nix store).
-SSH_BASE_OPTS=(-F /dev/null -i /root/.ssh/builder-key -p 3098)
+# Builders are accessed via Tailscale on the default SSH port (22).
+SSH_BASE_OPTS=(-F /dev/null -i /root/.ssh/builder-key)
 SSH_OPTS=() # populated by setup_host_verification
 
 # Temporary known hosts file for host key verification
@@ -59,8 +63,8 @@ _cleanup_known_hosts() {
 }
 trap '_cleanup_known_hosts' EXIT
 
-# Set up host key verification for one or more builder IPs.
-# Generates a temporary known_hosts with [ip]:3098 entries mapped to our known host public key.
+# Set up host key verification for one or more builder Tailscale IPs.
+# Generates a temporary known_hosts with plain IP entries mapped to our known host public key.
 # Usage: setup_host_verification IP [IP2 IP3 ...]
 setup_host_verification() {
   if [[ ! -f "$HOST_PUBKEY_FILE" ]]; then
@@ -72,7 +76,7 @@ setup_host_verification() {
   pubkey=$(cat "$HOST_PUBKEY_FILE")
   _KNOWN_HOSTS_TMP=$(mktemp)
   for ip in "$@"; do
-    echo "[${ip}]:3098 ${pubkey}" >> "$_KNOWN_HOSTS_TMP"
+    echo "${ip} ${pubkey}" >> "$_KNOWN_HOSTS_TMP"
   done
   SSH_OPTS=("${SSH_BASE_OPTS[@]}" -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$_KNOWN_HOSTS_TMP")
 }
@@ -121,11 +125,11 @@ stop_spinner() {
 }
 
 # Remote script that collects all builder metrics in a single SSH call.
-# Outputs pipe-delimited: builds|cpu%|mem_used_kb|mem_total_kb|disk_read_sectors|disk_write_sectors|disk_total_kb|disk_used_kb|disk_pct|ssh_sessions|tunnel_status|queue_pending|queue_done|idle_count|ccache_hits|ccache_misses|ccache_size_kb
+# Outputs pipe-delimited: builds|cpu%|mem_used_kb|mem_total_kb|disk_read_sectors|disk_write_sectors|disk_total_kb|disk_used_kb|disk_pct|ssh_sessions|ts_status|queue_pending|queue_done|idle_count|ccache_hits|ccache_misses|ccache_size_kb
 # Disk sectors are cumulative counters; the dashboard computes rates from deltas between refreshes.
 read -r -d '' REMOTE_STATS_CMD << 'STATSEOF' || true
 b=$(ps -eo user= 2>/dev/null | sort -u | grep -c '^nixbld' || true); b=${b:-0}
-sc=$(command ss -Htn state established '( sport = :3098 )' 2>/dev/null | wc -l)
+sc=$(command ss -Htn state established '( sport = :22 )' 2>/dev/null | wc -l)
 ss=$((sc > 1 ? sc - 1 : 0))
 read _ u1 n1 s1 i1 w1 _ < /proc/stat
 sleep 1
@@ -146,7 +150,7 @@ dline=$(df -k /nix/store | tail -1)
 dst=$(echo "$dline" | tr -s ' ' | cut -d' ' -f2)
 dsu=$(echo "$dline" | tr -s ' ' | cut -d' ' -f3)
 dsp=$(echo "$dline" | tr -s ' ' | cut -d' ' -f5 | tr -d '%')
-tun=$(systemctl is-active cache-tunnel.service 2>/dev/null || echo "dead")
+ts=$(tailscale status --json 2>/dev/null | jaq -r 'if .BackendState == "Running" then "up" else "down" end' 2>/dev/null || echo "unknown")
 pq=$(bfs /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
 dq=$(bfs /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
 ic=$(cat /var/lib/inactivity-monitor/idle-count 2>/dev/null || echo 0)
@@ -164,7 +168,7 @@ if command -v ccache >/dev/null 2>&1; then
   fi
 fi
 printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
-  "$b" "$cpu" "$mu" "$mt" "$dr" "$dw" "$dst" "$dsu" "$dsp" "$ss" "$tun" "$pq" "$dq" "$ic" \
+  "$b" "$cpu" "$mu" "$mt" "$dr" "$dw" "$dst" "$dsu" "$dsp" "$ss" "$ts" "$pq" "$dq" "$ic" \
   "$ch" "$cm_cc" "$csz"
 STATSEOF
 
@@ -269,6 +273,58 @@ check_token() {
   HCLOUD_TOKEN=$(cat "$TOKEN_FILE")
 }
 
+# Mint an ephemeral headscale pre-auth key for a builder.
+# Outputs just the key string; exits non-zero on failure.
+mint_headscale_preauth_key() {
+  if [[ ! -f "$HEADSCALE_API_KEY_FILE" ]]; then
+    echo -e "${RED}Error: Headscale API key not found at $HEADSCALE_API_KEY_FILE${NC}" >&2
+    exit 1
+  fi
+  local api_key expiry authkey
+  api_key=$(cat "$HEADSCALE_API_KEY_FILE")
+  expiry=$(date -u -d '+2 hours' '+%Y-%m-%dT%H:%M:%SZ')
+  authkey=$(curl -sf \
+    -X POST \
+    -H "Authorization: Bearer ${api_key}" \
+    -H "Content-Type: application/json" \
+    -d "{\"user\": \"${HEADSCALE_USER_ID}\", \"reusable\": false, \"ephemeral\": true, \"expiration\": \"${expiry}\"}" \
+    "${HEADSCALE_API_URL}/preauthkey" \
+    | jaq -r '.preAuthKey.key')
+  if [[ -z "$authkey" || "$authkey" == "null" ]]; then
+    echo -e "${RED}Error: Failed to mint headscale pre-auth key${NC}" >&2
+    exit 1
+  fi
+  echo "$authkey"
+}
+
+# Look up a builder's Tailscale IP by hostname from tailscale status.
+# Usage: get_tailscale_ip <hostname>
+get_tailscale_ip() {
+  local name="$1"
+  # shellcheck disable=SC2016 # $name is a jaq variable, not a shell variable
+  tailscale status --json \
+    | jaq -r --arg name "$name" '.Peer[] | select(.HostName == $name) | .TailscaleIPs[0]'
+}
+
+# Wait for a builder to appear in tailscale status (up to timeout seconds).
+# Usage: wait_for_tailscale <hostname> [timeout_seconds]
+wait_for_tailscale() {
+  local name="$1"
+  local timeout="${2:-120}"
+  local elapsed=0
+  local ip=""
+  while [[ $elapsed -lt $timeout ]]; do
+    ip=$(get_tailscale_ip "$name")
+    if [[ -n "$ip" && "$ip" != "null" ]]; then
+      echo "$ip"
+      return 0
+    fi
+    sleep 5
+    elapsed=$((elapsed + 5))
+  done
+  return 1
+}
+
 cmd_list() {
   check_token
   echo -e "${GREEN}Active Builders:${NC}"
@@ -358,17 +414,31 @@ cmd_check() {
 
   echo -e "${YELLOW}Checking $name...${NC}"
 
-  # Check if server exists
+  # Check if server exists in Hetzner
   if ! hcloud server describe "$name" &>/dev/null; then
     echo -e "${RED}Builder $name does not exist${NC}"
     return 1
   fi
 
+  # Get Tailscale IP for the builder
   local ip
-  ip=$(hcloud server describe "$name" -o json | jaq -r '.public_net.ipv4.ip')
-  echo -e "IP: ${GREEN}${ip}${NC}"
+  ip=$(get_tailscale_ip "$name")
+  if [[ -z "$ip" || "$ip" == "null" ]]; then
+    echo -e "${RED}Builder $name not found in Tailscale network${NC}"
+    echo "  The builder may still be booting or Tailscale may not have connected yet."
+    return 1
+  fi
+  echo -e "Tailscale IP: ${GREEN}${ip}${NC}"
 
-  # Set up host key verification for this builder
+  # Verify Tailscale connectivity
+  echo -n "Tailscale connectivity: "
+  if tailscale ping --c 1 "$ip" &>/dev/null; then
+    echo -e "${GREEN}OK${NC}"
+  else
+    echo -e "${YELLOW}no direct path (relay)${NC}"
+  fi
+
+  # Set up host key verification for this builder's Tailscale IP
   setup_host_verification "$ip"
 
   # Check SSH connectivity with verbose debug on failure
@@ -384,7 +454,7 @@ cmd_check() {
     echo ""
     echo -e "  ${RED}--- SSH debug ---${NC}"
     echo -e "  Exit code: $ssh_exit"
-    echo -e "  Target:    remotebuild@${ip}:3098"
+    echo -e "  Target:    remotebuild@${ip} (via Tailscale)"
     echo -e "  Key:       /root/.ssh/builder-key"
 
     # Key file check
@@ -404,11 +474,11 @@ cmd_check() {
     echo ""
 
     # Port reachability
-    echo -n "  Port 3098: "
-    if timeout 3 bash -c "echo >/dev/tcp/$ip/3098" 2>/dev/null; then
+    echo -n "  Port 22: "
+    if timeout 3 bash -c "echo >/dev/tcp/$ip/22" 2>/dev/null; then
       echo -e "${GREEN}reachable${NC} (SSH handshake or auth failed)"
     else
-      echo -e "${RED}NOT reachable${NC} (firewall, sshd not running, or cloud-init still in progress)"
+      echo -e "${RED}NOT reachable${NC} (Tailscale not connected, sshd not running, or cloud-init still in progress)"
     fi
 
     # Verbose SSH trace (filtered to useful lines)
@@ -612,24 +682,16 @@ cmd_check() {
     fi
   fi
 
-  # Check cache tunnel
+  # Tailscale status on builder
   if should_run "$check_cache"; then
-    echo -n "Cache tunnel: "
-    local tun_status
-    if tun_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-        'systemctl is-active cache-tunnel.service 2>/dev/null || echo inactive' 2>/dev/null); then
-      if [[ "$tun_status" == "active" ]]; then
-        # Verify tunnel endpoint
-        local tun_health
-        tun_health=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-          'curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:9751/health 2>/dev/null || echo 000' 2>/dev/null)
-        if [[ "$tun_health" == "200" ]]; then
-          echo -e "${GREEN}OK (tunnel active, niks3 reachable)${NC}"
-        else
-          echo -e "${YELLOW}DEGRADED (tunnel active, niks3 HTTP $tun_health)${NC}"
-        fi
+    echo -n "Tailscale: "
+    local ts_status
+    if ts_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
+        'tailscale status --json 2>/dev/null | jaq -r "if .BackendState == \"Running\" then \"up\" else .BackendState end" 2>/dev/null || echo "unknown"' 2>/dev/null); then
+      if [[ "$ts_status" == "up" ]]; then
+        echo -e "${GREEN}up${NC}"
       else
-        echo -e "${YELLOW}$tun_status${NC}"
+        echo -e "${YELLOW}${ts_status}${NC}"
       fi
     else
       echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
@@ -816,6 +878,11 @@ cmd_create() {
 
   echo -e "${YELLOW}Creating $name (${btype}, ${server_type})...${NC}"
 
+  # Mint ephemeral headscale pre-auth key for Tailscale registration
+  echo -e "${YELLOW}Minting headscale pre-auth key...${NC}"
+  local authkey
+  authkey=$(mint_headscale_preauth_key)
+
   # Read SSH public key for injection
   local ssh_pubkey
   ssh_pubkey=$(cat "$PUBKEY_FILE")
@@ -836,7 +903,7 @@ cmd_create() {
   ccache_r2_access_key=$(cat "$CCACHE_R2_ACCESS_KEY_FILE")
   ccache_r2_secret_key=$(cat "$CCACHE_R2_SECRET_KEY_FILE")
 
-  # Build cloud-init user-data to inject SSH keys and host keys
+  # Build cloud-init user-data to inject SSH keys, host keys, and Tailscale auth key
   local user_data_file
   user_data_file=$(mktemp)
   trap 'rm -f "$user_data_file"' RETURN
@@ -853,6 +920,14 @@ write_files:
     permissions: '0400'
     content: |
       $(cat "$TOKEN_FILE")
+  - path: /run/headscale-authkey
+    permissions: '0400'
+    content: |
+      $authkey
+  - path: /run/builder-name
+    permissions: '0444'
+    content: |
+      $name
   - path: /var/lib/remotebuild/.ssh/authorized_keys
     permissions: '0600'
     owner: remotebuild:remotebuild
@@ -897,7 +972,6 @@ write_files:
       $ccache_r2_secret_key
 runcmd:
   - systemctl restart nix-daemon
-  - systemctl start cache-tunnel.service
   - systemctl start inactivity-monitor.timer
   - systemctl start ccache-r2-mount.service
 EOF
@@ -913,6 +987,14 @@ write_files:
     permissions: '0400'
     content: |
       $(cat "$TOKEN_FILE")
+  - path: /run/headscale-authkey
+    permissions: '0400'
+    content: |
+      $authkey
+  - path: /run/builder-name
+    permissions: '0444'
+    content: |
+      $name
   - path: /var/lib/remotebuild/.ssh/authorized_keys
     permissions: '0600'
     owner: remotebuild:remotebuild
@@ -951,7 +1033,6 @@ write_files:
     content: |
       $ccache_r2_secret_key
 runcmd:
-  - systemctl start cache-tunnel.service
   - systemctl start inactivity-monitor.timer
   - systemctl start ccache-r2-mount.service
 EOF
@@ -969,6 +1050,15 @@ EOF
     --poll-interval 2s
 
   echo -e "${GREEN}Created $name${NC}"
+
+  # Wait for builder to appear on Tailscale network
+  echo -e "${YELLOW}Waiting for $name to join Tailscale...${NC}"
+  local builder_ip
+  if builder_ip=$(wait_for_tailscale "$name" 180); then
+    echo -e "${GREEN}$name is reachable on Tailscale: ${builder_ip}${NC}"
+  else
+    echo -e "${YELLOW}$name has not appeared on Tailscale yet. Check with: builders check $name${NC}"
+  fi
 }
 
 cmd_destroy() {
@@ -1080,13 +1170,22 @@ cmd_dashboard() {
     local builders_json
     builders_json=$(hcloud server list -o json 2>/dev/null || echo '[]')
 
+    # Build list of running builder names, then look up Tailscale IPs
     local -a names=() ips=()
-    while IFS='|' read -r name ip; do
-      [[ -n "$name" ]] || continue
-      names+=("$name")
-      ips+=("$ip")
-    done < <(echo "$builders_json" | jaq -r\
-      '.[] | select(.name | test("^(big-)?builder-")) | select(.status == "running") | "\(.name)|\(.public_net.ipv4.ip)"' \
+    local ts_status_json
+    ts_status_json=$(tailscale status --json 2>/dev/null || echo '{}')
+
+    while IFS= read -r bname; do
+      [[ -n "$bname" ]] || continue
+      local bip
+      # shellcheck disable=SC2016 # $name is a jaq variable, not a shell variable
+      bip=$(echo "$ts_status_json" | jaq -r --arg name "$bname" '.Peer[] | select(.HostName == $name) | .TailscaleIPs[0]')
+      if [[ -n "$bip" && "$bip" != "null" ]]; then
+        names+=("$bname")
+        ips+=("$bip")
+      fi
+    done < <(echo "$builders_json" | jaq -r \
+      '.[] | select(.name | test("^(big-)?builder-")) | select(.status == "running") | .name' \
       2>/dev/null | sort)
 
     local count=${#names[@]}
@@ -1102,7 +1201,7 @@ cmd_dashboard() {
 
     tput el; echo
 
-    # Set up host key verification for all builder IPs
+    # Set up host key verification for all builder Tailscale IPs
     if [[ $count -gt 0 ]]; then
       setup_host_verification "${ips[@]}"
     fi
@@ -1128,7 +1227,7 @@ cmd_dashboard() {
 
       # Table header
       printf ' %-16s %-16s %6s  %4s  %4s   %-20s  %-22s  %-14s %-6s %-8s %-6s %-7s %s' \
-        "BUILDER" "IP" "BUILDS" "SSH" "CPU" "MEMORY" "DISK R/W" "/nix/store" "TUN" "CACHE Q" "CCACHE" "CC SIZE" "SHUTDOWN"
+        "BUILDER" "TAILSCALE IP" "BUILDS" "SSH" "CPU" "MEMORY" "DISK R/W" "/nix/store" "TS" "CACHE Q" "CCACHE" "CC SIZE" "SHUTDOWN"
       tput el; echo
 
       local sep
@@ -1158,10 +1257,10 @@ cmd_dashboard() {
           continue
         fi
 
-        local builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb
-        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess tun_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb <<< "$data"
+        local builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess ts_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb
+        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess ts_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb <<< "$data"
         builds=${builds:-0}; cpu=${cpu:-0}; mu=${mu:-0}; mt=${mt:-0}
-        dr_sec=${dr_sec:-0}; dw_sec=${dw_sec:-0}; dst=${dst:-0}; dsu=${dsu:-0}; dsp=${dsp:-0}; ssh_sess=${ssh_sess:-0}; tun_stat=${tun_stat:-unknown}
+        dr_sec=${dr_sec:-0}; dw_sec=${dw_sec:-0}; dst=${dst:-0}; dsu=${dsu:-0}; dsp=${dsp:-0}; ssh_sess=${ssh_sess:-0}; ts_stat=${ts_stat:-unknown}
         q_pending=${q_pending:-0}; q_done=${q_done:-0}; idle_count=${idle_count:-0}
         cc_hits=${cc_hits:-0}; cc_misses=${cc_misses:-0}; cc_size_kb=${cc_size_kb:-0}
 
@@ -1203,10 +1302,10 @@ cmd_dashboard() {
         printf ')  %8s / %8s  %5s/%s GB (' "$dr_fmt" "$dw_fmt" "$dsu_gb" "$dst_gb"
         color_pct "$dsp" 75 90
         printf ')  '
-        if [[ "$tun_stat" == "active" ]]; then
-          printf '%b%-6s%b' "$GREEN" "$tun_stat" "$NC"
+        if [[ "$ts_stat" == "up" ]]; then
+          printf '%b%-6s%b' "$GREEN" "$ts_stat" "$NC"
         else
-          printf '%b%-6s%b' "$YELLOW" "$tun_stat" "$NC"
+          printf '%b%-6s%b' "$YELLOW" "$ts_stat" "$NC"
         fi
         if [[ "$q_pending" -gt 0 ]]; then
           printf ' %-8s' "$(printf '%b%s%b/%s' "$YELLOW" "$q_pending" "$NC" "$q_done")"
@@ -1333,11 +1432,12 @@ case "${1:-help}" in
     [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME debug-stats <name|N>"; exit 1; }
     _ds_name="$(normalize_name "$2")"
     check_token
-    _ds_ip=$(hcloud server describe "$_ds_name" -o json 2>/dev/null | jaq -r '.public_net.ipv4.ip')
-    [[ -z "$_ds_ip" || "$_ds_ip" == "null" ]] && { echo -e "${RED}Builder $_ds_name not found${NC}"; exit 1; }
+    # shellcheck disable=SC2016 # $name is a jaq variable, not a shell variable
+    _ds_ip=$(tailscale status --json | jaq -r --arg name "$_ds_name" '.Peer[] | select(.HostName == $name) | .TailscaleIPs[0]')
+    [[ -z "$_ds_ip" || "$_ds_ip" == "null" ]] && { echo -e "${RED}Builder $_ds_name not found in Tailscale network${NC}"; exit 1; }
     setup_host_verification "$_ds_ip"
     echo "=== Raw SSH output (with stderr) ==="
-    echo "--- Command: ssh remotebuild@$_ds_ip (port 3098) ---"
+    echo "--- Command: ssh remotebuild@$_ds_ip (via Tailscale) ---"
     _ds_exit=0
     timeout 15 ssh -o ConnectTimeout=5 -o BatchMode=yes "${SSH_OPTS[@]}" \
       "remotebuild@$_ds_ip" "$REMOTE_STATS_CMD" 2>&1 || _ds_exit=$?

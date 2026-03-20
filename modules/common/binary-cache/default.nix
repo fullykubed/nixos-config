@@ -170,6 +170,12 @@ in
       mode = "0400";
       owner = "root";
     };
+    cloudflare-dns-token = {
+      rekeyFile = ../../../secrets/cloudflare-dns-token.age;
+      path = "/run/agenix/cloudflare-dns-token";
+      mode = "0400";
+      owner = "root";
+    };
   };
 
   systemd = {
@@ -193,16 +199,17 @@ in
         script = ''
           export HCLOUD_TOKEN
           HCLOUD_TOKEN=$(cat ${config.age.secrets.hetzner-api-token.path})
-          hcloud server list -o json -l cache=true > /run/cache-status/status.json.tmp
+          hcloud server list -o json -l controller=true > /run/cache-status/status.json.tmp
           chmod 0644 /run/cache-status/status.json.tmp
           mv /run/cache-status/status.json.tmp /run/cache-status/status.json
         '';
       };
 
-      # SSH tunnel to cache server for pushing build artifacts
-      # Forwards local:9751 → cache:5751 (niks3) via SSH port 3099
+      # Discover the controller's Tailscale IP and write /run/niks3-server-url.
+      # No SSH tunnel needed — niks3 now listens on 0.0.0.0:5751 and is reachable
+      # directly from any Tailscale peer.
       cache-tunnel = {
-        description = "SSH tunnel to niks3 cache server";
+        description = "Discover nix-controller Tailscale IP and write niks3 server URL";
         after = [ "network-online.target" ];
         wants = [ "network-online.target" ];
         wantedBy = [ "multi-user.target" ];
@@ -213,45 +220,67 @@ in
           ExecStopPost = "-${pkgs.coreutils}/bin/rm -f /run/niks3-server-url";
         };
         path = with pkgs; [
-          openssh
-          hcloud
+          tailscale
           jaq
           coreutils
-          bash
         ];
         script = ''
-          export HCLOUD_TOKEN
-          HCLOUD_TOKEN=$(cat ${config.age.secrets.hetzner-api-token.path})
-
-          # Find cache server IP
-          CACHE_IP=""
-          while [ -z "$CACHE_IP" ]; do
-            CACHE_IP=$(hcloud server list -l cache=true -o json | jaq -r '.[0].public_net.ipv4.ip // empty')
-            if [ -z "$CACHE_IP" ]; then
-              echo "WARNING: No cache server found (label cache=true). Retrying in 30s..."
-              sleep 30
+          # Poll tailscale status until nix-controller peer appears
+          CONTROLLER_IP=""
+          while [ -z "$CONTROLLER_IP" ]; do
+            CONTROLLER_IP=$(tailscale status --json 2>/dev/null \
+              | jaq -r '.Peer | to_entries[] | select(.value.HostName == "nix-controller") | .value.TailscaleIPs[0] // empty' \
+              | head -n1)
+            if [ -z "$CONTROLLER_IP" ]; then
+              echo "Waiting for nix-controller peer in Tailscale status..."
+              sleep 15
             fi
           done
-          echo "Found cache server at $CACHE_IP"
+          echo "Found nix-controller at Tailscale IP: $CONTROLLER_IP"
 
-          KNOWN_HOSTS=$(mktemp)
-          trap 'rm -f "$KNOWN_HOSTS"' EXIT
-          echo "[$CACHE_IP]:3099 $(cat /etc/ssh/cache-host-key.pub)" > "$KNOWN_HOSTS"
+          SERVER_URL="http://$CONTROLLER_IP:5751"
+          echo "$SERVER_URL" > /run/niks3-server-url
+          chmod 0444 /run/niks3-server-url
+          echo "Wrote niks3 server URL: $SERVER_URL"
 
-          exec ssh -N -L 9751:127.0.0.1:5751 \
-            -i /root/.ssh/cache-key \
-            -p 3099 \
-            -o StrictHostKeyChecking=yes \
-            -o "UserKnownHostsFile=$KNOWN_HOSTS" \
-            -o ServerAliveInterval=30 \
-            -o ServerAliveCountMax=3 \
-            -o ExitOnForwardFailure=yes \
-            -o BatchMode=yes \
-            root@"$CACHE_IP"
+          # Keep running so that if tailscale peer disappears we can rediscover
+          while true; do
+            sleep 60
+            NEW_IP=$(tailscale status --json 2>/dev/null \
+              | jq -r '.Peer | to_entries[] | select(.value.HostName == "nix-controller") | .value.TailscaleIPs[0] // empty' \
+              | head -n1)
+            if [ -z "$NEW_IP" ]; then
+              echo "WARNING: nix-controller no longer visible in Tailscale. Removing server URL..."
+              rm -f /run/niks3-server-url
+              # Rediscover
+              CONTROLLER_IP=""
+              while [ -z "$CONTROLLER_IP" ]; do
+                CONTROLLER_IP=$(tailscale status --json 2>/dev/null \
+                  | jq -r '.Peer | to_entries[] | select(.value.HostName == "nix-controller") | .value.TailscaleIPs[0] // empty' \
+                  | head -n1)
+                if [ -z "$CONTROLLER_IP" ]; then
+                  echo "Waiting for nix-controller peer in Tailscale status..."
+                  sleep 15
+                fi
+              done
+              echo "Rediscovered nix-controller at: $CONTROLLER_IP"
+              SERVER_URL="http://$CONTROLLER_IP:5751"
+              echo "$SERVER_URL" > /run/niks3-server-url
+              chmod 0444 /run/niks3-server-url
+              echo "Updated niks3 server URL: $SERVER_URL"
+            elif [ "$NEW_IP" != "$CONTROLLER_IP" ]; then
+              echo "nix-controller IP changed from $CONTROLLER_IP to $NEW_IP, updating..."
+              CONTROLLER_IP="$NEW_IP"
+              SERVER_URL="http://$CONTROLLER_IP:5751"
+              echo "$SERVER_URL" > /run/niks3-server-url
+              chmod 0444 /run/niks3-server-url
+              echo "Updated niks3 server URL: $SERVER_URL"
+            fi
+          done
         '';
       };
 
-      # Healthcheck: verify niks3 is responding and manage /run/niks3-server-url
+      # Healthcheck: verify niks3 is responding at the Tailscale IP URL
       cache-healthcheck = {
         description = "Check niks3 cache availability";
         after = [ "cache-tunnel.service" ];
@@ -266,24 +295,28 @@ in
         script = ''
           FAIL_COUNT_FILE="/run/cache-healthcheck-failures"
 
-          if curl -s --max-time 10 -o /dev/null http://127.0.0.1:9751/; then
-            # Healthy — reset failure counter and ensure URL file exists
+          # Read the current niks3 server URL (written by cache-tunnel / controller-discovery)
+          if [ ! -f /run/niks3-server-url ]; then
+            echo "WARNING: /run/niks3-server-url does not exist; controller not yet discovered"
+            exit 0
+          fi
+
+          NIKS3_URL=$(cat /run/niks3-server-url)
+
+          if curl -s --max-time 10 -o /dev/null "$NIKS3_URL/"; then
+            # Healthy — reset failure counter
             rm -f "$FAIL_COUNT_FILE"
-            if [ ! -f /run/niks3-server-url ]; then
-              echo "niks3 is healthy, enabling cache uploads"
-              echo "http://127.0.0.1:9751" > /run/niks3-server-url
-              chmod 0444 /run/niks3-server-url
-            fi
+            echo "niks3 is healthy at $NIKS3_URL"
           else
             # Failed — only remove URL file after 3 consecutive failures
             prev=$(cat "$FAIL_COUNT_FILE" 2>/dev/null || echo 0)
             count=$((prev + 1))
             echo "$count" > "$FAIL_COUNT_FILE"
             if [ "$count" -ge 3 ] && [ -f /run/niks3-server-url ]; then
-              echo "WARNING: niks3 healthcheck failed $count times, disabling cache uploads"
+              echo "WARNING: niks3 healthcheck failed $count times at $NIKS3_URL, disabling cache uploads"
               rm -f /run/niks3-server-url
             elif [ -f /run/niks3-server-url ]; then
-              echo "WARNING: niks3 healthcheck failed ($count/3 before disabling)"
+              echo "WARNING: niks3 healthcheck failed ($count/3 before disabling) at $NIKS3_URL"
             fi
           fi
         '';

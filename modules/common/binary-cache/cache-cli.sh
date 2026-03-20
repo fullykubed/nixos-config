@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # modules/common/binary-cache/cache-cli.sh
-# CLI tool for managing the Hetzner Cloud niks3 binary cache server
-# Only one cache server may exist at a time.
+# CLI tool for managing the Hetzner Cloud niks3 controller server
+# Only one controller server may exist at a time.
 
 set -euo pipefail
 
@@ -14,9 +14,11 @@ NIKS3_API_TOKEN_FILE="/run/agenix/niks3-api-token"
 PUBKEY_FILE="/etc/ssh/cache-key.pub"
 HOST_KEY_FILE="/run/agenix/cache-host-key"
 HOST_PUBKEY_FILE="/etc/ssh/cache-host-key.pub"
-SERVER_NAME="cache-1"
+SERVER_NAME="controller-1"
 SERVER_TYPE="${CACHE_SERVER_TYPE:-cpx22}"
 LOCATION="${CACHE_LOCATION:-hel1}"
+VOLUME_NAME="controller-data"
+VOLUME_SIZE="10"
 
 # Colors
 RED='\033[0;31m'
@@ -35,32 +37,45 @@ _cleanup_known_hosts() {
 }
 trap '_cleanup_known_hosts' EXIT
 
-# Resolve the latest cache snapshot by label (or use explicit override)
+# Resolve the latest controller snapshot by label (or use explicit override)
 resolve_snapshot_id() {
   if [[ -n "${HETZNER_CACHE_SNAPSHOT:-}" ]]; then
     echo "$HETZNER_CACHE_SNAPSHOT"
     return
   fi
   local id
-  id=$(hcloud image list -t snapshot -l type=cache -o json 2>/dev/null \
+  id=$(hcloud image list -t snapshot -l type=controller -o json 2>/dev/null \
     | jaq -r 'sort_by(.created) | last | .id // empty')
   if [[ -z "$id" ]]; then
-    echo -e "${RED}Error: No snapshot found with label type=cache${NC}" >&2
-    echo "Upload a cache image first, or set HETZNER_CACHE_SNAPSHOT." >&2
+    echo -e "${RED}Error: No snapshot found with label type=controller${NC}" >&2
+    echo "Upload a controller image first, or set HETZNER_CACHE_SNAPSHOT." >&2
     exit 1
   fi
   echo "$id"
 }
 
-# Find the existing cache server (by label). Sets CACHE_NAME and CACHE_IP.
-# Returns 1 if no cache server exists.
+# Find the existing controller server (by label). Sets CACHE_NAME and CACHE_IP.
+# Returns 1 if no controller server exists.
 find_cache_server() {
   local server_json
-  server_json=$(hcloud server list -l cache=true -o json 2>/dev/null)
+  server_json=$(hcloud server list -l controller=true -o json 2>/dev/null)
   CACHE_NAME=$(echo "$server_json" | jaq -r '.[0].name // empty')
   CACHE_IP=$(echo "$server_json" | jaq -r '.[0].public_net.ipv4.ip // empty')
   CACHE_STATUS=$(echo "$server_json" | jaq -r '.[0].status // empty')
   [[ -n "$CACHE_NAME" ]]
+}
+
+# Find the persistent data volume. Sets VOLUME_ID, VOLUME_STATUS, VOLUME_SERVER.
+# Returns 1 if no volume exists.
+find_volume() {
+  local vol_json vol
+  vol_json=$(hcloud volume list -o json 2>/dev/null)
+  vol=$(echo "$vol_json" | jaq "[.[] | select(.name == \"$VOLUME_NAME\")] | .[0]")
+  VOLUME_ID=$(echo "$vol" | jaq -r '.id // empty')
+  [[ -n "$VOLUME_ID" ]] || return 1
+  VOLUME_STATUS=$(echo "$vol" | jaq -r '.status // empty')
+  VOLUME_SERVER=$(echo "$vol" | jaq -r 'if .server then (.server | tostring) else "detached" end')
+  VOLUME_SIZE_GB=$(echo "$vol" | jaq -r '.size // empty')
 }
 
 # Set up host key verification for a specific cache server IP.
@@ -123,14 +138,25 @@ cmd_status() {
   else
     echo "No cache server running."
   fi
+
+  echo ""
+  if find_volume; then
+    echo "Volume: $VOLUME_NAME"
+    echo "  ID:     $VOLUME_ID"
+    echo "  Status: $VOLUME_STATUS"
+    echo "  Server: $VOLUME_SERVER"
+    echo "  Size:   ${VOLUME_SIZE_GB}GB"
+  else
+    echo "Volume: none"
+  fi
 }
 
 cmd_create() {
   check_token
 
-  # Enforce single cache server
+  # Enforce single controller server
   if find_cache_server; then
-    echo -e "${RED}Error: Cache server already exists ($CACHE_NAME at $CACHE_IP, status: $CACHE_STATUS)${NC}" >&2
+    echo -e "${RED}Error: Controller server already exists ($CACHE_NAME at $CACHE_IP, status: $CACHE_STATUS)${NC}" >&2
     echo "Destroy it first with: $SCRIPT_NAME destroy" >&2
     return 1
   fi
@@ -159,6 +185,24 @@ cmd_create() {
     exit 1
   fi
 
+  # Verify headscale secret files exist
+  local headscale_noise_key_file="/run/agenix/headscale-noise-key"
+  local headscale_preauth_key_file="/run/agenix/headscale-controller-preauth-key"
+  if [[ ! -f "$headscale_noise_key_file" ]]; then
+    echo -e "${RED}Error: Headscale noise key not found at $headscale_noise_key_file${NC}" >&2
+    exit 1
+  fi
+  if [[ ! -f "$headscale_preauth_key_file" ]]; then
+    echo -e "${RED}Error: Headscale controller pre-auth key not found at $headscale_preauth_key_file${NC}" >&2
+    exit 1
+  fi
+
+  local cloudflare_token_file="/run/agenix/cloudflare-dns-token"
+  if [[ ! -f "$cloudflare_token_file" ]]; then
+    echo -e "${RED}Error: Cloudflare DNS token not found at $cloudflare_token_file${NC}" >&2
+    exit 1
+  fi
+
   # Verify SSH key files exist
   if [[ ! -f "$PUBKEY_FILE" ]]; then
     echo -e "${RED}Error: SSH public key not found at $PUBKEY_FILE${NC}" >&2
@@ -169,7 +213,16 @@ cmd_create() {
     exit 1
   fi
 
-  echo -e "${YELLOW}Creating cache server $SERVER_NAME (${SERVER_TYPE})...${NC}"
+  # Create persistent volume if it doesn't exist
+  if find_volume; then
+    echo "Volume $VOLUME_NAME already exists (ID: $VOLUME_ID)"
+  else
+    echo -e "${YELLOW}Creating persistent volume $VOLUME_NAME (${VOLUME_SIZE}GB)...${NC}"
+    hcloud volume create --name "$VOLUME_NAME" --size "$VOLUME_SIZE" --location "$LOCATION" --format ext4
+    echo -e "${GREEN}Created volume $VOLUME_NAME${NC}"
+  fi
+
+  echo -e "${YELLOW}Creating controller server $SERVER_NAME (${SERVER_TYPE})...${NC}"
 
   # Read secrets and SSH keys for injection
   local signing_key r2_access_key r2_secret_key niks3_token hcloud_token
@@ -178,6 +231,14 @@ cmd_create() {
   r2_secret_key=$(cat "$R2_SECRET_KEY_FILE")
   niks3_token=$(cat "$NIKS3_API_TOKEN_FILE")
   hcloud_token=$(cat "$TOKEN_FILE")
+
+  local headscale_noise_key headscale_preauth_key
+  headscale_noise_key=$(cat "$headscale_noise_key_file")
+  headscale_preauth_key=$(cat "$headscale_preauth_key_file")
+
+  local cloudflare_token
+  # shellcheck disable=SC2034 # used in cloud-init heredoc below
+  cloudflare_token=$(cat "$cloudflare_token_file")
 
   local ssh_pubkey host_privkey host_pubkey
   ssh_pubkey=$(cat "$PUBKEY_FILE")
@@ -219,6 +280,18 @@ write_files:
     owner: niks3:niks3
     content: |
       $niks3_token
+  - path: /run/headscale-noise-key
+    permissions: '0400'
+    content: |
+      $headscale_noise_key
+  - path: /run/headscale-preauth-key
+    permissions: '0400'
+    content: |
+      $headscale_preauth_key
+  - path: /run/cloudflare-dns-token
+    permissions: '0400'
+    content: |
+      $cloudflare_token
   - path: /root/.ssh/authorized_keys
     permissions: '0600'
     content: |
@@ -233,6 +306,9 @@ write_files:
       $host_pubkey
 runcmd:
   - systemctl restart sshd.service
+  - systemctl restart headscale.service
+  - headscale users create default || true
+  - tailscale up --login-server https://headscale.panfactumcf.com --authkey "\$(cat /run/headscale-preauth-key)" --accept-routes
   - systemctl restart niks3.service
 EOF
 
@@ -241,12 +317,13 @@ EOF
     --type "$SERVER_TYPE" \
     --image "$snapshot_id" \
     --location "$LOCATION" \
-    --label "cache=true" \
-    --label "type=cache" \
+    --volume "$VOLUME_NAME" \
+    --label "controller=true" \
+    --label "type=controller" \
     --user-data-from-file "$user_data_file" \
     --poll-interval 2s
 
-  echo -e "${GREEN}Created cache server $SERVER_NAME${NC}"
+  echo -e "${GREEN}Created controller server $SERVER_NAME${NC}"
   echo ""
   echo "Next steps:"
   echo "  1. Wait 30-60 seconds for cloud-init to complete"
@@ -274,6 +351,7 @@ cmd_destroy() {
   echo -e "${YELLOW}Destroying cache server $CACHE_NAME...${NC}"
   hcloud server delete "$CACHE_NAME"
   echo -e "${GREEN}Destroyed cache server $CACHE_NAME${NC}"
+  echo "Persistent volume $VOLUME_NAME was retained (data preserved)."
 }
 
 cmd_check() {
@@ -359,7 +437,7 @@ cmd_check() {
   echo -n "Services: "
   local svc_output
   if svc_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "root@$CACHE_IP" '
-    for svc in niks3 postgresql; do
+    for svc in headscale caddy niks3 postgresql controller-dns-update; do
       st=$(systemctl is-active "${svc}.service" 2>/dev/null) || true
       printf "%s=%s\n" "$svc" "$st"
     done
@@ -403,6 +481,14 @@ cmd_check() {
   # Gather all diagnostics in a single SSH call
   local diag_output
   diag_output=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "root@$CACHE_IP" '
+    echo "=== VOLUME ==="
+    if mountpoint -q /mnt/data; then
+      echo "mounted"
+      df -h /mnt/data --output=size,used,avail,pcent | tail -1
+    else
+      echo "NOT_MOUNTED"
+    fi
+
     echo "=== UPTIME ==="
     awk "{d=int(\$1/86400); h=int(\$1%86400/3600); m=int(\$1%3600/60); \
       printf \"%dd %dh %dm\n\", d, h, m}" /proc/uptime 2>/dev/null || echo "unknown"
@@ -456,8 +542,18 @@ cmd_check() {
       curl -s --max-time 5 http://localhost:5751/health 2>&1 || echo "connection failed"
     fi
 
+    echo "=== DNS ==="
+    public_ip=$(curl -sf --max-time 5 http://169.254.169.254/hetzner/v1/metadata/public-ipv4 2>/dev/null || echo "unknown")
+    dns_ip=$(getent ahosts headscale.panfactumcf.com 2>/dev/null | awk "NR==1{print \$1}" || echo "unresolvable")
+    echo "public=$public_ip"
+    echo "dns=$dns_ip"
+
+    echo "=== HEADSCALE ==="
+    hs_code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 5 https://headscale.panfactumcf.com/health 2>/dev/null || echo "000")
+    echo "$hs_code"
+
     echo "=== PORTS ==="
-    ss -tlnp "sport = :5751 or sport = :5432" 2>/dev/null || echo "ss not available"
+    ss -tlnp "sport = :5751 or sport = :5432 or sport = :8080 or sport = :80 or sport = :443" 2>/dev/null || echo "ss not available"
 
     echo "=== DISK ==="
     df -h / --output=size,used,avail,pcent | tail -1
@@ -491,6 +587,22 @@ cmd_check() {
 
   # Parse and display diagnostics
   local has_errors=false
+
+  # Volume
+  echo -n "Volume: "
+  local vol_section vol_status
+  vol_section=$(echo "$diag_output" | sed -n '/=== VOLUME ===/,/=== /{/===/d;p}')
+  vol_status=$(echo "$vol_section" | head -1 | tr -d '[:space:]')
+  if [[ "$vol_status" == "mounted" ]]; then
+    local vol_disk
+    vol_disk=$(echo "$vol_section" | tail -1)
+    local v_size _v_used v_avail v_pct
+    read -r v_size _v_used v_avail v_pct <<< "$vol_disk"
+    echo -e "${GREEN}mounted${NC} (${v_avail} available / ${v_size} total, ${v_pct} used)"
+  else
+    echo -e "${RED}NOT MOUNTED${NC}"
+    has_errors=true
+  fi
 
   # Uptime
   local uptime_val
@@ -563,6 +675,31 @@ cmd_check() {
     if [[ -n "$health_body" ]]; then
       echo -e "  ${RED}Response: ${health_body}${NC}"
     fi
+    has_errors=true
+  fi
+
+  # DNS
+  echo -n "DNS: "
+  local dns_section dns_public dns_resolved
+  dns_section=$(echo "$diag_output" | sed -n '/=== DNS ===/,/=== /{/===/d;p}')
+  dns_public=$(echo "$dns_section" | head -1 | sed 's/^public=//')
+  dns_resolved=$(echo "$dns_section" | tail -1 | sed 's/^dns=//')
+  if [[ "$dns_public" == "$dns_resolved" ]]; then
+    echo -e "${GREEN}headscale.panfactumcf.com → ${dns_resolved}${NC}"
+  else
+    echo -e "${RED}MISMATCH${NC} (public=$dns_public, dns=$dns_resolved)"
+    has_errors=true
+  fi
+
+  # Headscale HTTPS
+  echo -n "Headscale: "
+  local hs_section hs_code
+  hs_section=$(echo "$diag_output" | sed -n '/=== HEADSCALE ===/,/=== /{/===/d;p}')
+  hs_code=$(echo "$hs_section" | head -1 | tr -d '[:space:]')
+  if [[ "$hs_code" == "200" ]]; then
+    echo -e "${GREEN}OK${NC} (HTTPS reachable)"
+  else
+    echo -e "${RED}HTTP $hs_code${NC}"
     has_errors=true
   fi
 

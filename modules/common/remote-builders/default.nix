@@ -11,7 +11,10 @@ let
   # Builder host public key for SSH host key verification
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
 
-  # Known hosts file for SSH host key verification
+  # Known hosts file for SSH host key verification.
+  # Entries use the builder hostname (e.g. builder-1) because the proxy command
+  # resolves hostnames to Tailscale IPs -- SSH verifies the key against the
+  # original hostname, not the proxied IP.
   builderKnownHosts = pkgs.writeText "builder-known-hosts" (
     let
       hostKey = lib.removeSuffix "\n" builderHostPublicKey;
@@ -32,11 +35,12 @@ let
       pkgs.bc
       pkgs.iperf3
       pkgs.ncurses
+      pkgs.curl
     ];
     text = builtins.readFile ./builders-cli.sh;
   };
 
-  # Proxy command for SSH that provisions builders on-demand
+  # Proxy command for SSH that provisions builders on-demand and connects via Tailscale
   builderProxyScript = pkgs.writeShellApplication {
     name = "hetzner-builder-proxy";
     runtimeInputs = [
@@ -45,6 +49,7 @@ let
       pkgs.netcat-gnu
       pkgs.socat
       pkgs.openssh
+      pkgs.tailscale
       buildersCli
     ];
     text = builtins.readFile ./proxy-command.sh;
@@ -160,6 +165,11 @@ in
     builder-host-key = {
       rekeyFile = ../../../secrets/builder-host-key.age;
       path = "/run/agenix/builder-host-key";
+      mode = "0400";
+      owner = "root";
+    };
+    headscale-api-key = {
+      rekeyFile = ../../../secrets/headscale-api-key.age;
       mode = "0400";
       owner = "root";
     };

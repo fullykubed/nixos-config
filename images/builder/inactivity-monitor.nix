@@ -59,7 +59,10 @@ in
 {
   systemd.services.inactivity-monitor = {
     description = "Monitor for build inactivity and self-destruct";
-    after = [ "network.target" ];
+    after = [
+      "network.target"
+      "tailscale-autoconnect.service"
+    ];
     serviceConfig = {
       Type = "oneshot";
       StandardOutput = "journal";

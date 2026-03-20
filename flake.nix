@@ -149,9 +149,9 @@
         nixosConfigurations = machineConfigs;
       };
 
-      packages.x86_64-linux = {
+      packages.x86_64-linux =  {
         builder-image = import ./images/builder { inherit mkDiskImage niks3; };
-        cache-image = import ./images/cache { inherit mkDiskImage niks3; };
+        controller-image = import ./images/controller { inherit mkDiskImage niks3; };
       }
       // nixpkgs.lib.mapAttrs' (
         name: _:

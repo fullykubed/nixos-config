@@ -3,7 +3,11 @@
   services.tailscale = {
     enable = true;
     openFirewall = true;
-    extraUpFlags = [ "--accept-dns=false" ];
+    extraUpFlags = [
+      "--accept-dns=false"
+      "--login-server"
+      "https://headscale.panfactumcf.com"
+    ];
   };
   networking.firewall.trustedInterfaces = [ "tailscale0" ];
 

@@ -109,6 +109,9 @@ let
     }
     CUSTOM
   '';
+  waybarTailscaleScript = pkgs.writeShellScriptBin "waybar-tailscale" (
+    builtins.readFile ./waybar-tailscale.sh
+  );
 in
 {
   age.secrets.cloudflare-api-token = {
@@ -162,6 +165,8 @@ in
               pkgs.waybar
               waybarBuildersScript
               waybarSecurebootScript
+              waybarTailscaleScript
+              pkgs.tailscale
               pkgs.jaq
               pkgs.curl
               pkgs.bfs

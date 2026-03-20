@@ -17,6 +17,7 @@
     "custom/secureboot",
     "custom/systemd-failed",
     "custom/builders",
+    "custom/tailscale",
     "custom/voxtype",
     "idle_inhibitor",
     "pulseaudio",
@@ -216,6 +217,13 @@
     "return-type": "json",
     "format": "{}",
     "interval": 60,
+    "tooltip": true
+  },
+  "custom/tailscale": {
+    "exec": "waybar-tailscale",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 30,
     "tooltip": true
   }
 }

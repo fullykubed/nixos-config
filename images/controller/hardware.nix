@@ -49,7 +49,7 @@
   networking.useNetworkd = true;
 
   # Disk image size for nixos-generators
-  # Larger than builders to accommodate PostgreSQL database
+  # Controller VM for binary cache + services
   virtualisation.diskSize = 80 * 1024; # 80GB in MB
 
   # Hardware-specific settings

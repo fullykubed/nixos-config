@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# images/cache/upload-image.sh
-# Build and upload the NixOS cache server image to Hetzner Cloud
+# images/controller/upload-image.sh
+# Build and upload the NixOS controller server image to Hetzner Cloud
 #
-# Usage: ./images/cache/upload-image.sh        (builds then prompts for doas to upload)
-#    or: doas ./images/cache/upload-image.sh   (if image already built)
+# Usage: ./images/controller/upload-image.sh        (builds then prompts for doas to upload)
+#    or: doas ./images/controller/upload-image.sh   (if image already built)
 
 set -euo pipefail
 
@@ -19,21 +19,21 @@ NC='\033[0m'
 cd "$REPO_ROOT"
 
 IMAGE_DIR="/tmp/hetzner-images"
-IMAGE_PATH="$IMAGE_DIR/cache.img.zst"
+IMAGE_PATH="$IMAGE_DIR/controller.img.zst"
 
 # Build image (nix build produces a zstd-compressed image)
 if [[ "${_UPLOAD_SKIP_BUILD:-}" != "1" ]]; then
-  echo -e "${YELLOW}Building cache server image...${NC}"
+  echo -e "${YELLOW}Building controller server image...${NC}"
   mkdir -p "$IMAGE_DIR"
   if [[ $EUID -eq 0 ]]; then
     REPO_OWNER=$(stat -c '%U' "$REPO_ROOT")
     chown "$REPO_OWNER" "$IMAGE_DIR"
-    su "$REPO_OWNER" -c "cd '$REPO_ROOT' && nix build .#cache-image --print-build-logs --builders '' --out-link '$IMAGE_DIR/cache-result'"
+    su "$REPO_OWNER" -c "cd '$REPO_ROOT' && nix build .#controller-image --print-build-logs --builders '' --out-link '$IMAGE_DIR/controller-result'"
   else
-    nix build .#cache-image --print-build-logs --builders '' --out-link "$IMAGE_DIR/cache-result"
+    nix build .#controller-image --print-build-logs --builders '' --out-link "$IMAGE_DIR/controller-result"
   fi
-  cp "$IMAGE_DIR/cache-result/nixos.img.zst" "$IMAGE_PATH"
-  rm -f "$IMAGE_DIR/cache-result"
+  cp "$IMAGE_DIR/controller-result/nixos.img.zst" "$IMAGE_PATH"
+  rm -f "$IMAGE_DIR/controller-result"
 fi
 
 if [[ ! -f "$IMAGE_PATH" ]]; then
@@ -81,8 +81,8 @@ hcloud-upload-image upload \
   --compression zstd \
   --architecture x86 \
   --location hel1 \
-  --labels type=cache \
-  --description "NixOS cache server UEFI $(date +%Y-%m-%d)"
+  --labels type=controller \
+  --description "NixOS controller server UEFI $(date +%Y-%m-%d)"
 
 UPLOAD_COMPLETE=true
 trap - INT TERM EXIT
@@ -90,4 +90,4 @@ trap - INT TERM EXIT
 echo ""
 echo -e "${GREEN}Upload complete!${NC}"
 echo ""
-echo "The snapshot is labeled type=cache and will be used automatically by 'cache create'."
+echo "The snapshot is labeled type=controller and will be used automatically by 'controller create'."
