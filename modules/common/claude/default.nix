@@ -169,6 +169,9 @@
           "--ro-bind-try"
           "/run/agenix/pushover-token"
           "/run/agenix/pushover-token"
+          "--ro-bind-try"
+          "/run/agenix/git-ssh-key"
+          "/run/agenix/git-ssh-key"
 
           "--ro-bind-try"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
