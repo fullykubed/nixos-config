@@ -85,6 +85,7 @@
             default_prog = { "${pkgs.zsh}/bin/zsh" },
             enable_tab_bar = false,
             enable_wayland = true,
+            enable_ssh_agent = false,
             warn_about_missing_glyphs = false,
             -- Disable Alt+Enter fullscreen toggle so it passes through to tmux for popup
             keys = {

@@ -49,9 +49,24 @@ in
   home-manager.users.${config.username} = {
 
     programs.ssh.matchBlocks."github.com" = {
-      identityFile = config.age.secrets.git-ssh-key.path;
+      identityFile = getKeyPath "githubPublicKey";
       identitiesOnly = true;
-      addKeysToAgent = "yes";
+    };
+
+    systemd.user.services.ssh-add-github = {
+      Unit = {
+        Description = "Load GitHub SSH key into agent";
+        After = [ "ssh-agent.service" ];
+        Requires = [ "ssh-agent.service" ];
+      };
+      Service = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.openssh}/bin/ssh-add ${config.age.secrets.git-ssh-key.path}";
+        Environment = "SSH_AUTH_SOCK=%t/ssh-agent";
+      };
+      Install = {
+        WantedBy = [ "default.target" ];
+      };
     };
 
     xdg.configFile."git/allowed_signers".text = ''
@@ -128,7 +143,7 @@ in
               };
 
               core = {
-                sshCommand = "ssh -o IdentitiesOnly=yes -i ${config.age.secrets.git-ssh-key.path}";
+                sshCommand = "ssh -o IdentitiesOnly=yes -i ${getKeyPath "githubPublicKey"}";
                 # Prevent line endings issues
                 autocrlf = "input";
                 safecrlf = true;
