@@ -95,10 +95,10 @@ queued=0
 uploaded=0
 upload_status="unknown"
 if [[ -d "$QUEUE_PENDING_DIR" ]]; then
-  queued=$(find "$QUEUE_PENDING_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
+  queued=$(bfs "$QUEUE_PENDING_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
 fi
 if [[ -d "$QUEUE_DONE_DIR" ]]; then
-  uploaded=$(find "$QUEUE_DONE_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
+  uploaded=$(bfs "$QUEUE_DONE_DIR" -maxdepth 1 -type f 2>/dev/null | wc -l)
 fi
 # Check last upload service result
 upload_result=$(systemctl show cache-upload.service --property=Result --value 2>/dev/null || echo "unknown")
@@ -175,6 +175,9 @@ if [[ -s "$CLOUD_STATUS_FILE" ]]; then
     fi
   fi
 
+  # Extract error field
+  r2_error=$(jaq -r '.r2.error // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+
   # Build R2 tooltip section
   if [[ -n "$r2_ccache_size" ]] && [[ -n "$r2_nixos_size" ]]; then
     r2_ccache_human=$(format_bytes "$r2_ccache_size")
@@ -184,6 +187,8 @@ if [[ -s "$CLOUD_STATUS_FILE" ]]; then
     cloud_r2_tooltip="R2 Storage${stale_label}:
   ccache: ${r2_ccache_human} (${r2_ccache_count_fmt} objects)
   nixos-cache: ${r2_nixos_human} (${r2_nixos_count_fmt} objects)"
+  elif [[ -n "$r2_error" ]]; then
+    cloud_r2_tooltip="R2 Storage: error — ${r2_error}"
   else
     cloud_r2_tooltip="R2 Storage: unavailable"
   fi

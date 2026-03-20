@@ -38,18 +38,20 @@ r2_ccache_payload_size="null"
 r2_ccache_object_count="null"
 r2_nixos_cache_payload_size="null"
 r2_nixos_cache_object_count="null"
+r2_error=""
 
 if [[ -z "${CF_API_TOKEN:-}" ]]; then
-  warn "CF_API_TOKEN is not set; skipping R2 queries"
+  r2_error="CF_API_TOKEN not set"
+  warn "$r2_error; skipping R2 queries"
 else
   info "Querying Cloudflare GraphQL API for R2 bucket sizes"
 
-  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  yesterday=$(date -u -d "yesterday" +"%Y-%m-%dT%H:%M:%SZ")
+  today=$(date -u +"%Y-%m-%d")
+  yesterday=$(date -u -d "yesterday" +"%Y-%m-%d")
 
   graphql_query=$(cat <<EOF
 {
-  "query": "{ viewer { accounts(filter: { accountTag: \"${ACCOUNT_ID}\" }) { ccache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"ccache\", datetime_geq: \"${yesterday}\", datetime_leq: \"${now}\" }, orderBy: [datetime_DESC]) { max { payloadSize objectCount } } nixosCache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"fullykubed-nixos-cache\", datetime_geq: \"${yesterday}\", datetime_leq: \"${now}\" }, orderBy: [datetime_DESC]) { max { payloadSize objectCount } } } } }"
+  "query": "{ viewer { accounts(filter: { accountTag: \"${ACCOUNT_ID}\" }) { ccache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"ccache\", date_geq: \"${yesterday}\", date_leq: \"${today}\" }, orderBy: [date_DESC]) { max { payloadSize objectCount } } nixosCache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"fullykubed-nixos-cache\", date_geq: \"${yesterday}\", date_leq: \"${today}\" }, orderBy: [date_DESC]) { max { payloadSize objectCount } } } } }"
 }
 EOF
 )
@@ -68,30 +70,46 @@ EOF
     api_body=$(echo "$api_response" | head -n -1)
 
     if [[ "$http_status" == "200" ]]; then
-      info "Cloudflare API call succeeded (HTTP ${http_status})"
+      # Check for GraphQL-level errors
+      gql_errors=$(echo "$api_body" | jaq -r '.errors // empty' 2>/dev/null || true)
+      if [[ -n "$gql_errors" ]] && [[ "$gql_errors" != "null" ]]; then
+        gql_msg=$(echo "$api_body" | jaq -r '.errors[0].message // "unknown GraphQL error"' 2>/dev/null || echo "unknown GraphQL error")
+        r2_error="GraphQL error: ${gql_msg}"
+        warn "$r2_error"
+      else
+        info "Cloudflare API call succeeded (HTTP ${http_status})"
 
-      # Extract ccache bucket values
-      ccache_payload=$(echo "$api_body" | jaq -r \
-        '.data.viewer.accounts[0].ccache[0].max.payloadSize // "null"' 2>/dev/null || echo "null")
-      ccache_objects=$(echo "$api_body" | jaq -r \
-        '.data.viewer.accounts[0].ccache[0].max.objectCount // "null"' 2>/dev/null || echo "null")
+        # Extract ccache bucket values
+        ccache_payload=$(echo "$api_body" | jaq -r \
+          '.data.viewer.accounts[0].ccache[0].max.payloadSize // "null"' 2>/dev/null || echo "null")
+        ccache_objects=$(echo "$api_body" | jaq -r \
+          '.data.viewer.accounts[0].ccache[0].max.objectCount // "null"' 2>/dev/null || echo "null")
 
-      # Extract nixos-cache bucket values
-      nixos_payload=$(echo "$api_body" | jaq -r \
-        '.data.viewer.accounts[0].nixosCache[0].max.payloadSize // "null"' 2>/dev/null || echo "null")
-      nixos_objects=$(echo "$api_body" | jaq -r \
-        '.data.viewer.accounts[0].nixosCache[0].max.objectCount // "null"' 2>/dev/null || echo "null")
+        # Extract nixos-cache bucket values
+        nixos_payload=$(echo "$api_body" | jaq -r \
+          '.data.viewer.accounts[0].nixosCache[0].max.payloadSize // "null"' 2>/dev/null || echo "null")
+        nixos_objects=$(echo "$api_body" | jaq -r \
+          '.data.viewer.accounts[0].nixosCache[0].max.objectCount // "null"' 2>/dev/null || echo "null")
 
-      # Only assign if we got actual numeric values (not the literal string "null")
-      [[ "$ccache_payload" != "null" ]] && r2_ccache_payload_size="$ccache_payload"
-      [[ "$ccache_objects" != "null" ]]  && r2_ccache_object_count="$ccache_objects"
-      [[ "$nixos_payload" != "null" ]]   && r2_nixos_cache_payload_size="$nixos_payload"
-      [[ "$nixos_objects" != "null" ]]   && r2_nixos_cache_object_count="$nixos_objects"
+        # Only assign if we got actual numeric values (not the literal string "null")
+        [[ "$ccache_payload" != "null" ]] && r2_ccache_payload_size="$ccache_payload"
+        [[ "$ccache_objects" != "null" ]]  && r2_ccache_object_count="$ccache_objects"
+        [[ "$nixos_payload" != "null" ]]   && r2_nixos_cache_payload_size="$nixos_payload"
+        [[ "$nixos_objects" != "null" ]]   && r2_nixos_cache_object_count="$nixos_objects"
+
+        # If API succeeded but all values are still null, the query returned empty results
+        if [[ "$r2_ccache_payload_size" == "null" ]] && [[ "$r2_nixos_cache_payload_size" == "null" ]]; then
+          r2_error="API returned empty results (no data for date range ${yesterday} to ${today})"
+          warn "$r2_error"
+        fi
+      fi
     else
-      warn "Cloudflare API returned HTTP ${http_status}; R2 data will be null"
+      r2_error="HTTP ${http_status} from Cloudflare API"
+      warn "$r2_error"
     fi
   else
-    warn "curl failed to reach Cloudflare API; R2 data will be null"
+    r2_error="curl failed to reach Cloudflare API"
+    warn "$r2_error"
   fi
 fi
 
@@ -179,10 +197,19 @@ timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 info "Writing status to ${OUTPUT_FILE}"
 
+# Build r2Error as either a JSON string or null
+if [[ -n "$r2_error" ]]; then
+  # shellcheck disable=SC2016
+  r2_error_json=$(jaq -cn --arg e "$r2_error" '$e')
+else
+  r2_error_json="null"
+fi
+
 # shellcheck disable=SC2016
 jaq -cn \
   --argjson r2Ccache "${r2_ccache_json}" \
   --argjson r2NixosCache "${r2_nixos_json}" \
+  --argjson r2Error "${r2_error_json}" \
   --argjson localDir "${ccache_local_dir}" \
   --argjson r2Mount "${ccache_r2_mount}" \
   --argjson syncTimer "${ccache_sync_timer}" \
@@ -191,7 +218,8 @@ jaq -cn \
   '{
     r2: {
       ccache: $r2Ccache,
-      "nixos-cache": $r2NixosCache
+      "nixos-cache": $r2NixosCache,
+      error: $r2Error
     },
     ccache: {
       localDir: $localDir,

@@ -164,7 +164,7 @@ in
               waybarSecurebootScript
               pkgs.jaq
               pkgs.curl
-              pkgs.findutils
+              pkgs.bfs
             ]
           }:/run/current-system/sw/bin"
         ];
