@@ -22,6 +22,7 @@ _: {
     ./gjs
     ./gnupg
     ./go
+    ./gstreamer
     ./gpsd
     ./gvfs
     ./imagemagick

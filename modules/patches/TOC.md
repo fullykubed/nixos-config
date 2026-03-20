@@ -25,6 +25,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **gjs/** - Skip GTK tests not found in sandbox with custom stdenv.
 - **gnupg/** - Two CVE patches for armor parser corruption and formfeed signature bypass.
 - **go/** - Go 1.25.7 from unstable fixing TLS session resumption bypass and cgo injection.
+- **gstreamer/** - GStreamer 1.26.11 version bump fixing 10 RCE CVEs (ZDI-disclosed, CVSS 7.8-8.8).
 - **gpsd/** - Two CVE patches for NMEA2000 buffer overflow and NAVCOM integer underflow.
 - **gvfs/** - Forces rebuild with libcdio 2.3.0 for CVE-2024-36600.
 - **imagemagick/** - ImageMagick 7.1.2-15 from unstable fixing 31 CVEs.
