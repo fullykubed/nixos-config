@@ -8,7 +8,7 @@ Ephemeral NixOS VMs on Hetzner Cloud that perform distributed compilation. Build
 - **Ephemeral**: Fresh Nix store on each launch, no persistent state
 - **Self-managing**: Each builder monitors its own inactivity and deletes itself via the Hetzner API
 - **Two-tier**: Regular builders for small packages, big-parallel builders for heavy builds (see [builder tiers](builders.md))
-- **Shared image**: The same NixOS snapshot serves both tiers; cloud-init configures tier-specific settings at boot
+- **Shared image**: The same NixOS snapshot serves both tiers; croc transfers tier-specific settings at boot via the controller's relay
 
 ## Provisioning Flow
 
@@ -19,30 +19,32 @@ un.sh -B 3 -P 1
 nix build → needs builder-1 → SSH connection
     │
     ▼
-SSH ProxyCommand (proxy-command.sh)
+SSH Match exec (ensure-builder.sh)
     │
-    ├── hcloud server list → server exists? ──yes──▶ socat proxy ──▶ builder
+    ├── builder reachable? ──yes──▶ SSH connect ──▶ builder
     │
     └── no
          │
          ▼
-    hcloud server create
-      - from snapshot (label: type=builder)
-      - cloud-init user-data:
-          • SSH public key → remotebuild authorized_keys
-          • Host key → /etc/ssh/ssh_host_ed25519_key
-          • Hetzner API token → /run/hcloud-token
-          • Cache SSH key + host key → /root/.ssh/
-          • niks3 auth token → /run/niks3-auth-token
-          • R2 credentials → /run/ccache-r2-*
-          • (big-parallel) builder-override.conf → max-jobs=1, cores=0
-          • Starts: cache-tunnel, ccache-r2-mount, inactivity-monitor
+    builders create builder-1
+      - preflight: verify controller croc relay is reachable
+      - mint ephemeral Headscale pre-auth key
+      - generate one-time croc code
+      - cloud-init user-data (minimal):
+          • croc relay password → /run/croc-relay-password
+          • croc transfer code → /run/croc-code
+      - hcloud server create (from snapshot, label: type=builder)
+      - croc send (blocks until builder receives):
+          • install-secrets.sh containing all secrets:
+            SSH keys, host keys, Hetzner token, Headscale auth key,
+            niks3 token, R2 credentials, builder config
+      - wait for Tailscale join
          │
          ▼
-    Wait for SSH port 3098 (~30-60 seconds)
+    wait for SSH port 3098 (~30-60 seconds)
          │
          ▼
-    socat proxy ──▶ builder ready for builds
+    SSH connect ──▶ builder ready for builds
 ```
 
 ## Builder Image
@@ -66,7 +68,8 @@ Each builder runs these services:
 |---|---|
 | `nix-daemon` | Accepts build jobs from the coordinator (memory-limited to 90%) |
 | `sshd` | Port 3098, hardened ciphers (chacha20, sntrup761x25519, hmac-sha2-512-etm) |
-| `cloud-init` | Injects keys, tokens, and configuration at first boot |
+| `cloud-init` | Writes croc bootstrap payload (relay password + transfer code) |
+| `croc-receive` | Downloads and installs secrets via croc relay |
 | `cache-tunnel` | SSH tunnel to niks3 cache (local:9751 → cache:5751 via SSH:3099) |
 | `cache-upload` | Processes upload queue, batches 32 paths per niks3 push |
 | `ccache-r2-mount` | s3fs FUSE mount of R2 bucket for shared compiler cache |
@@ -75,7 +78,7 @@ Each builder runs these services:
 ### Nix Daemon Configuration
 
 ```
-max-jobs = 4              # (regular) or 1 (big-parallel, via cloud-init override)
+max-jobs = 4              # (regular) or 1 (big-parallel, via croc-transferred override)
 cores = 4                 # (regular) or 0 (big-parallel, all cores for single job)
 eval-cores = 3            # Parallel Nix evaluation
 keep-going = true
@@ -91,7 +94,7 @@ stalled-download-timeout = 15
 extra-sandbox-paths = /var/cache/ccache /var/cache/ccache-r2?
 ```
 
-The `!include /etc/nix/builder-override.conf` directive in `nix.extraOptions` loads the cloud-init-written override for big-parallel builders. Regular builders get an empty file.
+The `!include /etc/nix/builder-override.conf` directive in `nix.extraOptions` loads the croc-transferred override for big-parallel builders. Regular builders get an empty file.
 
 ### Hardening
 

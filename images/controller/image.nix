@@ -1,13 +1,22 @@
 { pkgs, ... }:
 {
   imports = [
+    ../common/croc-receive.nix
+    ../common/nix-settings.nix
     ./hardware.nix
     ./headscale.nix
     ./caddy.nix
+    ./croc.nix
     ./niks3.nix
     ./volume.nix
     ./ssh.nix
   ];
+
+  services.croc-receive = {
+    enable = true;
+    relayAddress = "localhost:19009";
+    localRelay = true;
+  };
 
   # System identification
   networking.hostName = "nix-controller";
@@ -33,22 +42,11 @@
   # Allow passwordless sudo for admin user
   security.sudo.wheelNeedsPassword = false;
 
-  # Nix daemon configuration
-  nix = {
-    settings = {
-      trusted-users = [
-        "root"
-        "admin"
-      ];
-      experimental-features = [
-        "nix-command"
-        "flakes"
-      ];
-    };
-    gc = {
-      automatic = false;
-    };
-  };
+  # Controller-specific nix overrides (base settings from ../common/nix-settings.nix)
+  nix.settings.trusted-users = [
+    "root"
+    "admin"
+  ];
 
   # Essential packages for management
   environment.systemPackages = with pkgs; [
@@ -57,27 +55,26 @@
     wget
     htop
     hcloud
-    jq
+    jaq
     cloud-init
+    cryptsetup
     postgresql # For manual DB queries
     headscale # CLI for managing the headscale control plane
   ];
 
   # Firewall — SSH, HTTPS for headscale/Caddy, and STUN for embedded DERP
+  # SSH stays publicly accessible for emergency recovery if Tailscale is down.
   # niks3 (port 5751) is NOT in allowedTCPPorts — it is accessible only via the
-  # tailscale0 interface, which is listed in trustedInterfaces below.
+  # tailscale0 interface (trustedInterfaces, set in the tailscale module).
   networking.firewall = {
     enable = true;
     allowedTCPPorts = [
       80 # ACME (Let's Encrypt HTTP challenge)
       443 # HTTPS (Caddy TLS termination)
-      3099 # SSH
     ];
     allowedUDPPorts = [
       3478 # STUN (embedded DERP server)
     ];
-    # Trust the Tailscale interface — allows niks3 (5751) and other mesh traffic
-    trustedInterfaces = [ "tailscale0" ];
   };
 
   # Cache doesn't need user namespaces (builder does for nix sandboxing)

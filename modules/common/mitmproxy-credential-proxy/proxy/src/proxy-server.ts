@@ -25,7 +25,8 @@ function forwardRequest(
   const modified = injectCredentials(raw, mapping);
   const requestLine = modified.split("\r\n")[0];
 
-  const upstream = tls.connect({ host, port, servername: host }, () => {
+  const socket = net.connect({ host, port, family: 4 });
+  const upstream = tls.connect({ socket, servername: host }, () => {
     upstream.write(modified);
   });
 
@@ -128,7 +129,7 @@ export function createProxyServer(
       } else {
         // Tunnel: direct TCP forwarding, no MITM
         log.debug(`Tunneling ${host}:${port}`);
-        const remote = net.connect(port, host, () => {
+        const remote = net.connect({ port, host, family: 4 }, () => {
           clientSocket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
           clientSocket.on("data", (chunk) => remote.write(chunk));
           remote.on("data", (chunk) => clientSocket.write(chunk));

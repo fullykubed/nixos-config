@@ -5,9 +5,7 @@
 set -euo pipefail
 
 BUILDER_STATUS_FILE="/run/builder-status/status.json"
-CACHE_STATUS_FILE="/run/cache-status/status.json"
 CLOUD_STATUS_FILE="/run/cloud-status/status.json"
-NIKS3_URL_FILE="/run/niks3-server-url"
 QUEUE_PENDING_DIR="/var/lib/cache-upload-queue/pending"
 QUEUE_DONE_DIR="/var/lib/cache-upload-queue/done"
 
@@ -39,6 +37,18 @@ format_bytes() {
     echo "$(( bytes / 1048576 )) MB"
   else
     echo "$(( bytes / 1024 )) KB"
+  fi
+}
+
+# Format large numbers with K/M suffixes
+format_count() {
+  local n=$1
+  if [[ $n -ge 1000000 ]]; then
+    echo "$(( n / 1000000 )).$(( (n % 1000000) / 100000 ))M"
+  elif [[ $n -ge 1000 ]]; then
+    echo "$(( n / 1000 )).$(( (n % 1000) / 100 ))K"
+  else
+    echo "$n"
   fi
 }
 
@@ -113,28 +123,15 @@ fi
 
 # --- Cache ---
 cache_ok=false
-cache_tooltip="Cache: inactive"
+cache_tooltip="Binary Cache: unreachable"
+NIKS3_URL="http://nix-controller:5751"
 
-if [[ -s "$CACHE_STATUS_FILE" ]]; then
-  # shellcheck disable=SC2016
-  server_count=$(jaq 'length' < "$CACHE_STATUS_FILE")
-  if [[ "$server_count" -gt 0 ]]; then
-    # shellcheck disable=SC2016
-    server_status=$(jaq -r '.[0].status // "unknown"' < "$CACHE_STATUS_FILE")
-    # shellcheck disable=SC2016
-    server_name=$(jaq -r '.[0].name // "cache"' < "$CACHE_STATUS_FILE")
-    # shellcheck disable=SC2016
-    server_ip=$(jaq -r '.[0].public_net.ipv4.ip // "pending"' < "$CACHE_STATUS_FILE")
-
-    if [[ "$server_status" == "running" ]] && [[ -f "$NIKS3_URL_FILE" ]]; then
-      cache_ok=true
-      cache_tooltip="Cache: ${server_name} (${server_ip})"
-    elif [[ "$server_status" == "running" ]]; then
-      cache_tooltip="Cache: ${server_name} (tunnel down)"
-    else
-      cache_tooltip="Cache: ${server_name} (${server_status})"
-    fi
-  fi
+if curl -s --max-time 3 -o /dev/null "${NIKS3_URL}/health" 2>/dev/null; then
+  cache_ok=true
+  cache_tooltip="Binary Cache: nix-controller (healthy)"
+elif curl -s --max-time 3 -o /dev/null "${NIKS3_URL}/" 2>/dev/null; then
+  cache_ok=true
+  cache_tooltip="Binary Cache: nix-controller (reachable)"
 fi
 
 queue_tooltip="Queue: ${queued} pending, ${uploaded} uploaded (last upload: ${upload_status})"
@@ -159,6 +156,7 @@ if [[ -s "$CLOUD_STATUS_FILE" ]]; then
   ccache_sync_timer=$(jaq -r '.ccache.syncTimer // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
   ccache_hit_rate=$(jaq -r '.ccache.stats.hitRate // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
   ccache_cache_size=$(jaq -r '.ccache.stats.cacheSize // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
+  ccache_total_requests=$(jaq -r '.ccache.stats.totalRequests // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
 
   # Extract timestamp for staleness check
   cloud_timestamp=$(jaq -r '.timestamp // empty' < "$CLOUD_STATUS_FILE" 2>/dev/null || true)
@@ -216,14 +214,22 @@ if [[ -s "$CLOUD_STATUS_FILE" ]]; then
   R2 mount: ${r2_mount_status}
   Sync timer: ${sync_timer_status}"
 
-  if [[ -n "$ccache_hit_rate" ]] && [[ -n "$ccache_cache_size" ]]; then
+  ccache_stats_parts=()
+  [[ -n "$ccache_cache_size" ]] && ccache_stats_parts+=("${ccache_cache_size}")
+  [[ -n "$ccache_hit_rate" ]] && ccache_stats_parts+=("${ccache_hit_rate} hit")
+  if [[ -n "$ccache_total_requests" ]]; then
+    ccache_stats_parts+=("$(format_count "$ccache_total_requests") requests")
+  fi
+  if [[ ${#ccache_stats_parts[@]} -gt 0 ]]; then
+    ccache_stats_line=$(IFS=" | "; echo "${ccache_stats_parts[*]}")
     cloud_ccache_tooltip="${cloud_ccache_tooltip}
-  Hit rate: ${ccache_hit_rate} | Cache: ${ccache_cache_size}"
+  ${ccache_stats_line}"
   fi
 fi
 
 # --- Combine ---
 tooltip="${builder_tooltip}
+
 ${cache_tooltip}"
 
 if [[ -n "$cloud_r2_tooltip" ]]; then
@@ -271,9 +277,9 @@ fi
 
 if [[ "$upload_status" == "failed" ]] || ! $ccache_healthy; then
   class="warning"
-elif $builder_active && $cache_ok; then
+elif $cache_ok; then
   class="active"
-elif $builder_active || $cache_ok; then
+elif $builder_active; then
   class="partial"
 else
   class="idle"

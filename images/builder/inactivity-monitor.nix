@@ -51,6 +51,11 @@ let
 
       export HCLOUD_TOKEN=$(cat "$TOKEN_FILE")
 
+      # Deregister from headscale before deleting — hcloud server delete
+      # hard-kills the VM so ExecStop hooks never fire.
+      echo "Logging out of tailscale..."
+      ${pkgs.tailscale}/bin/tailscale logout || true
+
       echo "Deleting server $SERVER_ID..."
       ${pkgs.hcloud}/bin/hcloud server delete "$SERVER_ID"
     fi
@@ -61,7 +66,7 @@ in
     description = "Monitor for build inactivity and self-destruct";
     after = [
       "network.target"
-      "tailscale-autoconnect.service"
+      "builder-tailscale-join.service"
     ];
     serviceConfig = {
       Type = "oneshot";

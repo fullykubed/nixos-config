@@ -17,6 +17,7 @@
     "custom/secureboot",
     "custom/systemd-failed",
     "custom/builders",
+    "custom/controller",
     "custom/tailscale",
     "custom/voxtype",
     "idle_inhibitor",
@@ -218,6 +219,14 @@
     "format": "{}",
     "interval": 60,
     "tooltip": true
+  },
+  "custom/controller": {
+    "exec": "waybar-controller",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 60,
+    "tooltip": true,
+    "on-click": "swaymsg exec 'wezterm start --always-new-process -- doas controller check'"
   },
   "custom/tailscale": {
     "exec": "waybar-tailscale",

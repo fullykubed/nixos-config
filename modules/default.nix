@@ -67,7 +67,7 @@
     ./common/wakeup
     ./common/hetzner
     ./common/remote-builders
-    ./common/binary-cache
+    ./common/controller
     ./common/ccache
     ./common/tailscale
     ./common/repos

@@ -3,18 +3,22 @@ _: {
   services.caddy = {
     enable = true;
     virtualHosts."headscale.panfactumcf.com".extraConfig = ''
+      @grpc header Content-Type application/grpc*
+      reverse_proxy @grpc h2c://localhost:50443
       reverse_proxy http://localhost:8080
     '';
   };
 
   systemd.services.caddy = {
     after = [
-      "cloud-init.service"
+      "secrets-ready.target"
       "controller-volume-mount.service"
+      "controller-dns-update.service"
     ];
-    wants = [
-      "cloud-init.service"
+    requires = [
+      "secrets-ready.target"
       "controller-volume-mount.service"
+      "controller-dns-update.service"
     ];
     serviceConfig = {
       # Hardening — binds to 80/443, reads TLS certs from /var/lib/caddy

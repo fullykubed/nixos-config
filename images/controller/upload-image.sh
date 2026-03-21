@@ -32,6 +32,7 @@ if [[ "${_UPLOAD_SKIP_BUILD:-}" != "1" ]]; then
   else
     nix build .#controller-image --print-build-logs --builders '' --out-link "$IMAGE_DIR/controller-result"
   fi
+  rm -f "$IMAGE_PATH"
   cp "$IMAGE_DIR/controller-result/nixos.img.zst" "$IMAGE_PATH"
   rm -f "$IMAGE_DIR/controller-result"
 fi

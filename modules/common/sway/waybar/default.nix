@@ -19,6 +19,14 @@ let
     ];
     text = builtins.readFile ./cloud-status.sh;
   };
+  waybarControllerScript = pkgs.writeShellApplication {
+    name = "waybar-controller";
+    runtimeInputs = [
+      pkgs.jaq
+      pkgs.coreutils
+    ];
+    text = builtins.readFile ./waybar-controller.sh;
+  };
   waybarSecurebootScript = pkgs.writeShellApplication {
     name = "waybar-secureboot-status";
     runtimeInputs = [
@@ -53,6 +61,33 @@ let
     #custom-builders.warning {
         background-color: #fdcb6e;
         color: #2d3436;
+    }
+
+    /* Controller health module styles */
+    #custom-controller {
+        padding: 0 10px;
+        border-radius: 4px;
+        margin: 2px 0;
+    }
+
+    #custom-controller.healthy {
+        background-color: #a3d9a5;
+        color: #2d3436;
+    }
+
+    #custom-controller.degraded {
+        background-color: #ffeaa7;
+        color: #2d3436;
+    }
+
+    #custom-controller.offline {
+        background-color: #ff7675;
+        color: #2d3436;
+    }
+
+    /* Tailscale module styles */
+    #custom-tailscale {
+        padding: 0 10px;
     }
 
     /* Secure Boot module styles */
@@ -164,6 +199,7 @@ in
             lib.makeBinPath [
               pkgs.waybar
               waybarBuildersScript
+              waybarControllerScript
               waybarSecurebootScript
               waybarTailscaleScript
               pkgs.tailscale

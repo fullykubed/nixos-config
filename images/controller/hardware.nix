@@ -31,7 +31,10 @@
       "sd_mod"
     ];
 
-    kernelModules = [ "kvm-amd" ];
+    kernelModules = [
+      "kvm-amd"
+      "dm-crypt"
+    ];
 
     # Serial console for Hetzner web console; quiet boot
     kernelParams = [

@@ -1,12 +1,15 @@
 { pkgs, ... }:
 {
   imports = [
+    ../common/croc-receive.nix
+    ../common/nix-settings.nix
     ./hardware.nix
     ./ssh.nix
     ./ccache.nix
     ./nix-daemon.nix
     ./cache-pipeline.nix
     ./inactivity-monitor.nix
+    ./tailscale.nix
   ];
 
   # System identity
@@ -25,7 +28,7 @@
       home = "/var/lib/remotebuild";
       createHome = true;
       openssh.authorizedKeys.keys = [
-        # Injected via cloud-init user-data
+        # Injected via croc-based secret transfer
       ];
     };
     groups.remotebuild = { };
@@ -48,18 +51,15 @@
   ];
 
   services = {
-    # Tailscale VPN client
-    tailscale.enable = true;
-
     # SSH server configuration
-    # Host key is injected via cloud-init; disable auto-generation so we use
-    # a known key that the client can verify.
+    # Host key is injected via croc-based secret transfer; disable auto-generation
+    # so we use a known key that the client can verify.
     # SSH listens on 0.0.0.0 but the public firewall allows no inbound ports;
     # only Tailscale peers (via the trusted tailscale0 interface) can reach it.
     openssh = {
       enable = true;
       ports = [ 3098 ];
-      hostKeys = [ ]; # Cloud-init writes our static host key before sshd starts
+      hostKeys = [ ]; # croc-receive writes our static host key before sshd starts
       extraConfig = "HostKey /etc/ssh/ssh_host_ed25519_key";
       settings = {
         PermitRootLogin = "prohibit-password";
@@ -78,10 +78,16 @@
       };
     };
 
-    # Cloud-init for SSH key, host key, and Tailscale auth key injection
+    # cloud-init writes the croc relay password and croc code to /run at boot;
+    # croc-receive.service picks these up to retrieve the full secret bundle.
     cloud-init = {
       enable = true;
       network.enable = true;
+    };
+
+    croc-receive = {
+      enable = true;
+      relayAddress = "headscale.panfactumcf.com:19009";
     };
   };
 

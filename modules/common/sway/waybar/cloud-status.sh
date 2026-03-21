@@ -156,12 +156,19 @@ if stats_output=$(nix-ccache --print-stats 2>/dev/null); then
     cache_size=$(echo "$size_line" | grep -oP '\d+(\.\d+)?\s*(GB|MB|KB|TB|B)' | head -n1 || true)
   fi
 
-  if [[ -n "$hit_rate" ]] || [[ -n "$cache_size" ]]; then
+  # Parse total requests ("Cacheable calls" in ccache 4.x+)
+  total_requests=""
+  if req_line=$(echo "$stats_output" | grep -i "cacheable calls\|total requests" | head -n1); then
+    total_requests=$(echo "$req_line" | grep -oP '\d+' | tail -n1 || true)
+  fi
+
+  if [[ -n "$hit_rate" ]] || [[ -n "$cache_size" ]] || [[ -n "$total_requests" ]]; then
     # shellcheck disable=SC2016
     ccache_stats_json=$(jaq -cn \
       --arg hitRate "${hit_rate}" \
       --arg cacheSize "${cache_size}" \
-      '{hitRate: $hitRate, cacheSize: $cacheSize}')
+      --arg totalRequests "${total_requests}" \
+      '{hitRate: $hitRate, cacheSize: $cacheSize, totalRequests: $totalRequests}')
   fi
 fi
 

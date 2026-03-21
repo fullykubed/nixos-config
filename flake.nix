@@ -91,6 +91,7 @@
       versions = import ./lib/versions.nix;
       cacheModule = import ./modules/utility/cache-module.nix;
       casModule = import ./modules/utility/cas-module.nix;
+      nixSettingsModule = import ./modules/utility/nix-settings.nix;
 
       mkDiskImage = import ./images/mk-disk-image.nix { inherit nixpkgs determinate; };
 
@@ -111,6 +112,7 @@
           versions
           cacheModule
           casModule
+          nixSettingsModule
           ;
       };
 
@@ -149,7 +151,7 @@
         nixosConfigurations = machineConfigs;
       };
 
-      packages.x86_64-linux =  {
+      packages.x86_64-linux = {
         builder-image = import ./images/builder { inherit mkDiskImage niks3; };
         controller-image = import ./images/controller { inherit mkDiskImage niks3; };
       }

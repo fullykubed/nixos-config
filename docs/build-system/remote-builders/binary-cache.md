@@ -92,7 +92,7 @@ All managed with agenix, rekeyed per machine:
 | `r2-access-key` | `/run/agenix/r2-access-key` | Cloudflare R2 access key |
 | `r2-secret-key` | `/run/agenix/r2-secret-key` | Cloudflare R2 secret key |
 
-On the cache server, these are injected by cloud-init at boot into `/run/niks3-secrets/`.
+On the controller, these are transferred via croc at boot into `/run/niks3-secrets/`. Only a relay password and one-time transfer code pass through cloud-init.
 
 ## Cache Setup
 

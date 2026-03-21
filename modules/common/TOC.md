@@ -84,7 +84,7 @@
 - **printer/** - Enables the CUPS printing system.
 - **scanner/** - Configures Brother network scanner with brscan5 drivers, SANE integration, and naps2 scanning application.
 - **wakeup/** - Optional systemd service that disables ACPI wakeup triggers to prevent unwanted wake-from-sleep events.
-- **binary-cache/** - Configures remote Nix binary cache access with SSH-based authentication and a management CLI.
+- **controller/** - Manages the controller server: binary cache uploads, SSH tunnel, healthchecks, and the `controller` CLI.
 - **hetzner/** - Installs Hetzner Cloud CLI tools (hcloud and hcloud-upload-image).
 - **remote-builders/** - Configures remote Nix build machine connections with SSH authentication and the builders CLI tool.
 - **ccache/** - Shared compiler cache backed by Cloudflare R2 via s3fs-fuse; mounts R2 bucket as the ccache directory for sandbox-compatible caching.

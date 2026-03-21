@@ -12,9 +12,7 @@ let
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
 
   # Known hosts file for SSH host key verification.
-  # Entries use the builder hostname (e.g. builder-1) because the proxy command
-  # resolves hostnames to Tailscale IPs -- SSH verifies the key against the
-  # original hostname, not the proxied IP.
+  # Entries use [hostname]:port format for non-standard port 3098.
   builderKnownHosts = pkgs.writeText "builder-known-hosts" (
     let
       hostKey = lib.removeSuffix "\n" builderHostPublicKey;
@@ -40,19 +38,16 @@ let
     text = builtins.readFile ./builders-cli.sh;
   };
 
-  # Proxy command for SSH that provisions builders on-demand and connects via Tailscale
-  builderProxyScript = pkgs.writeShellApplication {
-    name = "hetzner-builder-proxy";
+  # Ensure script for SSH Match exec — provisions builders on-demand before SSH connects
+  ensureBuilderScript = pkgs.writeShellApplication {
+    name = "ensure-builder";
     runtimeInputs = [
       pkgs.hcloud
       pkgs.jaq
       pkgs.netcat-gnu
-      pkgs.socat
-      pkgs.openssh
-      pkgs.tailscale
       buildersCli
     ];
-    text = builtins.readFile ./proxy-command.sh;
+    text = builtins.readFile ./ensure-builder.sh;
   };
 
   # Regular builders: 4 cores per job, max jobs = cores / 2
@@ -122,7 +117,6 @@ in
       buildersCli
       pkgs.hcloud # Hetzner Cloud CLI
       pkgs.bc # Calculator for cost estimation
-      pkgs.socat # For SSH proxy command
       pkgs.hcloud-upload-image # Upload custom images to Hetzner Cloud
     ];
 
@@ -168,11 +162,6 @@ in
       mode = "0400";
       owner = "root";
     };
-    headscale-api-key = {
-      rekeyFile = ../../../secrets/headscale-api-key.age;
-      mode = "0400";
-      owner = "root";
-    };
   };
 
   # Systemd service that polls hcloud for builder status and writes to a
@@ -208,28 +197,14 @@ in
     };
   };
 
-  # SSH configuration for builders (user)
+  # SSH configuration for builders (user) — Match exec provisions on-demand
   home-manager.users.${config.username}.programs.ssh.matchBlocks = {
-    "builder-*" = {
+    "builder" = {
+      match = ''host builder-*,big-builder-* exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"'';
       user = "remotebuild";
       port = 3098;
       identityFile = "/root/.ssh/builder-key";
       compression = true;
-      proxyCommand = "${builderProxyScript}/bin/hetzner-builder-proxy %h %p";
-      extraOptions = {
-        StrictHostKeyChecking = "yes";
-        UserKnownHostsFile = "${builderKnownHosts}";
-        LogLevel = "ERROR";
-        ConnectTimeout = "180";
-        IPQoS = "cs1";
-      };
-    };
-    "big-builder-*" = {
-      user = "remotebuild";
-      port = 3098;
-      identityFile = "/root/.ssh/builder-key";
-      compression = true;
-      proxyCommand = "${builderProxyScript}/bin/hetzner-builder-proxy %h %p";
       extraOptions = {
         StrictHostKeyChecking = "yes";
         UserKnownHostsFile = "${builderKnownHosts}";
@@ -242,11 +217,11 @@ in
 
   # SSH configuration for builders (system-wide for Nix daemon)
   programs.ssh.extraConfig = ''
-    Host builder-* big-builder-*
+    Match host builder-*,big-builder-* exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"
       User remotebuild
       Port 3098
       IdentityFile /root/.ssh/builder-key
-      ProxyCommand ${builderProxyScript}/bin/hetzner-builder-proxy %h %p
+      IdentitiesOnly yes
       StrictHostKeyChecking yes
       UserKnownHostsFile ${builderKnownHosts}
       LogLevel ERROR

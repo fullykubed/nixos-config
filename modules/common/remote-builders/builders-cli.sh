@@ -17,6 +17,8 @@ CCACHE_R2_SECRET_KEY_FILE="/run/agenix/ccache-r2-secret-key"
 HEADSCALE_API_KEY_FILE="/run/agenix/headscale-api-key"
 HEADSCALE_API_URL="https://headscale.panfactumcf.com/api/v1"
 HEADSCALE_USER_ID="1"
+CROC_RELAY_PASS_FILE="/run/agenix/croc-relay-password"
+CROC_RELAY_ADDRESS="headscale.panfactumcf.com:19009"
 # Resolve the latest builder snapshot by label (or use explicit override)
 resolve_snapshot_id() {
   if [[ -n "${HETZNER_BUILDER_SNAPSHOT:-}" ]]; then
@@ -52,8 +54,8 @@ BIG_HOURLY_COST="0.0950"
 # Base SSH options (host key verification added dynamically per IP)
 # -F /dev/null: skip user/system SSH config to avoid failures when HOME points
 # to a home-manager-managed ~/.ssh/config owned by nobody (Nix store).
-# Builders are accessed via Tailscale on the default SSH port (22).
-SSH_BASE_OPTS=(-F /dev/null -i /root/.ssh/builder-key)
+# Builders are accessed via Tailscale on port 3098.
+SSH_BASE_OPTS=(-F /dev/null -i /root/.ssh/builder-key -p 3098 -o IdentitiesOnly=yes)
 SSH_OPTS=() # populated by setup_host_verification
 
 # Temporary known hosts file for host key verification
@@ -129,7 +131,7 @@ stop_spinner() {
 # Disk sectors are cumulative counters; the dashboard computes rates from deltas between refreshes.
 read -r -d '' REMOTE_STATS_CMD << 'STATSEOF' || true
 b=$(ps -eo user= 2>/dev/null | sort -u | grep -c '^nixbld' || true); b=${b:-0}
-sc=$(command ss -Htn state established '( sport = :22 )' 2>/dev/null | wc -l)
+sc=$(command ss -Htn state established '( sport = :3098 )' 2>/dev/null | wc -l)
 ss=$((sc > 1 ? sc - 1 : 0))
 read _ u1 n1 s1 i1 w1 _ < /proc/stat
 sleep 1
@@ -242,7 +244,7 @@ Commands:
                       --cpu       CPU performance benchmark (~30s)
                       --net       Network bandwidth (~30s)
                       --disk      Disk space and performance (~30s)
-                      --cache     Cache tunnel status
+                      --tailscale Tailscale status on builder
                       --ccache    ccache mount, sync, and stats
                       --shutdown  Auto-shutdown countdown
                     SSH connectivity is always checked.
@@ -252,6 +254,7 @@ Commands:
   destroy -a        Destroy all builders (requires confirmation)
   destroy-all       Destroy all builders (requires confirmation)
   debug-stats <name> Show raw SSH stats output (for debugging dashboard)
+  cleanup           Delete old builder snapshots (keeps the latest)
   help              Show this help message
 
 Examples:
@@ -295,6 +298,48 @@ mint_headscale_preauth_key() {
     exit 1
   fi
   echo "$authkey"
+}
+
+# Delete a headscale node by hostname. Looks up the node ID from the headscale
+# API and deletes it. Warns but does not fail if the node isn't found.
+# Usage: delete_headscale_node <hostname>
+delete_headscale_node() {
+  local hostname="$1"
+  if [[ ! -f "$HEADSCALE_API_KEY_FILE" ]]; then
+    echo -e "${YELLOW}Warning: Headscale API key not found, skipping node cleanup${NC}" >&2
+    return
+  fi
+  local api_key
+  api_key=$(cat "$HEADSCALE_API_KEY_FILE")
+
+  local nodes_json node_id
+  nodes_json=$(curl -sf \
+    -H "Authorization: Bearer ${api_key}" \
+    "${HEADSCALE_API_URL}/node" || true)
+  if [[ -z "$nodes_json" ]]; then
+    echo -e "${YELLOW}Warning: Failed to list headscale nodes, skipping node cleanup${NC}" >&2
+    return
+  fi
+
+  # Match by givenName (the hostname the builder registered with)
+  # shellcheck disable=SC2016 # $name is a jaq variable
+  node_id=$(echo "$nodes_json" \
+    | jaq -r --arg name "$hostname" '.nodes[] | select(.givenName == $name or .name == $name) | .id' \
+    | head -1)
+
+  if [[ -z "$node_id" || "$node_id" == "null" ]]; then
+    echo -e "${YELLOW}No headscale node found for $hostname (may already be cleaned up)${NC}" >&2
+    return
+  fi
+
+  if curl -sf \
+    -X DELETE \
+    -H "Authorization: Bearer ${api_key}" \
+    "${HEADSCALE_API_URL}/node/${node_id}" > /dev/null; then
+    echo -e "${GREEN}Removed $hostname from headscale (node $node_id)${NC}"
+  else
+    echo -e "${YELLOW}Warning: Failed to delete headscale node $node_id for $hostname${NC}" >&2
+  fi
 }
 
 # Look up a builder's Tailscale IP by hostname from tailscale status.
@@ -378,7 +423,7 @@ cmd_check() {
   local name=""
   local run_all=true
   local check_nix=false check_hw=false check_cpu=false check_net=false
-  local check_disk=false check_cache=false check_ccache=false check_shutdown=false
+  local check_disk=false check_tailscale=false check_ccache=false check_shutdown=false
 
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -387,7 +432,7 @@ cmd_check() {
       --cpu)      check_cpu=true; run_all=false ;;
       --net)      check_net=true; run_all=false ;;
       --disk)     check_disk=true; run_all=false ;;
-      --cache)    check_cache=true; run_all=false ;;
+      --tailscale) check_tailscale=true; run_all=false ;;
       --ccache)   check_ccache=true; run_all=false ;;
       --shutdown) check_shutdown=true; run_all=false ;;
       -*)         echo -e "${RED}Unknown flag: $1${NC}" >&2; return 1 ;;
@@ -474,8 +519,8 @@ cmd_check() {
     echo ""
 
     # Port reachability
-    echo -n "  Port 22: "
-    if timeout 3 bash -c "echo >/dev/tcp/$ip/22" 2>/dev/null; then
+    echo -n "  Port 3098: "
+    if timeout 3 bash -c "echo >/dev/tcp/$ip/3098" 2>/dev/null; then
       echo -e "${GREEN}reachable${NC} (SSH handshake or auth failed)"
     else
       echo -e "${RED}NOT reachable${NC} (Tailscale not connected, sshd not running, or cloud-init still in progress)"
@@ -509,7 +554,7 @@ cmd_check() {
   echo -n "Experimental features: "
   local exp_features
   if exp_features=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-      "nix show-config 2>/dev/null | grep '^experimental-features' | cut -d= -f2 | xargs" 2>/dev/null); then
+      "nix config show experimental-features 2>/dev/null || nix show-config 2>/dev/null | grep '^experimental-features' | cut -d= -f2 | xargs" 2>/dev/null); then
     if [[ -n "$exp_features" ]]; then
       echo -e "${GREEN}${exp_features}${NC}"
     else
@@ -683,15 +728,26 @@ cmd_check() {
   fi
 
   # Tailscale status on builder
-  if should_run "$check_cache"; then
-    echo -n "Tailscale: "
-    local ts_status
-    if ts_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-        'tailscale status --json 2>/dev/null | jaq -r "if .BackendState == \"Running\" then \"up\" else .BackendState end" 2>/dev/null || echo "unknown"' 2>/dev/null); then
-      if [[ "$ts_status" == "up" ]]; then
-        echo -e "${GREEN}up${NC}"
+  if should_run "$check_tailscale"; then
+    echo -n "Tailscale (builder): "
+    local ts_info
+    if ts_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      json=$(tailscale status --json 2>/dev/null) || { echo "error"; exit 0; }
+      state=$(echo "$json" | jaq -r ".BackendState // \"unknown\"")
+      self_host=$(echo "$json" | jaq -r ".Self.HostName // \"unknown\"")
+      peer_count=$(echo "$json" | jaq "[.Peer[] // empty] | length")
+      echo "${state}|${self_host}|${peer_count}"
+    ' 2>/dev/null); then
+      if [[ "$ts_info" == "error" ]]; then
+        echo -e "${RED}tailscale status failed${NC}"
       else
-        echo -e "${YELLOW}${ts_status}${NC}"
+        local ts_state ts_host ts_peers
+        IFS='|' read -r ts_state ts_host ts_peers <<< "$ts_info"
+        if [[ "$ts_state" == "Running" ]]; then
+          echo -e "${GREEN}up${NC} (hostname=${ts_host}, ${ts_peers} peers)"
+        else
+          echo -e "${YELLOW}${ts_state}${NC} (hostname=${ts_host})"
+        fi
       fi
     else
       echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
@@ -793,6 +849,36 @@ cmd_check() {
   echo -e "${GREEN}Builder $name is healthy${NC}"
 }
 
+cmd_cleanup() {
+  check_token
+
+  local snapshots
+  snapshots=$(hcloud image list -t snapshot -l type=builder -o json 2>/dev/null)
+
+  local count
+  count=$(echo "$snapshots" | jaq 'if . == null then 0 else length end')
+
+  if [[ "$count" -le 1 ]]; then
+    echo "Nothing to clean up ($count snapshot)."
+    return
+  fi
+
+  # Sort by creation date, drop the latest, delete the rest
+  local old_ids
+  old_ids=$(echo "$snapshots" | jaq -r 'sort_by(.created) | .[:-1] | .[].id')
+
+  local deleted=0
+  for id in $old_ids; do
+    local desc
+    desc=$(echo "$snapshots" | jaq -r ".[] | select(.id == $id) | .description // .created")
+    echo -e "${YELLOW}Deleting snapshot $id ($desc)...${NC}"
+    hcloud image delete "$id"
+    deleted=$((deleted + 1))
+  done
+
+  echo -e "${GREEN}Deleted $deleted old snapshot(s), kept latest${NC}"
+}
+
 cmd_ssh() {
   local name="$1"
   shift
@@ -836,6 +922,7 @@ cmd_create() {
   local snapshot_id
   snapshot_id=$(resolve_snapshot_id)
 
+  # Verify secret files exist before proceeding
   if [[ ! -f "$PUBKEY_FILE" ]]; then
     echo -e "${RED}Error: SSH public key not found at $PUBKEY_FILE${NC}" >&2
     exit 1
@@ -863,13 +950,29 @@ cmd_create() {
 
   if [[ ! -f "$CCACHE_R2_ACCESS_KEY_FILE" ]]; then
     echo -e "${RED}Error: ccache R2 access key not found at $CCACHE_R2_ACCESS_KEY_FILE${NC}" >&2
-    return 1
+    exit 1
   fi
 
   if [[ ! -f "$CCACHE_R2_SECRET_KEY_FILE" ]]; then
     echo -e "${RED}Error: ccache R2 secret key not found at $CCACHE_R2_SECRET_KEY_FILE${NC}" >&2
-    return 1
+    exit 1
   fi
+
+  if [[ ! -f "$CROC_RELAY_PASS_FILE" ]]; then
+    echo -e "${RED}Error: croc relay password not found at $CROC_RELAY_PASS_FILE${NC}" >&2
+    exit 1
+  fi
+
+  # Preflight: verify the controller's croc relay is reachable before creating the server
+  echo -e "${YELLOW}Checking croc relay at $CROC_RELAY_ADDRESS...${NC}"
+  local croc_relay_host croc_relay_port
+  croc_relay_host="${CROC_RELAY_ADDRESS%%:*}"
+  croc_relay_port="${CROC_RELAY_ADDRESS##*:}"
+  if ! nc -z -w 2 "$croc_relay_host" "$croc_relay_port" 2>/dev/null; then
+    echo -e "${RED}Error: Controller croc relay not reachable at $CROC_RELAY_ADDRESS. Ensure the controller is running.${NC}" >&2
+    exit 1
+  fi
+  echo -e "${GREEN}Croc relay is reachable${NC}"
 
   local server_type
   server_type=$(server_type_for "$name")
@@ -883,160 +986,36 @@ cmd_create() {
   local authkey
   authkey=$(mint_headscale_preauth_key)
 
-  # Read SSH public key for injection
-  local ssh_pubkey
-  ssh_pubkey=$(cat "$PUBKEY_FILE")
+  # Read croc relay password and generate one-time transfer code
+  local croc_relay_pass
+  croc_relay_pass=$(cat "$CROC_RELAY_PASS_FILE")
 
-  # Read host key pair for injection (enables host key verification)
-  local host_privkey host_pubkey
-  host_privkey=$(cat "$HOST_KEY_FILE")
-  host_pubkey=$(cat "$HOST_PUBKEY_FILE")
+  local croc_code
+  croc_code=$(openssl rand -hex 16)
 
-  # Read cache keys and niks3 token for injection
-  local cache_ssh_key cache_host_pubkey niks3_token
-  cache_ssh_key=$(cat "$CACHE_SSH_KEY_FILE")
-  cache_host_pubkey=$(cat "$CACHE_HOST_PUBKEY_FILE")
-  niks3_token=$(cat "$NIKS3_TOKEN_FILE")
+  # Set up temp file cleanup on function return
+  local tmpdir user_data_file install_script_file
+  tmpdir=$(mktemp -d)
+  user_data_file="$tmpdir/user-data.yaml"
+  install_script_file="$tmpdir/install-secrets.sh"
+  trap 'rm -rf "$tmpdir"' RETURN
 
-  # Read ccache R2 credentials for injection
-  local ccache_r2_access_key ccache_r2_secret_key
-  ccache_r2_access_key=$(cat "$CCACHE_R2_ACCESS_KEY_FILE")
-  ccache_r2_secret_key=$(cat "$CCACHE_R2_SECRET_KEY_FILE")
-
-  # Build cloud-init user-data to inject SSH keys, host keys, and Tailscale auth key
-  local user_data_file
-  user_data_file=$(mktemp)
-  trap 'rm -f "$user_data_file"' RETURN
-
-  if [[ "$btype" == "big" ]]; then
-    # Big-parallel builder: write nix override conf and restart nix-daemon
-    cat > "$user_data_file" <<EOF
+  # Build minimal cloud-init: relay password and croc code only (same for both builder types)
+  cat > "$user_data_file" <<EOF
 #cloud-config
 ssh_pwauth: false
 chpasswd:
   expire: false
 write_files:
-  - path: /run/hcloud-token
-    permissions: '0400'
-    content: |
-      $(cat "$TOKEN_FILE")
-  - path: /run/headscale-authkey
-    permissions: '0400'
-    content: |
-      $authkey
-  - path: /run/builder-name
+  - path: /run/croc-relay-password
     permissions: '0444'
     content: |
-      $name
-  - path: /var/lib/remotebuild/.ssh/authorized_keys
-    permissions: '0600'
-    owner: remotebuild:remotebuild
-    content: |
-      $ssh_pubkey
-  - path: /root/.ssh/authorized_keys
-    permissions: '0600'
-    content: |
-      $ssh_pubkey
-  - path: /etc/ssh/ssh_host_ed25519_key
-    permissions: '0600'
-    content: |
-      ${host_privkey//$'\n'/$'\n'      }
-  - path: /etc/ssh/ssh_host_ed25519_key.pub
-    permissions: '0644'
-    content: |
-      $host_pubkey
-  - path: /etc/nix/builder-override.conf
-    permissions: '0644'
-    content: |
-      max-jobs = 1
-      cores = 0
-  - path: /root/.ssh/cache-key
-    permissions: '0600'
-    content: |
-      ${cache_ssh_key//$'\n'/$'\n'      }
-  - path: /etc/ssh/cache-host-key.pub
-    permissions: '0644'
-    content: |
-      $cache_host_pubkey
-  - path: /run/niks3-auth-token
+      $croc_relay_pass
+  - path: /run/croc-code
     permissions: '0400'
     content: |
-      $niks3_token
-  - path: /run/ccache-r2-access-key
-    permissions: '0400'
-    content: |
-      $ccache_r2_access_key
-  - path: /run/ccache-r2-secret-key
-    permissions: '0400'
-    content: |
-      $ccache_r2_secret_key
-runcmd:
-  - systemctl restart nix-daemon
-  - systemctl start inactivity-monitor.timer
-  - systemctl start ccache-r2-mount.service
+      $croc_code
 EOF
-  else
-    # Regular builder: no nix overrides needed
-    cat > "$user_data_file" <<EOF
-#cloud-config
-ssh_pwauth: false
-chpasswd:
-  expire: false
-write_files:
-  - path: /run/hcloud-token
-    permissions: '0400'
-    content: |
-      $(cat "$TOKEN_FILE")
-  - path: /run/headscale-authkey
-    permissions: '0400'
-    content: |
-      $authkey
-  - path: /run/builder-name
-    permissions: '0444'
-    content: |
-      $name
-  - path: /var/lib/remotebuild/.ssh/authorized_keys
-    permissions: '0600'
-    owner: remotebuild:remotebuild
-    content: |
-      $ssh_pubkey
-  - path: /root/.ssh/authorized_keys
-    permissions: '0600'
-    content: |
-      $ssh_pubkey
-  - path: /etc/ssh/ssh_host_ed25519_key
-    permissions: '0600'
-    content: |
-      ${host_privkey//$'\n'/$'\n'      }
-  - path: /etc/ssh/ssh_host_ed25519_key.pub
-    permissions: '0644'
-    content: |
-      $host_pubkey
-  - path: /root/.ssh/cache-key
-    permissions: '0600'
-    content: |
-      ${cache_ssh_key//$'\n'/$'\n'      }
-  - path: /etc/ssh/cache-host-key.pub
-    permissions: '0644'
-    content: |
-      $cache_host_pubkey
-  - path: /run/niks3-auth-token
-    permissions: '0400'
-    content: |
-      $niks3_token
-  - path: /run/ccache-r2-access-key
-    permissions: '0400'
-    content: |
-      $ccache_r2_access_key
-  - path: /run/ccache-r2-secret-key
-    permissions: '0400'
-    content: |
-      $ccache_r2_secret_key
-runcmd:
-  - systemctl start inactivity-monitor.timer
-  - systemctl start ccache-r2-mount.service
-EOF
-  fi
 
   hcloud server create \
     --name "$name" \
@@ -1051,7 +1030,96 @@ EOF
 
   echo -e "${GREEN}Created $name${NC}"
 
-  # Wait for builder to appear on Tailscale network
+  # Read all secrets for the install script
+  local ssh_pubkey host_privkey host_pubkey
+  ssh_pubkey=$(cat "$PUBKEY_FILE")
+  host_privkey=$(cat "$HOST_KEY_FILE")
+  host_pubkey=$(cat "$HOST_PUBKEY_FILE")
+
+  local cache_ssh_key cache_host_pubkey niks3_token
+  cache_ssh_key=$(cat "$CACHE_SSH_KEY_FILE")
+  cache_host_pubkey=$(cat "$CACHE_HOST_PUBKEY_FILE")
+  niks3_token=$(cat "$NIKS3_TOKEN_FILE")
+
+  local ccache_r2_access_key ccache_r2_secret_key
+  ccache_r2_access_key=$(cat "$CCACHE_R2_ACCESS_KEY_FILE")
+  ccache_r2_secret_key=$(cat "$CCACHE_R2_SECRET_KEY_FILE")
+
+  local hcloud_token
+  hcloud_token=$(cat "$TOKEN_FILE")
+
+  # Generate the install-secrets.sh script that the builder will execute.
+  # All output is written in one grouped redirect to satisfy shellcheck SC2129.
+  {
+    printf '#!/usr/bin/env bash\nset -euo pipefail\n\n'
+    printf 'mkdir -p /var/lib/remotebuild/.ssh /root/.ssh /etc/ssh /etc/nix\n\n'
+
+    printf 'cat > /run/hcloud-token <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$hcloud_token"
+    printf 'chmod 0400 /run/hcloud-token\nchown root:root /run/hcloud-token\n\n'
+
+    printf 'cat > /run/headscale-authkey <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$authkey"
+    printf 'chmod 0400 /run/headscale-authkey\nchown root:root /run/headscale-authkey\n\n'
+
+    printf 'cat > /run/builder-name <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$name"
+    printf 'chmod 0444 /run/builder-name\nchown root:root /run/builder-name\n\n'
+
+    printf 'cat > /var/lib/remotebuild/.ssh/authorized_keys <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$ssh_pubkey"
+    printf 'chmod 0600 /var/lib/remotebuild/.ssh/authorized_keys\nchown remotebuild:remotebuild /var/lib/remotebuild/.ssh/authorized_keys\n\n'
+
+    printf 'cat > /root/.ssh/authorized_keys <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$ssh_pubkey"
+    printf 'chmod 0600 /root/.ssh/authorized_keys\nchown root:root /root/.ssh/authorized_keys\n\n'
+
+    printf 'cat > /etc/ssh/ssh_host_ed25519_key <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$host_privkey"
+    printf 'chmod 0600 /etc/ssh/ssh_host_ed25519_key\nchown root:root /etc/ssh/ssh_host_ed25519_key\n\n'
+
+    printf 'cat > /etc/ssh/ssh_host_ed25519_key.pub <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$host_pubkey"
+    printf 'chmod 0644 /etc/ssh/ssh_host_ed25519_key.pub\nchown root:root /etc/ssh/ssh_host_ed25519_key.pub\n\n'
+
+    printf 'cat > /root/.ssh/cache-key <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$cache_ssh_key"
+    printf 'chmod 0600 /root/.ssh/cache-key\nchown root:root /root/.ssh/cache-key\n\n'
+
+    printf 'cat > /etc/ssh/cache-host-key.pub <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$cache_host_pubkey"
+    printf 'chmod 0644 /etc/ssh/cache-host-key.pub\nchown root:root /etc/ssh/cache-host-key.pub\n\n'
+
+    printf 'cat > /run/niks3-auth-token <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$niks3_token"
+    printf 'chmod 0400 /run/niks3-auth-token\nchown root:root /run/niks3-auth-token\n\n'
+
+    printf 'cat > /run/ccache-r2-access-key <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$ccache_r2_access_key"
+    printf 'chmod 0400 /run/ccache-r2-access-key\nchown root:root /run/ccache-r2-access-key\n\n'
+
+    printf 'cat > /run/ccache-r2-secret-key <<'"'"'SECRETEOF'"'"'\n%s\nSECRETEOF\n' "$ccache_r2_secret_key"
+    printf 'chmod 0400 /run/ccache-r2-secret-key\nchown root:root /run/ccache-r2-secret-key\n'
+
+    # Big-parallel builders also need builder-override.conf to cap per-job parallelism
+    if [[ "$btype" == "big" ]]; then
+      printf '\ncat > /etc/nix/builder-override.conf <<'"'"'SECRETEOF'"'"'\nmax-jobs = 1\ncores = 0\nSECRETEOF\n'
+      printf 'chmod 0644 /etc/nix/builder-override.conf\nchown root:root /etc/nix/builder-override.conf\n'
+    fi
+  } > "$install_script_file"
+
+  # Send the install script to the builder via croc.
+  # croc send blocks until the builder connects and downloads — this is intentional.
+  # The builder boots (~30-60s), runs the croc-receive service, then pulls the script.
+  echo -e "${YELLOW}Sending secrets to $name via croc (waiting for builder to connect)...${NC}"
+  local send_ok=false
+  for attempt in $(seq 1 12); do
+    if CROC_SECRET="$croc_code" croc --yes --quiet --relay "$CROC_RELAY_ADDRESS" --pass "$croc_relay_pass" send "$install_script_file"; then
+      send_ok=true
+      break
+    fi
+    echo -e "${YELLOW}croc send attempt $attempt failed, retrying in 5s...${NC}"
+    sleep 5
+  done
+  if ! $send_ok; then
+    echo -e "${RED}Error: croc send failed after 12 attempts — secrets were not delivered to $name${NC}" >&2
+    return 1
+  fi
+
+  echo -e "${GREEN}Secrets delivered to $name via croc${NC}"
+
+  # Wait for builder to appear on Tailscale network.
+  # By the time croc send returns the builder has all its secrets and Tailscale
+  # join starts after secrets-ready.target, so it should appear shortly.
   echo -e "${YELLOW}Waiting for $name to join Tailscale...${NC}"
   local builder_ip
   if builder_ip=$(wait_for_tailscale "$name" 180); then
@@ -1073,6 +1141,7 @@ cmd_destroy() {
 
   echo -e "${YELLOW}Destroying $name...${NC}"
   hcloud server delete "$name"
+  delete_headscale_node "$name"
   echo -e "${GREEN}Destroyed $name${NC}"
 }
 
@@ -1101,6 +1170,7 @@ cmd_destroy_all() {
   for server in $servers; do
     echo -e "${YELLOW}Destroying $server...${NC}"
     hcloud server delete "$server"
+    delete_headscale_node "$server"
   done
 
   echo -e "${GREEN}All builders destroyed${NC}"
@@ -1427,6 +1497,9 @@ case "${1:-help}" in
     ;;
   destroy-all)
     cmd_destroy_all
+    ;;
+  cleanup)
+    cmd_cleanup
     ;;
   debug-stats)
     [[ -z "${2:-}" ]] && { echo "Usage: $SCRIPT_NAME debug-stats <name|N>"; exit 1; }

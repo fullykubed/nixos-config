@@ -35,12 +35,14 @@ _: {
     services = {
       niks3 = {
         after = [
-          "cloud-init.service"
+          "secrets-ready.target"
           "controller-volume-mount.service"
+          "controller-tailscale-join.service"
         ];
-        wants = [
-          "cloud-init.service"
+        requires = [
+          "secrets-ready.target"
           "controller-volume-mount.service"
+          "controller-tailscale-join.service"
         ];
         serviceConfig = {
           # Hardening — listens on 0.0.0.0:5751 (restricted to tailscale0 by firewall trustedInterfaces), reads secrets from /run, talks to PostgreSQL via unix socket

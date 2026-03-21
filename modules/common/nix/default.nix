@@ -15,14 +15,7 @@
       options = "--delete-older-than 7d"; # Keep 7 days for rollback
     };
 
-    # Ensure the cpu doesn't get blasted
-    daemonCPUSchedPolicy = "idle";
     settings = {
-      # Increase download buffer size to prevent warnings (1GB)
-      download-buffer-size = 1073741824; # 1GB (1024 * 1024 * 1024)
-
-      # Binary caches configured in flake.nix (cacheModule) shared with builder image
-
       # Performance settings
       accept-flake-config = true; # Auto-accept flake.nix nixConfig settings
       warn-dirty = false; # Don't warn about dirty git trees
@@ -30,39 +23,18 @@
 
       # Debugging - keep failed build directories for inspection
       keep-failed = true;
-      keep-going = true; # Continue building other derivations if one fails
 
       # Build resource limits
       max-jobs = (config.cpuCount + 3) / 4;
       cores = config.cpuCount - 1;
       eval-cores = config.cpuCount - 1; # Parallelize Nix evaluation (import/IFD)
-      lazy-locks = true;
-      lazy-trees = true;
-      max-silent-time = 1800; # Kill builds silent for 30 minutes
-      fallback = true; # Build from source if substituter fails
-      timeout = 21600; # Kill builds running longer than 6 hours
-      allow-import-from-derivation = false;
-      extra-experimental-features = [
-        "cgroups"
-        "parallel-eval"
-      ];
-      use-cgroups = true;
-      auto-optimise-store = true;
       keep-build-log = true;
       log-lines = 100;
-
-      # Parallel copy operations to/from remote builders and substituters
-      max-substitution-jobs = 32;
 
       # Retain build outputs and derivations so nix-shell/nix develop can
       # reuse them without re-downloading or rebuilding
       keep-outputs = true;
       keep-derivations = true;
-
-      # Substituter timeouts - fail fast if a cache is slow or unreachable
-      connect-timeout = 5;
-      stalled-download-timeout = 15;
-      narinfo-cache-negative-ttl = 60; # Re-check cache misses after 60s (default 1h)
     };
   };
 

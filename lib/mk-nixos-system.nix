@@ -16,6 +16,7 @@
   versions,
   cacheModule,
   casModule,
+  nixSettingsModule,
 }:
 { system, machine-module }:
 nixpkgs.lib.nixosSystem {
@@ -36,6 +37,9 @@ nixpkgs.lib.nixosSystem {
 
     # Content-addressable storage configuration
     casModule
+
+    # Shared nix daemon settings
+    nixSettingsModule
 
     # Load the Determinate module
     determinate.nixosModules.default

@@ -4,7 +4,7 @@
 # for this to work.
 {
   nix.settings = {
-    extra-experimental-features = [
+    experimental-features = [
       "ca-derivations"
       "blake3-hashes"
       "git-hashing"

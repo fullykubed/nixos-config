@@ -81,7 +81,7 @@ The build system has four layers, each building on the last. Content-addressed d
 │  ┌──────────────────────────────────────────────────────────────────────┐    │
 │  │                    NixOS Builder Snapshot (shared)                    │    │
 │  │  Custom stdenv (mold + ccache + hardening) baked into image          │    │
-│  │  Tier-agnostic: cloud-init writes overrides for big-parallel at boot │    │
+│  │  Tier-agnostic: croc transfers overrides for big-parallel at boot    │    │
 │  └──────────────────────────────────────────────────────────────────────┘    │
 │                              │                                               │
 │              ┌───────────────┼───────────────┐                              │
@@ -166,19 +166,20 @@ The build system has four layers, each building on the last. Content-addressed d
 
 ## Secrets
 
-All secrets are managed with agenix + agenix-rekey (YubiKey-secured), decrypted at activation to `/run/agenix/`. On builders and the cache server, cloud-init injects them at boot.
+All secrets are managed with agenix + agenix-rekey (YubiKey-secured), decrypted at activation to `/run/agenix/`. On builders and the controller, secrets are transferred via croc at boot through an e2e encrypted channel — only a relay password and one-time transfer code pass through cloud-init. The controller must be running before builders can be created (builders receive secrets through the controller's croc relay).
 
-| Secret | Used by | Purpose |
-|---|---|---|
-| `hetzner-api-token` | ProxyCommand, builders CLI, inactivity monitor | Hetzner Cloud API access |
-| `builder-ssh-key` | Local SSH config | Key for builder SSH connections |
-| `builder-host-key` | Local SSH config, cloud-init | Builder host key verification |
-| `cache-ssh-key` | Cache tunnel | SSH key for tunnel to niks3 |
-| `cache-host-key.pub` | Cache tunnel | Cache server host key verification |
-| `cache-signing-key` | niks3 | Ed25519 NAR signing key |
-| `niks3-api-token` | Upload service | Bearer token for niks3 push API |
-| `r2-access-key` / `r2-secret-key` | niks3, cache server | Cloudflare R2 credentials (binary cache) |
-| `ccache-r2-access-key` / `ccache-r2-secret-key` | ccache module, builder cloud-init | Cloudflare R2 credentials (compiler cache) |
+| Secret | Used by | Purpose | Delivery |
+|---|---|---|---|
+| `hetzner-api-token` | ProxyCommand, builders CLI, inactivity monitor | Hetzner Cloud API access | croc |
+| `builder-ssh-key` | Local SSH config | Key for builder SSH connections | local agenix |
+| `builder-host-key` | Local SSH config | Builder host key verification | croc |
+| `cache-ssh-key` | Cache tunnel | SSH key for tunnel to niks3 | croc |
+| `cache-host-key.pub` | Cache tunnel | Cache server host key verification | croc |
+| `cache-signing-key` | niks3 | Ed25519 NAR signing key | croc |
+| `niks3-api-token` | Upload service | Bearer token for niks3 push API | croc |
+| `r2-access-key` / `r2-secret-key` | niks3, cache server | Cloudflare R2 credentials (binary cache) | croc |
+| `ccache-r2-access-key` / `ccache-r2-secret-key` | ccache module, builders | Cloudflare R2 credentials (compiler cache) | croc |
+| `croc-relay-password` | croc bootstrap | Password for the controller's croc relay | cloud-init (bootstrap only) |
 
 ## Further Reading
 

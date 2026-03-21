@@ -69,7 +69,7 @@ Mounts the R2 bucket as `/var/cache/ccache-r2` read-only via s3fs-fuse.
 - **Credentials**: Reads `ccache-r2-access-key` and `ccache-r2-secret-key` from agenix, writes to `/run/s3fs-credentials`
 - **Mount options**: `allow_other`, `umask=0002`, `gid=nixbld`, `complement_stat`, 2M stat cache entries, `listobjectsv2`, 5s connect timeout, 60s read/write timeout
 
-On builders, the service waits for cloud-init to write R2 credentials before mounting. On local machines, credentials come from agenix at activation.
+On builders, the service waits for secrets-ready.target (croc transfer) to deliver R2 credentials before mounting. On local machines, credentials come from agenix at activation.
 
 ### `ccache-r2-sync` — Background Upload
 
@@ -86,8 +86,8 @@ Local machines and remote builders run the same services (`ccache-r2-mount`, `cc
 
 | Aspect | Local machines | Remote builders |
 |---|---|---|
-| Credential source | agenix (`/run/agenix/ccache-r2-*`) | cloud-init (`/run/ccache-r2-*`) |
-| Service activation | `wantedBy = multi-user.target` | Started by cloud-init `runcmd` |
+| Credential source | agenix (`/run/agenix/ccache-r2-*`) | croc transfer (`/run/ccache-r2-*`) |
+| Service dependency | `after = agenix.service` | `requires = secrets-ready.target` |
 
 ## Filesystem Layout
 

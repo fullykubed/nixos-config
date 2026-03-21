@@ -4,11 +4,13 @@ _: {
   ccacheR2 = {
     accessKeyFile = "/run/ccache-r2-access-key";
     secretKeyFile = "/run/ccache-r2-secret-key";
-    afterServices = [ "cloud-init.service" ];
+    afterServices = [ "secrets-ready.target" ];
     waitForCredentials = true;
   };
 
-  # Builder-specific: depend on cloud-init for credential delivery
-  # NOT wantedBy — started by cloud-init runcmd
-  systemd.services.ccache-r2-mount.wants = [ "cloud-init.service" ];
+  # Builder-specific: depend on secrets-ready for credential delivery
+  systemd.services.ccache-r2-mount = {
+    requires = [ "secrets-ready.target" ];
+    wantedBy = [ "multi-user.target" ];
+  };
 }

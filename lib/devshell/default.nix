@@ -174,6 +174,14 @@ in
       pkgs.agenix-rekey
       pkgs.age
       pkgs.gitleaks
+      (pkgs.writeShellScriptBin "headscale" ''
+        export HEADSCALE_CLI_ADDRESS="headscale.panfactumcf.com:443"
+        export HEADSCALE_CLI_API_KEY
+        HEADSCALE_CLI_API_KEY=$(cat /run/agenix/headscale-api-key)
+        TMPCONF=$(mktemp --suffix=.yaml)
+        trap 'rm -f "$TMPCONF"' EXIT
+        exec ${pkgs.headscale}/bin/headscale -c "$TMPCONF" "$@"
+      '')
       pkgs.hcloud
       hcloud-upload-image
       listMachines

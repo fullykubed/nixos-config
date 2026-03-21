@@ -45,8 +45,10 @@
    ```bash
    journalctl -u inactivity-monitor
    ```
-4. Confirm the Hetzner token was injected via cloud-init:
+4. Confirm secrets were delivered via croc:
    ```bash
+   systemctl status croc-receive.service
+   systemctl status secrets-ready.target
    cat /run/hcloud-token
    ```
 
@@ -68,9 +70,10 @@ The ProxyCommand will re-provision the builder on the next SSH connection.
    cat /etc/nix/builder-override.conf
    ```
    Should contain `max-jobs = 1` and `cores = 0`.
-2. Verify nix-daemon was restarted after cloud-init:
+2. Verify secrets were received and nix-daemon started after secrets-ready:
    ```bash
-   journalctl -u cloud-init
+   journalctl -u croc-receive.service
+   systemctl status secrets-ready.target
    ```
 
 ## Cache uploads stuck
@@ -115,3 +118,32 @@ The ProxyCommand will re-provision the builder on the next SSH connection.
    ```bash
    nix show-config | grep trusted-public-keys
    ```
+
+## Croc secret transfer failed
+
+1. Check if the croc-receive service is waiting or failed:
+   ```bash
+   systemctl status croc-receive.service
+   journalctl -u croc-receive.service
+   ```
+2. Verify the bootstrap files were written by cloud-init:
+   ```bash
+   cat /run/croc-relay-password
+   cat /run/croc-code
+   ```
+3. Check network connectivity to the croc relay:
+   ```bash
+   nc -z -w 2 headscale.panfactumcf.com 19009
+   ```
+4. On the controller, check the croc relay service:
+   ```bash
+   systemctl status croc.service
+   ```
+
+## Builder creation fails: controller not reachable
+
+Builders require the controller's croc relay to be running. If `builders create` fails with "croc relay not reachable":
+
+1. Verify the controller is running: `controller status`
+2. Check the croc relay: `nc -z -w 2 headscale.panfactumcf.com 19009`
+3. If the controller was recently recreated, wait for the croc relay to start (~60s after boot)

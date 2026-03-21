@@ -141,10 +141,11 @@ TMP_FILE=$(mktemp)
 cleanup() { rm -f "$TMP_FILE"; }
 trap cleanup EXIT
 
-echo -n "$SECRET_VALUE" | rage -e "${RECIPIENTS[@]}" -o "$TMP_FILE"
+printf '%s\n' "$SECRET_VALUE" | rage -e "${RECIPIENTS[@]}" -o "$TMP_FILE"
 
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 cp "$TMP_FILE" "$OUTPUT_PATH"
+git add "$OUTPUT_PATH"
 
 info "Created $OUTPUT_PATH"
 

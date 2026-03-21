@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# modules/common/binary-cache/upload-daemon.sh
+# modules/common/controller/upload-daemon.sh
 # Oneshot script that processes all pending cache upload queue items.
 # Run by a systemd timer. Exits non-zero if any uploads fail.
 #
@@ -17,11 +17,11 @@ mkdir -p "$PENDING_DIR" "$DONE_DIR"
 
 log() { echo "[$(date -Iseconds)] $*"; }
 
-# Check cache availability
+# Check cache availability (prefer env var, fall back to file)
 export NIKS3_SERVER_URL
-NIKS3_SERVER_URL=$(cat /run/niks3-server-url 2>/dev/null || echo "")
+NIKS3_SERVER_URL="${NIKS3_SERVER_URL:-$(cat /run/niks3-server-url 2>/dev/null || echo "")}"
 if [ -z "$NIKS3_SERVER_URL" ]; then
-  log "Cache not available (no /run/niks3-server-url), skipping"
+  log "Cache not available (NIKS3_SERVER_URL not set and no /run/niks3-server-url), skipping"
   exit 0
 fi
 
@@ -71,12 +71,6 @@ for pending_file in "$PENDING_DIR"/*; do
   batch_hashes+=("$hash")
 
   if [ "${#batch_paths[@]}" -ge "$BATCH_SIZE" ]; then
-    # Re-check cache availability before each batch
-    if [ ! -f /run/niks3-server-url ]; then
-      log "Cache went offline mid-batch, stopping (${count} uploaded, ${failed} failed)"
-      exit 1
-    fi
-
     push_err=""
     if push_err=$(niks3 push "${batch_paths[@]}" 2>&1); then
       for i in "${!batch_hashes[@]}"; do
@@ -97,11 +91,6 @@ done
 
 # Upload remaining paths
 if [ "${#batch_paths[@]}" -gt 0 ]; then
-  if [ ! -f /run/niks3-server-url ]; then
-    log "Cache went offline mid-batch, stopping (${count} uploaded, ${failed} failed)"
-    exit 1
-  fi
-
   push_err=""
   if push_err=$(niks3 push "${batch_paths[@]}" 2>&1); then
     for i in "${!batch_hashes[@]}"; do

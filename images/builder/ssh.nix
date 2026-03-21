@@ -1,11 +1,11 @@
 _: {
   # SSH server configuration
-  # Host key is injected via cloud-init; disable auto-generation so we use
-  # a known key that the client can verify.
+  # Host key is injected via croc-based secret transfer; disable auto-generation
+  # so we use a known key that the client can verify.
   services.openssh = {
     enable = true;
     ports = [ 3098 ];
-    hostKeys = [ ]; # Cloud-init writes our static host key before sshd starts
+    hostKeys = [ ]; # croc-receive writes our static host key before sshd starts
     extraConfig = "HostKey /etc/ssh/ssh_host_ed25519_key";
     settings = {
       PermitRootLogin = "prohibit-password";
@@ -24,7 +24,7 @@ _: {
     };
   };
 
-  # Cloud-init for SSH key and host key injection
+  # cloud-init for bootstrap data delivery (croc relay password and croc code)
   services.cloud-init = {
     enable = true;
     network.enable = true;
@@ -36,16 +36,13 @@ _: {
     ssh_deletekeys: false
   '';
 
-  # Ensure sshd starts after cloud-config writes the host key via write_files
-  # (cloud-init.service only fetches user-data; cloud-config.service applies it)
+  # Ensure sshd starts after croc-receive has installed the host key
   systemd.services.sshd = {
-    after = [ "cloud-config.service" ];
-    wants = [ "cloud-config.service" ];
+    after = [ "secrets-ready.target" ];
+    requires = [ "secrets-ready.target" ];
   };
 
-  # Firewall - only SSH
-  networking.firewall = {
-    enable = true;
-    allowedTCPPorts = [ 3098 ];
-  };
+  # Firewall — no public inbound ports; SSH is reachable only via Tailscale
+  # (tailscale0 is a trustedInterface, set in the tailscale module)
+  networking.firewall.enable = true;
 }
