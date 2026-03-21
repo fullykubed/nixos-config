@@ -34,6 +34,7 @@ let
       pkgs.iperf3
       pkgs.ncurses
       pkgs.curl
+      pkgs.openssl
     ];
     text = builtins.readFile ./builders-cli.sh;
   };

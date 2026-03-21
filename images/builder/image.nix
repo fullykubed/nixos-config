@@ -24,6 +24,7 @@
     users.remotebuild = {
       isSystemUser = true;
       group = "remotebuild";
+      extraGroups = [ "nixbld" ];
       shell = pkgs.bash;
       home = "/var/lib/remotebuild";
       createHome = true;

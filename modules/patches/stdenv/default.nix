@@ -157,6 +157,15 @@ let
               # builds proceed normally when the ccache dir is not mounted.
               # preConfigure is only string-appended when the existing value is a
               # string (or absent); function-style preConfigure is left untouched.
+              #
+              # CCACHE_COMPILERCHECK is set to "%compiler% -dumpversion" rather than
+              # the default "mtime". The default hashes the compiler's mtime and
+              # size, which changes on every nixpkgs update even when GCC itself is
+              # identical, invalidating the entire cache. The version-based check
+              # keeps entries valid across nixpkgs updates that don't bump GCC.
+              # RISK: if GCC is rebuilt with different patches but the same version
+              # number, stale cached objects could be returned. Clear the cache
+              # after applying GCC security patches.
               ccacheFlags =
                 if !useCcache then
                   { }
@@ -168,11 +177,12 @@ let
                       // {
                         CCACHE_DIR = "/var/cache/ccache";
                         CCACHE_REMOTE_STORAGE = "file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs";
-                        CCACHE_SLOPPINESS = "include_file_ctime,include_file_mtime,random_seed,time_macros";
+                        CCACHE_SLOPPINESS = "include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale";
                         CCACHE_BASEDIR = "/build";
                         CCACHE_MAXSIZE = "200G";
                         CCACHE_COMPRESS = "true";
-                        CCACHE_COMPRESSLEVEL = "6";
+                        CCACHE_COMPRESSLEVEL = "3";
+                        CCACHE_COMPILERCHECK = "%compiler% -dumpversion";
                         CCACHE_NOHASHDIR = "true";
                         CCACHE_UMASK = "007";
                       };
