@@ -19,7 +19,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **firefox/** - Disables LTO to prevent OOM during libxul.so linking.
 - **fluidsynth/** - CVE-2025-68617 use-after-free fix in DLS file handling.
 - **gd/** - Forces rebuild with fixed libavif 1.3.0 for CVE-2025-48174/48175.
-- **gegl/** - Rebuilds with OpenEXR 3.4.5 instead of legacy openexr_2 to fix 11 CVEs.
+- **gegl/** - Rebuilds with OpenEXR 3.4.7 instead of legacy openexr_2 to fix 11+ CVEs.
 - **gimp/** - GIMP 3.0.8 version bump fixing 9 CVEs with dependency chain overrides.
 - **git/** - Disable install checks that fail in Nix sandbox due to protocol restrictions.
 - **gjs/** - Skip GTK tests not found in sandbox with custom stdenv.
@@ -48,7 +48,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **lua/** - CVE-2021-43519 stack overflow fix for Lua 5.2.
 - **mupdf/** - CVE-2026-25556 double-free fix in barcode decoding.
 - **onnxruntime/** - Disable unit tests to avoid CMake 4 GTest detection regression.
-- **openexr/** - OpenEXR 3.4.5 version bump fixing 10 CVEs plus openjph dependency.
+- **openexr/** - OpenEXR 3.4.7 version bump fixing 11+ CVEs (vendors OpenJPH internally).
 - **p11-kit/** - Disable tests that fail in sandbox lacking PKCS#11 token infrastructure.
 - **perl/** - Perl 5.42.0 from unstable fixing CVE-2024-56406 heap buffer overflow.
 - **python/** - Test skip overrides for websockets, rich, and mss sandbox issues.

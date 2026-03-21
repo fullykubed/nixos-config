@@ -1,7 +1,7 @@
 _: {
   nixpkgs.overlays = [
     (final: prev: {
-      # GEGL: Rebuild with OpenEXR 3.4.4 instead of legacy openexr_2 (2.5.10)
+      # GEGL: Rebuild with OpenEXR 3.4.7 instead of legacy openexr_2 (2.5.10)
       # This eliminates openexr_2 from the system, fixing 11 CVEs including:
       #   CVE-2023-5841 (9.1 Crit): Heap buffer overflow in deep scanline parsing
       #   CVE-2021-23169 (8.8 High): Heap buffer overflow -> RCE
