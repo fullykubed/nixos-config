@@ -29,6 +29,7 @@ Each folder contains a `default.nix` with the overlay entry and any associated `
 - **gpsd/** - Two CVE patches for NMEA2000 buffer overflow and NAVCOM integer underflow.
 - **gvfs/** - Forces rebuild with libcdio 2.3.0 for CVE-2024-36600.
 - **imagemagick/** - ImageMagick 7.1.2-15 from unstable fixing 31 CVEs.
+- **jaq/** - jaq 3.0.0-gamma version bump adding YAML/TOML/CBOR/XML format support for PRD scripts.
 - **jbig2dec/** - CVE-2023-46361 SEGV fix via uninitialized allocator in CLI tool.
 - **jq/** - Pulls jq 1.8.1 from unstable to fix three CVEs (integer overflow, buffer overflows).
 - **libaom/** - Yasm-to-NASM migration with cmake optimization check fix.

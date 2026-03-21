@@ -26,6 +26,7 @@ _: {
     ./gpsd
     ./gvfs
     ./imagemagick
+    ./jaq
     ./jbig2dec
     ./jq
     ./libaom
