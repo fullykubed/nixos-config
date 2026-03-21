@@ -9,6 +9,7 @@ _: {
     ./busybox
     ./coreutils
     ./cups-filters
+    ./curl
     ./deno
     ./dotnet
     ./exiv2
