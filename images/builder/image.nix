@@ -2,7 +2,6 @@
 {
   imports = [
     ../common/croc-receive.nix
-    ../common/nix-settings.nix
     ./hardening.nix
     ./hardware.nix
     ./ssh.nix
@@ -42,7 +41,7 @@
     wget
     htop
     hcloud # For self-deletion
-    jaq # For parsing Hetzner metadata
+    jaq # For parsing JSON (tailscale status, etc.)
     iperf3 # For bandwidth testing via builders check
     fio # For disk performance testing via builders check
     niks3-cli # For pushing build results to cache

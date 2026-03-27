@@ -11,6 +11,8 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 
 readonly NIXOS_CONFIG_DIR="/etc/nixos"
+readonly DEFAULT_REGULAR_BUILDERS=3
+readonly DEFAULT_BIG_BUILDERS=2
 SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_NAME
 
@@ -70,7 +72,7 @@ Examples:
   $SCRIPT_NAME --copy        # Copy to $NIXOS_CONFIG_DIR first (old behavior)
   $SCRIPT_NAME -u -b         # Update flake inputs and rebuild boot config
   $SCRIPT_NAME -B 3 -P 1     # Use 3 regular + 1 big-parallel builder
-  $SCRIPT_NAME -B 0          # Disable all remote builders (both types)
+  $SCRIPT_NAME -B 0 -P 0     # Disable all remote builders (both types)
   $SCRIPT_NAME -s            # Stop on first failure for debugging
   $SCRIPT_NAME -t            # Test config (activates but doesn't survive reboot)
   $SCRIPT_NAME -d            # Show what would be built (dry run)
@@ -358,7 +360,6 @@ main() {
   MAX_JOBS="1"
   BUILDER_COUNT=""      # Empty = use all configured builders
   BIG_BUILDER_COUNT=""  # Empty = use all configured big builders
-
   parse_args "$@"
   validate_options
 
@@ -432,16 +433,17 @@ main() {
 
   # Handle builders flags (-B for regular, -P for big-parallel)
   if [[ -n "$BUILDER_COUNT" ]] || [[ -n "$BIG_BUILDER_COUNT" ]]; then
-    if [[ "${BUILDER_COUNT:-}" == "0" ]] && [[ -z "$BIG_BUILDER_COUNT" ]]; then
-      # -B 0 with no -P: disable all remote builders
+    if [[ "${BUILDER_COUNT:-}" == "0" ]] && [[ "${BIG_BUILDER_COUNT:-}" == "0" ]]; then
+      # -B 0 -P 0: disable all remote builders
       nix_flags+=(--builders "")
       info "Remote builders disabled"
     else
       local builder_list=""
 
       # Generate regular builder entries (no big-parallel feature)
-      local regular_n="${BUILDER_COUNT:-}"
-      if [[ -n "$regular_n" ]] && [[ "$regular_n" -gt 0 ]]; then
+      # Default to all configured builders when only the other type was specified
+      local regular_n="${BUILDER_COUNT:-$DEFAULT_REGULAR_BUILDERS}"
+      if [[ "$regular_n" -gt 0 ]]; then
         for i in $(seq 1 "$regular_n"); do
           if [[ -n "$builder_list" ]]; then
             builder_list+="; "
@@ -451,8 +453,9 @@ main() {
       fi
 
       # Generate big-parallel builder entries (supports big-parallel, accepts any job)
-      local big_n="${BIG_BUILDER_COUNT:-}"
-      if [[ -n "$big_n" ]] && [[ "$big_n" -gt 0 ]]; then
+      # Default to all configured builders when only the other type was specified
+      local big_n="${BIG_BUILDER_COUNT:-$DEFAULT_BIG_BUILDERS}"
+      if [[ "$big_n" -gt 0 ]]; then
         for i in $(seq 1 "$big_n"); do
           if [[ -n "$builder_list" ]]; then
             builder_list+="; "
@@ -489,7 +492,7 @@ main() {
   readonly LONG_BUILD_THRESHOLD=1800  # 30 minutes
 
   if [[ "$NOTIFY_ON_FAILURE" == true ]] && command -v notify-if-away &>/dev/null; then
-    trap 'ec=$?; if [[ $ec -ne 0 ]]; then notify-if-away "Build Failed" "un $rebuild_cmd failed on $hostname (exit $ec)" || true; fi' EXIT
+    trap 'ec=$?; if [[ $ec -ne 0 ]]; then notify-if-away "Build Failed" "un ${rebuild_cmd:-build} failed on ${hostname:-$(hostname)} (exit $ec)" || true; fi' EXIT
   fi
 
   # Execute rebuild

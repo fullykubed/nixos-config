@@ -2,7 +2,6 @@
 {
   imports = [
     ../common/croc-receive.nix
-    ../common/nix-settings.nix
     ./hardening.nix
     ./hardware.nix
     ./headscale.nix
@@ -43,7 +42,7 @@
   # Allow passwordless sudo for admin user
   security.sudo.wheelNeedsPassword = false;
 
-  # Controller-specific nix overrides (base settings from ../common/nix-settings.nix)
+  # Controller-specific nix overrides (base settings from modules/utility/nix-settings.nix)
   nix.settings.trusted-users = [
     "root"
     "admin"

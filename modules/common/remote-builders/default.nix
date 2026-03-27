@@ -35,6 +35,7 @@ let
       pkgs.ncurses
       pkgs.curl
       pkgs.openssl
+      pkgs.croc
     ];
     text = builtins.readFile ./builders-cli.sh;
   };
@@ -46,6 +47,7 @@ let
       pkgs.hcloud
       pkgs.jaq
       pkgs.netcat-gnu
+      pkgs.util-linux # flock
       buildersCli
     ];
     text = builtins.readFile ./ensure-builder.sh;
@@ -63,6 +65,7 @@ let
       "nixos-test"
       "kvm"
       "benchmark"
+      "ca-derivations"
     ];
     mandatoryFeatures = [ ];
     # publicHostKey is intentionally omitted — Nix creates known_hosts entries
@@ -84,6 +87,7 @@ let
       "big-parallel"
       "kvm"
       "benchmark"
+      "ca-derivations"
     ];
     mandatoryFeatures = [ ];
   };

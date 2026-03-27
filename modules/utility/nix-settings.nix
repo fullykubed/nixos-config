@@ -1,8 +1,18 @@
 # Shared Nix daemon settings applied to all NixOS systems and disk images.
 # Consumer-specific overrides (GC policy, job limits, trusted-users, etc.)
 # are set in modules/common/nix/ (local) or images/*/nix-daemon.nix (cloud).
-{ lib, ... }:
+{ lib, pkgs, ... }:
 {
+  # Strip extra-substituters injected by determinate-nixd into /etc/nix/nix.conf.
+  # determinate-nixd hardcodes "extra-substituters = https://install.determinate.systems"
+  # which adds wasted narinfo lookups against a cache that will never have our
+  # custom-stdenv derivations. No config option exists to disable it.
+  system.activationScripts.stripDeterminateSubstituters = lib.stringAfter [ "etc" ] ''
+    if [ -f /etc/nix/nix.conf ] && ! [ -L /etc/nix/nix.conf ]; then
+      ${pkgs.gnused}/bin/sed -i '/^extra-substituters\b/d; /^extra-trusted-substituters\b/d' /etc/nix/nix.conf
+    fi
+  '';
+
   nix = {
     daemonCPUSchedPolicy = "idle";
     settings = {

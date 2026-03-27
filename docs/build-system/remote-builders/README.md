@@ -5,7 +5,7 @@ Ephemeral NixOS VMs on Hetzner Cloud that perform distributed compilation. Build
 ## Key Properties
 
 - **On-demand**: Builders are created only when `nix` connects to them via SSH
-- **Warm-start capable**: On shutdown, each builder snapshots itself with its name as a label. The next launch of the same builder name boots from its snapshot (pre-populated Nix store and ccache), falling back to the base image if none exists. Uploading a new base image deletes all named snapshots.
+- **Ephemeral**: Builders are stateless — each launch starts fresh from the base image
 - **Self-managing**: Each builder monitors its own inactivity and deletes itself via the Hetzner API
 - **Two-tier**: Regular builders for small packages, big-parallel builders for heavy builds (see [builder tiers](builders.md))
 - **Shared image**: The same NixOS snapshot serves both tiers; croc transfers tier-specific settings at boot via the controller's relay
@@ -33,7 +33,7 @@ SSH Match exec (ensure-builder.sh)
       - cloud-init user-data (minimal):
           • croc relay password → /run/croc-relay-password
           • croc transfer code → /run/croc-code
-      - resolve snapshot: named snapshot (builder-name=<name>) or base image (type=builder)
+      - resolve base image snapshot (type=builder)
       - hcloud server create (from resolved snapshot)
       - croc send (blocks until builder receives):
           • install-secrets.sh containing all secrets:
@@ -74,7 +74,7 @@ Each builder runs these services:
 | `cache-tunnel` | SSH tunnel to niks3 cache (local:9751 → cache:5751 via SSH:3099) |
 | `cache-upload` | Processes upload queue, batches 32 paths per niks3 push |
 | `ccache-r2-mount` | s3fs FUSE mount of R2 bucket for shared compiler cache |
-| `inactivity-monitor` | Checks every minute; snapshots then self-deletes after 60 min idle |
+| `inactivity-monitor` | Checks every minute; self-deletes after 15 min idle |
 
 ### Nix Daemon Configuration
 
@@ -114,21 +114,17 @@ Builders are hardened beyond NixOS defaults (`images/builder/hardening.nix`):
 ./images/builder/upload-image.sh
 ```
 
-Existing running builders continue with the old image. New builders automatically use the latest snapshot (resolved by label `type=builder` at provisioning time). The upload script deletes all named builder snapshots (`builder-name=*`) so every builder cold-starts from the new base image on next creation.
+Existing running builders continue with the old image. New builders automatically use the latest snapshot (resolved by label `type=builder` at provisioning time).
 
 ## Inactivity Monitor
 
 A systemd timer that runs every minute on each builder:
 
-1. Checks for active `nixbld` processes and SSH sessions
+1. Checks for active `nixbld` processes
 2. Increments a counter file if idle, resets to 0 if active
-3. After 60 consecutive idle minutes:
-   - Creates a Hetzner snapshot labeled `builder-name=<name>` (read from `/run/builder-name`)
-   - Garbage-collects older snapshots with the same builder name
+3. After 15 consecutive idle minutes:
    - Logs out of Tailscale
    - Calls `hcloud server delete` on itself using the Hetzner API token from `/run/hcloud-token`
-
-If snapshot creation fails, the monitor logs a warning and proceeds with deletion — snapshot is an optimization, not a correctness requirement.
 
 ## SSH Configuration
 

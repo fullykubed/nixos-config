@@ -56,37 +56,6 @@ let
         exit 1
       fi
 
-      # Read builder name for snapshot labeling
-      BUILDER_NAME=""
-      if [ -f "/run/builder-name" ]; then
-        BUILDER_NAME=$(cat /run/builder-name)
-      fi
-
-      # Create warm snapshot before destruction
-      if [ -n "$BUILDER_NAME" ]; then
-        echo "Creating warm snapshot for $BUILDER_NAME..."
-        if ${pkgs.hcloud}/bin/hcloud server create-image "$SERVER_ID" \
-          --type snapshot \
-          --label "builder-name=$BUILDER_NAME" \
-          --description "$BUILDER_NAME warm snapshot $(date +%Y-%m-%d)"; then
-          echo "Snapshot created successfully"
-
-          # GC: delete older snapshots with same builder-name label.
-          # Failure here must not abort the self-destruct sequence.
-          OLD_IDS=$(${pkgs.hcloud}/bin/hcloud image list -t snapshot \
-            -l "builder-name=$BUILDER_NAME" -o json 2>/dev/null \
-            | ${pkgs.jaq}/bin/jaq -r 'sort_by(.created) | .[:-1] | .[].id') || true
-          for old_id in $OLD_IDS; do
-            echo "Deleting old snapshot $old_id..."
-            ${pkgs.hcloud}/bin/hcloud image delete "$old_id" 2>/dev/null || true
-          done
-        else
-          echo "WARNING: Failed to create snapshot, proceeding with deletion"
-        fi
-      else
-        echo "No builder name found at /run/builder-name, skipping snapshot"
-      fi
-
       # Deregister from headscale before deleting — hcloud server delete
       # hard-kills the VM so ExecStop hooks never fire.
       echo "Logging out of tailscale..."

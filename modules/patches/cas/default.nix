@@ -17,6 +17,12 @@
 _:
 let
   overlay = _final: prev: {
+    # buildEnv creates symlink trees (e.g. perl.withPackages, python.buildEnv).
+    # CA output ingestion fails on these because the daemon can't recreate the
+    # symlink structure at the content-addressed path. Symlink trees are unique
+    # per environment anyway, so CA deduplication provides no benefit.
+    buildEnv = args: (prev.buildEnv args).overrideAttrs { __contentAddressed = false; };
+
     makeInitrd =
       args:
       let
@@ -61,7 +67,6 @@ in
   nixpkgs.overlays = [ overlay ];
   nixpkgs-unstable.overlays = [ overlay ];
 
-  # Disabled until the overlay is validated on a full system build.
   # nixpkgs-unstable CA is controlled in lib/nixpkgs-unstable.nix
-  nixpkgs.config.contentAddressedByDefault = false;
+  nixpkgs.config.contentAddressedByDefault = true;
 }

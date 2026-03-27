@@ -81,20 +81,59 @@ wait_for_builder() {
 # Main: Ensure builder is provisioned and reachable
 # ------------------------------------------------------------------------------
 
+# Fast path (no lock needed): builder is already up
 if nc -z -w 2 "$TARGET_HOST" "$TARGET_PORT" 2>/dev/null; then
   exit 0
 fi
 
 info "Builder $TARGET_HOST not reachable"
 
+# Serialize provisioning per builder name to prevent concurrent ensure-builder
+# instances (triggered by parallel nix-daemon SSH connections) from racing to
+# create the same server.
+LOCK_DIR="/run/ensure-builder"
+mkdir -p "$LOCK_DIR"
+LOCK_FILE="$LOCK_DIR/$TARGET_HOST.lock"
+
+exec 9>"$LOCK_FILE"
+# Track whether this instance created the server so we can clean up on failure
+WE_CREATED=false
+cleanup() {
+  if [[ "$WE_CREATED" == true ]]; then
+    info "Cleaning up: destroying partially-provisioned $TARGET_HOST"
+    builders destroy "$TARGET_HOST" >&2 || true
+  fi
+  rm -f "$LOCK_FILE"
+}
+trap cleanup EXIT
+if ! flock -w "$BUILDER_WAIT_TIMEOUT" 9; then
+  error "Timed out waiting for lock on $TARGET_HOST"
+fi
+
+# Re-check after acquiring the lock — another instance may have provisioned it
+if nc -z -w 2 "$TARGET_HOST" "$TARGET_PORT" 2>/dev/null; then
+  exit 0
+fi
+
 if ! server_exists; then
   info "Builder $TARGET_HOST does not exist in Hetzner, creating..."
+  WE_CREATED=true
   if ! builders create "$TARGET_HOST" >&2; then
-    error "Failed to create server $TARGET_HOST"
+    # Another machine may have created it concurrently — check before giving up
+    if server_exists; then
+      WE_CREATED=false
+      info "Builder $TARGET_HOST was created by another machine, waiting for it..."
+    else
+      error "Failed to create server $TARGET_HOST"
+    fi
+  else
+    info "Server $TARGET_HOST created, waiting for it to become reachable..."
   fi
-  info "Server $TARGET_HOST created, waiting for it to become reachable..."
 else
   info "Builder $TARGET_HOST exists in Hetzner but is not reachable yet, waiting..."
 fi
 
 wait_for_builder "$TARGET_HOST" "$TARGET_PORT" "$BUILDER_WAIT_TIMEOUT"
+
+# Builder is up — disarm the cleanup trap
+WE_CREATED=false

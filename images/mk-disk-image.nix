@@ -21,6 +21,18 @@ let
           fsType = "ext4";
           autoResize = true;
         };
+        nix.gc.automatic = false;
+
+        # The Determinate NixOS module redirects NixOS-generated nix.conf to
+        # nix.custom.conf, then determinate-nixd writes the real nix.conf
+        # (with !include nix.custom.conf) when the daemon starts.  But the
+        # daemon is socket-activated, so on a fresh boot nix.conf doesn't
+        # exist yet and the nix *client* falls back to built-in defaults.
+        # Bootstrap a minimal nix.conf so settings are visible immediately;
+        # determinate-nixd overwrites it with its full version on first use.
+        systemd.tmpfiles.rules = [
+          "f /etc/nix/nix.conf 0644 root root - !include /etc/nix/nix.custom.conf"
+        ];
       }
     ]
     ++ modules;

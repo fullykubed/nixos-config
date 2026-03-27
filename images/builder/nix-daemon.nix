@@ -1,5 +1,5 @@
 # Nix daemon configuration for remote builds.
-# Shared settings come from ../common/nix-settings.nix (imported in image.nix).
+# Shared settings come from modules/utility/nix-settings.nix (imported in mk-disk-image.nix).
 # Defaults here are tuned for regular builders (all cores per job).
 # Big-parallel builders override via /etc/nix/builder-override.conf at boot.
 _: {

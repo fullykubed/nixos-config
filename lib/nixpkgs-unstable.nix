@@ -26,8 +26,7 @@
     inherit system;
     config = {
       allowUnfree = true;
-      # Disabled until https://github.com/NixOS/nix/issues/15003 is resolved
-      contentAddressedByDefault = false;
+      contentAddressedByDefault = true;
     };
     inherit (config.nixpkgs-unstable) overlays;
   };

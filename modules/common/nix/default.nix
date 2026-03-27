@@ -18,6 +18,10 @@
     settings = {
       # Performance settings
       accept-flake-config = true; # Auto-accept flake.nix nixConfig settings
+      trusted-users = [
+        "root"
+        config.username
+      ];
       warn-dirty = false; # Don't warn about dirty git trees
       use-xdg-base-directories = true;
 

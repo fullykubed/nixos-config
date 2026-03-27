@@ -19,33 +19,14 @@ HEADSCALE_API_URL="https://headscale.panfactumcf.com/api/v1"
 HEADSCALE_USER_ID="1"
 CROC_RELAY_PASS_FILE="/run/agenix/croc-relay-password"
 CROC_RELAY_ADDRESS="headscale.panfactumcf.com:19009"
-# Resolve the latest builder snapshot by label (or use explicit override).
-# Usage: resolve_snapshot_id [builder-name]
-# When called with a name, prefers named snapshots (builder-name=<name>) over the
-# base image (type=builder). Falls back to base image if no named snapshot exists.
-# HETZNER_BUILDER_SNAPSHOT env var takes priority over everything.
+# Resolve the latest builder base image snapshot by label (or use explicit override).
+# HETZNER_BUILDER_SNAPSHOT env var takes priority over label lookup.
 resolve_snapshot_id() {
-  local name="${1:-}"
-
   if [[ -n "${HETZNER_BUILDER_SNAPSHOT:-}" ]]; then
     echo "$HETZNER_BUILDER_SNAPSHOT"
     return
   fi
 
-  # Try named snapshot first
-  if [[ -n "$name" ]]; then
-    local named_id
-    named_id=$(hcloud image list -t snapshot -l "builder-name=$name" -o json 2>/dev/null \
-      | jaq -r 'sort_by(.created) | last | .id // empty')
-    if [[ -n "$named_id" ]]; then
-      echo -e "${GREEN}Using warm snapshot $named_id for $name${NC}" >&2
-      echo "$named_id"
-      return
-    fi
-    echo -e "${YELLOW}No warm snapshot for $name, falling back to base image${NC}" >&2
-  fi
-
-  # Fallback: latest base image
   local id
   id=$(hcloud image list -t snapshot -l type=builder -o json 2>/dev/null \
     | jaq -r 'sort_by(.created) | last | .id // empty')
@@ -55,38 +36,6 @@ resolve_snapshot_id() {
     exit 1
   fi
   echo "$id"
-}
-
-# Create a named snapshot of a builder server and GC older snapshots with the same label.
-# Usage: snapshot_builder <builder-name> <server-name-or-id>
-# On failure: logs a warning to stderr and returns 1 (does NOT exit the script).
-snapshot_builder() {
-  local name="$1"
-  local server="$2"  # server name or ID
-
-  echo -e "${YELLOW}Creating snapshot of $server (builder-name=$name)...${NC}" >&2
-
-  # hcloud server create-image does not support -o json; just check the exit code.
-  if ! hcloud server create-image "$server" \
-    --type snapshot \
-    --label "builder-name=$name" \
-    --description "$name warm snapshot $(date +%Y-%m-%d)"; then
-    echo -e "${RED}Warning: Failed to create snapshot of $server${NC}" >&2
-    return 1
-  fi
-
-  echo -e "${GREEN}Snapshot created for $name${NC}" >&2
-
-  # GC: delete all older snapshots with the same builder-name label, keeping only the newest.
-  # hcloud image list DOES support -o json.
-  local old_ids
-  old_ids=$(hcloud image list -t snapshot -l "builder-name=$name" -o json 2>/dev/null \
-    | jaq -r "sort_by(.created) | .[:-1] | .[].id")
-
-  for id in $old_ids; do
-    echo -e "${YELLOW}Deleting old snapshot $id...${NC}" >&2
-    hcloud image delete "$id" 2>/dev/null || true
-  done
 }
 LOCATION="hel1"
 
@@ -975,7 +924,7 @@ cmd_create() {
   check_token
 
   local snapshot_id
-  snapshot_id=$(resolve_snapshot_id "$name")
+  snapshot_id=$(resolve_snapshot_id)
 
   # Verify secret files exist before proceeding
   if [[ ! -f "$PUBKEY_FILE" ]]; then
@@ -1212,9 +1161,6 @@ cmd_destroy() {
     return
   fi
 
-  # Snapshot before destruction — failure is non-fatal
-  snapshot_builder "$name" "$name" || echo -e "${YELLOW}Warning: snapshot failed for $name, proceeding with deletion${NC}" >&2
-
   echo -e "${YELLOW}Destroying $name...${NC}"
   hcloud server delete "$name"
   delete_headscale_node "$name"
@@ -1244,8 +1190,6 @@ cmd_destroy_all() {
   fi
 
   for server in $servers; do
-    # Snapshot before destruction — failure is non-fatal, continue to next builder
-    snapshot_builder "$server" "$server" || echo -e "${YELLOW}Warning: snapshot failed for $server, proceeding with deletion${NC}" >&2
     echo -e "${YELLOW}Destroying $server...${NC}"
     hcloud server delete "$server"
     delete_headscale_node "$server"

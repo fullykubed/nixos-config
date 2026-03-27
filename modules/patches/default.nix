@@ -6,6 +6,7 @@ _: {
     ./assimp
     ./avahi
     ./binutils
+    ./bison
     ./busybox
     ./cas
     ./coreutils
