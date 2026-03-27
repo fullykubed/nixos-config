@@ -87,6 +87,28 @@ hcloud-upload-image upload \
 UPLOAD_COMPLETE=true
 trap - INT TERM EXIT
 
+# Delete old base image snapshots, keeping only the newest
+echo -e "${YELLOW}Pruning old base image snapshots...${NC}"
+OLD_BASE_IDS=$(hcloud image list -t snapshot -l type=builder -o json 2>/dev/null \
+  | jaq -r 'sort_by(.created) | .[:-1] | .[].id') || true
+
+DELETED=0
+for snap_id in $OLD_BASE_IDS; do
+  echo -e "${YELLOW}  Deleting old base snapshot $snap_id...${NC}"
+  if hcloud image delete "$snap_id" 2>/dev/null; then
+    DELETED=$((DELETED + 1))
+  else
+    echo -e "${RED}  Warning: Failed to delete snapshot $snap_id${NC}"
+  fi
+done
+
+if [[ $DELETED -gt 0 ]]; then
+  echo -e "${GREEN}Deleted $DELETED old base image snapshot(s)${NC}"
+else
+  echo "No old base image snapshots to clean up."
+fi
+
+
 echo ""
 echo -e "${GREEN}Upload complete!${NC}"
 echo ""

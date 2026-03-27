@@ -88,6 +88,27 @@ hcloud-upload-image upload \
 UPLOAD_COMPLETE=true
 trap - INT TERM EXIT
 
+# Delete old controller snapshots, keeping only the newest
+echo -e "${YELLOW}Pruning old controller snapshots...${NC}"
+OLD_IDS=$(hcloud image list -t snapshot -l type=controller -o json 2>/dev/null \
+  | jaq -r 'sort_by(.created) | .[:-1] | .[].id') || true
+
+DELETED=0
+for snap_id in $OLD_IDS; do
+  echo -e "${YELLOW}  Deleting old controller snapshot $snap_id...${NC}"
+  if hcloud image delete "$snap_id" 2>/dev/null; then
+    DELETED=$((DELETED + 1))
+  else
+    echo -e "${RED}  Warning: Failed to delete snapshot $snap_id${NC}"
+  fi
+done
+
+if [[ $DELETED -gt 0 ]]; then
+  echo -e "${GREEN}Deleted $DELETED old controller snapshot(s)${NC}"
+else
+  echo "No old controller snapshots to clean up."
+fi
+
 echo ""
 echo -e "${GREEN}Upload complete!${NC}"
 echo ""
