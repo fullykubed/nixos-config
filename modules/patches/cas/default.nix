@@ -68,5 +68,5 @@ in
   nixpkgs-unstable.overlays = [ overlay ];
 
   # nixpkgs-unstable CA is controlled in lib/nixpkgs-unstable.nix
-  nixpkgs.config.contentAddressedByDefault = true;
+  nixpkgs.config.contentAddressedByDefault = false; # temporarily disabled
 }

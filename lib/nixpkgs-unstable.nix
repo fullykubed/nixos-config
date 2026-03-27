@@ -26,7 +26,7 @@
     inherit system;
     config = {
       allowUnfree = true;
-      contentAddressedByDefault = true;
+      contentAddressedByDefault = false; # temporarily disabled
     };
     inherit (config.nixpkgs-unstable) overlays;
   };
