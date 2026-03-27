@@ -13,8 +13,11 @@ TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT
 
 # Universal check: file must be git-tracked for nix flake builds to see it
+# Skip files outside the repo (e.g. /tmp files Claude creates)
 {
-  if ! git ls-files --error-unmatch "$FILE_PATH" &>/dev/null &&
+  REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+  if [[ -n "$REPO_ROOT" && "$FILE_PATH" == "$REPO_ROOT"/* ]] &&
+     ! git ls-files --error-unmatch "$FILE_PATH" &>/dev/null &&
      ! git check-ignore -q "$FILE_PATH" 2>/dev/null; then
     echo "git-untracked" >>"$TMPDIR/failed"
   fi
