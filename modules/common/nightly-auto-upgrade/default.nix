@@ -53,17 +53,20 @@ let
       if nixos-rebuild switch --flake "$CLONE_DIR#$HOSTNAME" --accept-flake-config; then
         echo "Upgrade successful"
       else
-        echo "Upgrade failed"
-
-        # If the profile changed, activation failed — rollback
         new_profile=$(readlink -f /nix/var/nix/profiles/system)
         if [[ "$current_profile" != "$new_profile" ]]; then
-          echo "Activation failure detected, rolling back..."
-          nixos-rebuild switch --rollback || true
+          # Build succeeded but activation had non-critical service failures.
+          # Don't rollback — transient failures (cache tunnels, mounts) resolve
+          # on their own or on next reboot. Rolling back causes a second
+          # activation that also fails, making things worse.
+          echo "Activation completed with non-critical service failures (keeping new profile)"
+          notify-if-away --force "NixOS Upgrade Warning" "Upgrade activated on $HOSTNAME but some services failed to start"
+        else
+          # Build itself failed — nothing to rollback
+          echo "Build failed"
+          notify-if-away --force "NixOS Upgrade Failed" "nixos-auto-upgrade build failed on $HOSTNAME"
+          exit 1
         fi
-
-        notify-if-away --force "NixOS Upgrade Failed" "nixos-auto-upgrade failed on $HOSTNAME"
-        exit 1
       fi
     '';
   };
@@ -72,7 +75,16 @@ in
   systemd.services.nixos-auto-upgrade = {
     description = "Nightly NixOS auto-upgrade";
     restartIfChanged = false;
-    after = [ "agenix.service" ];
+    requires = [
+      "network-online.target"
+      "tailscaled.service"
+    ];
+    after = [
+      "agenix.service"
+      "network-online.target"
+      "tailscaled.service"
+      "tailscale-autoconnect.service"
+    ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${upgradeScript}/bin/nixos-auto-upgrade-run";
