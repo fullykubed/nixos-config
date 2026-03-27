@@ -10,7 +10,7 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 
 TOKEN_FILE="/run/agenix/hetzner-api-token"
-BUILDER_WAIT_TIMEOUT=120
+BUILDER_WAIT_TIMEOUT=900
 
 # ------------------------------------------------------------------------------
 # Logging

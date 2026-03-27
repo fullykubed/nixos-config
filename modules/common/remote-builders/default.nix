@@ -210,7 +210,7 @@ in
         StrictHostKeyChecking = "yes";
         UserKnownHostsFile = "${builderKnownHosts}";
         LogLevel = "ERROR";
-        ConnectTimeout = "180";
+        ConnectTimeout = "960";
         IPQoS = "cs1";
       };
     };
@@ -226,7 +226,7 @@ in
       StrictHostKeyChecking yes
       UserKnownHostsFile ${builderKnownHosts}
       LogLevel ERROR
-      ConnectTimeout 180
+      ConnectTimeout 30
       Compression yes
       IPQoS cs1
   '';

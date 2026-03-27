@@ -66,24 +66,19 @@ snapshot_builder() {
 
   echo -e "${YELLOW}Creating snapshot of $server (builder-name=$name)...${NC}" >&2
 
-  local image_id
-  if ! image_id=$(hcloud server create-image "$server" \
+  # hcloud server create-image does not support -o json; just check the exit code.
+  if ! hcloud server create-image "$server" \
     --type snapshot \
     --label "builder-name=$name" \
-    --description "$name warm snapshot $(date +%Y-%m-%d)" \
-    -o json 2>&1 | jaq -r '.image.id // empty'); then
+    --description "$name warm snapshot $(date +%Y-%m-%d)"; then
     echo -e "${RED}Warning: Failed to create snapshot of $server${NC}" >&2
     return 1
   fi
 
-  if [[ -z "$image_id" ]]; then
-    echo -e "${RED}Warning: Snapshot created but could not parse image ID${NC}" >&2
-    return 1
-  fi
+  echo -e "${GREEN}Snapshot created for $name${NC}" >&2
 
-  echo -e "${GREEN}Snapshot $image_id created for $name${NC}" >&2
-
-  # GC: delete all older snapshots with the same builder-name label, keeping only the newest
+  # GC: delete all older snapshots with the same builder-name label, keeping only the newest.
+  # hcloud image list DOES support -o json.
   local old_ids
   old_ids=$(hcloud image list -t snapshot -l "builder-name=$name" -o json 2>/dev/null \
     | jaq -r "sort_by(.created) | .[:-1] | .[].id")
