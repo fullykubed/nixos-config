@@ -77,6 +77,7 @@ let
       # Packages excluded from ccache by pname.
       ccacheExcludedNames = [
         "ghc-binary" # bakes CC path into settings file; downstream Haskell packages need a real store path
+        "kexec-tools" # cached .d dependency files contain stale store paths; make install re-reads them and fails
         "metis" # two-phase cmake configure loses install prefix when ccache changes CMAKE_C_COMPILER
         "shiboken6" # bakes compiler path into installed config; ccache wrapper path breaks downstream pyside6
       ];
@@ -158,14 +159,11 @@ let
               # preConfigure is only string-appended when the existing value is a
               # string (or absent); function-style preConfigure is left untouched.
               #
-              # CCACHE_COMPILERCHECK is set to "%compiler% -dumpversion" rather than
-              # the default "mtime". The default hashes the compiler's mtime and
-              # size, which changes on every nixpkgs update even when GCC itself is
-              # identical, invalidating the entire cache. The version-based check
-              # keeps entries valid across nixpkgs updates that don't bump GCC.
-              # RISK: if GCC is rebuilt with different patches but the same version
-              # number, stale cached objects could be returned. Clear the cache
-              # after applying GCC security patches.
+              # Only CCACHE_DIR is set as a derivation env var — it's the one
+              # value the preConfigure hook needs and it's stable (/var/cache/ccache).
+              # All tuning parameters (sloppiness, compression, compiler_check, etc.)
+              # live in $CCACHE_DIR/ccache.conf (see modules/utility/ccache-r2.nix) so
+              # changing them doesn't invalidate derivation hashes.
               ccacheFlags =
                 if !useCcache then
                   { }
@@ -176,15 +174,6 @@ let
                       // (rustMoldFlags.env or { })
                       // {
                         CCACHE_DIR = "/var/cache/ccache";
-                        CCACHE_REMOTE_STORAGE = "file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs";
-                        CCACHE_SLOPPINESS = "include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale";
-                        CCACHE_BASEDIR = "/build";
-                        CCACHE_MAXSIZE = "200G";
-                        CCACHE_COMPRESS = "true";
-                        CCACHE_COMPRESSLEVEL = "3";
-                        CCACHE_COMPILERCHECK = "%compiler% -dumpversion";
-                        CCACHE_NOHASHDIR = "true";
-                        CCACHE_UMASK = "007";
                       };
                     preConfigure =
                       let

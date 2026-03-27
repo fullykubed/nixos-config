@@ -7,6 +7,7 @@ _: {
     ./avahi
     ./binutils
     ./busybox
+    ./cas
     ./coreutils
     ./cups-filters
     ./curl

@@ -19,12 +19,33 @@ HEADSCALE_API_URL="https://headscale.panfactumcf.com/api/v1"
 HEADSCALE_USER_ID="1"
 CROC_RELAY_PASS_FILE="/run/agenix/croc-relay-password"
 CROC_RELAY_ADDRESS="headscale.panfactumcf.com:19009"
-# Resolve the latest builder snapshot by label (or use explicit override)
+# Resolve the latest builder snapshot by label (or use explicit override).
+# Usage: resolve_snapshot_id [builder-name]
+# When called with a name, prefers named snapshots (builder-name=<name>) over the
+# base image (type=builder). Falls back to base image if no named snapshot exists.
+# HETZNER_BUILDER_SNAPSHOT env var takes priority over everything.
 resolve_snapshot_id() {
+  local name="${1:-}"
+
   if [[ -n "${HETZNER_BUILDER_SNAPSHOT:-}" ]]; then
     echo "$HETZNER_BUILDER_SNAPSHOT"
     return
   fi
+
+  # Try named snapshot first
+  if [[ -n "$name" ]]; then
+    local named_id
+    named_id=$(hcloud image list -t snapshot -l "builder-name=$name" -o json 2>/dev/null \
+      | jaq -r 'sort_by(.created) | last | .id // empty')
+    if [[ -n "$named_id" ]]; then
+      echo -e "${GREEN}Using warm snapshot $named_id for $name${NC}" >&2
+      echo "$named_id"
+      return
+    fi
+    echo -e "${YELLOW}No warm snapshot for $name, falling back to base image${NC}" >&2
+  fi
+
+  # Fallback: latest base image
   local id
   id=$(hcloud image list -t snapshot -l type=builder -o json 2>/dev/null \
     | jaq -r 'sort_by(.created) | last | .id // empty')
@@ -35,11 +56,49 @@ resolve_snapshot_id() {
   fi
   echo "$id"
 }
+
+# Create a named snapshot of a builder server and GC older snapshots with the same label.
+# Usage: snapshot_builder <builder-name> <server-name-or-id>
+# On failure: logs a warning to stderr and returns 1 (does NOT exit the script).
+snapshot_builder() {
+  local name="$1"
+  local server="$2"  # server name or ID
+
+  echo -e "${YELLOW}Creating snapshot of $server (builder-name=$name)...${NC}" >&2
+
+  local image_id
+  if ! image_id=$(hcloud server create-image "$server" \
+    --type snapshot \
+    --label "builder-name=$name" \
+    --description "$name warm snapshot $(date +%Y-%m-%d)" \
+    -o json 2>&1 | jaq -r '.image.id // empty'); then
+    echo -e "${RED}Warning: Failed to create snapshot of $server${NC}" >&2
+    return 1
+  fi
+
+  if [[ -z "$image_id" ]]; then
+    echo -e "${RED}Warning: Snapshot created but could not parse image ID${NC}" >&2
+    return 1
+  fi
+
+  echo -e "${GREEN}Snapshot $image_id created for $name${NC}" >&2
+
+  # GC: delete all older snapshots with the same builder-name label, keeping only the newest
+  local old_ids
+  old_ids=$(hcloud image list -t snapshot -l "builder-name=$name" -o json 2>/dev/null \
+    | jaq -r "sort_by(.created) | .[:-1] | .[].id")
+
+  for id in $old_ids; do
+    echo -e "${YELLOW}Deleting old snapshot $id...${NC}" >&2
+    hcloud image delete "$id" 2>/dev/null || true
+  done
+}
 LOCATION="hel1"
 
 # Server types per tier
-REGULAR_SERVER_TYPE="cpx42"
-BIG_SERVER_TYPE="ccx33"
+REGULAR_SERVER_TYPE="cpx62"
+REGULAR_FALLBACK_SERVER_TYPE="cpx52"
+BIG_SERVER_TYPE="ccx63"
 
 # Colors
 RED='\033[0;31m'
@@ -48,7 +107,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Hourly costs in EUR
-REGULAR_HOURLY_COST="0.0268"
+REGULAR_HOURLY_COST="0.0534"
 BIG_HOURLY_COST="0.0950"
 
 # Base SSH options (host key verification added dynamically per IP)
@@ -225,7 +284,8 @@ show_help() {
 Usage: $SCRIPT_NAME <command> [options]
 
 Builder types:
-  builder-N       Regular builder (${REGULAR_SERVER_TYPE}, 8 shared vCPU, 16 GB RAM)
+  builder-N       Regular builder (${REGULAR_SERVER_TYPE}, 16 shared vCPU, 32 GB RAM)
+                  Fallback: ${REGULAR_FALLBACK_SERVER_TYPE} (12 shared vCPU, 24 GB RAM)
                   For many parallel small builds
   big-builder-N   Big-parallel builder (${BIG_SERVER_TYPE}, 8 dedicated vCPU, 32 GB RAM)
                   For heavy builds (Chromium, LLVM, Rust)
@@ -920,7 +980,7 @@ cmd_create() {
   check_token
 
   local snapshot_id
-  snapshot_id=$(resolve_snapshot_id)
+  snapshot_id=$(resolve_snapshot_id "$name")
 
   # Verify secret files exist before proceeding
   if [[ ! -f "$PUBKEY_FILE" ]]; then
@@ -1017,7 +1077,7 @@ write_files:
       $croc_code
 EOF
 
-  hcloud server create \
+  if ! hcloud server create \
     --name "$name" \
     --type "$server_type" \
     --image "$snapshot_id" \
@@ -1026,9 +1086,27 @@ EOF
     --label "type=builder" \
     --label "size=$btype" \
     --user-data-from-file "$user_data_file" \
-    --poll-interval 2s
+    --poll-interval 2s 2>&1; then
+    # Fall back to smaller server type for regular builders
+    if [[ "$btype" == "regular" && -n "$REGULAR_FALLBACK_SERVER_TYPE" && "$server_type" != "$REGULAR_FALLBACK_SERVER_TYPE" ]]; then
+      echo -e "${YELLOW}${server_type} unavailable, falling back to ${REGULAR_FALLBACK_SERVER_TYPE}...${NC}"
+      server_type="$REGULAR_FALLBACK_SERVER_TYPE"
+      hcloud server create \
+        --name "$name" \
+        --type "$server_type" \
+        --image "$snapshot_id" \
+        --location "$LOCATION" \
+        --label "builder=true" \
+        --label "type=builder" \
+        --label "size=$btype" \
+        --user-data-from-file "$user_data_file" \
+        --poll-interval 2s
+    else
+      exit 1
+    fi
+  fi
 
-  echo -e "${GREEN}Created $name${NC}"
+  echo -e "${GREEN}Created $name (${server_type})${NC}"
 
   # Read all secrets for the install script
   local ssh_pubkey host_privkey host_pubkey
@@ -1139,6 +1217,9 @@ cmd_destroy() {
     return
   fi
 
+  # Snapshot before destruction — failure is non-fatal
+  snapshot_builder "$name" "$name" || echo -e "${YELLOW}Warning: snapshot failed for $name, proceeding with deletion${NC}" >&2
+
   echo -e "${YELLOW}Destroying $name...${NC}"
   hcloud server delete "$name"
   delete_headscale_node "$name"
@@ -1168,6 +1249,8 @@ cmd_destroy_all() {
   fi
 
   for server in $servers; do
+    # Snapshot before destruction — failure is non-fatal, continue to next builder
+    snapshot_builder "$server" "$server" || echo -e "${YELLOW}Warning: snapshot failed for $server, proceeding with deletion${NC}" >&2
     echo -e "${YELLOW}Destroying $server...${NC}"
     hcloud server delete "$server"
     delete_headscale_node "$server"
@@ -1296,8 +1379,8 @@ cmd_dashboard() {
       wait "${pids[@]}" 2>/dev/null || true
 
       # Table header
-      printf ' %-16s %-16s %6s  %4s  %4s   %-20s  %-22s  %-14s %-6s %-8s %-6s %-7s %s' \
-        "BUILDER" "TAILSCALE IP" "BUILDS" "SSH" "CPU" "MEMORY" "DISK R/W" "/nix/store" "TS" "CACHE Q" "CCACHE" "CC SIZE" "SHUTDOWN"
+      printf ' %-16s %-16s %6s  %4s  %4s   %4s  %-22s  %5s %-8s %-6s %s' \
+        "BUILDER" "TAILSCALE IP" "BUILDS" "SSH" "CPU" "MEM" "DISK R/W" "DISK" "CACHE Q" "CCACHE" "SHUTDOWN"
       tput el; echo
 
       local sep
@@ -1355,28 +1438,19 @@ cmd_dashboard() {
         prev_dw[$bname]=$dw_sec
         prev_ts[$bname]=$now_ts
 
-        local mu_gb mt_gb mem_pct dsu_gb dst_gb dr_fmt dw_fmt
-        mu_gb=$(format_kb "$mu")
-        mt_gb=$(format_kb "$mt")
+        local mem_pct dr_fmt dw_fmt
         mem_pct=0
         [[ $mt -gt 0 ]] && mem_pct=$((mu * 100 / mt))
-        dsu_gb=$(format_kb "$dsu")
-        dst_gb=$(format_kb "$dst")
         dr_fmt=$(format_rate "$drk")
         dw_fmt=$(format_rate "$dwk")
 
         printf ' %-16s %-16s %6s  %4s  ' "${names[$i]}" "${ips[$i]}" "$builds" "$ssh_sess"
         color_pct "$cpu"
-        printf '   %5s/%s GB (' "$mu_gb" "$mt_gb"
+        printf '   '
         color_pct "$mem_pct"
-        printf ')  %8s / %8s  %5s/%s GB (' "$dr_fmt" "$dw_fmt" "$dsu_gb" "$dst_gb"
+        printf '  %8s / %8s  ' "$dr_fmt" "$dw_fmt"
         color_pct "$dsp" 75 90
-        printf ')  '
-        if [[ "$ts_stat" == "up" ]]; then
-          printf '%b%-6s%b' "$GREEN" "$ts_stat" "$NC"
-        else
-          printf '%b%-6s%b' "$YELLOW" "$ts_stat" "$NC"
-        fi
+        printf '  '
         if [[ "$q_pending" -gt 0 ]]; then
           printf ' %-8s' "$(printf '%b%s%b/%s' "$YELLOW" "$q_pending" "$NC" "$q_done")"
         else
@@ -1386,20 +1460,15 @@ cmd_dashboard() {
         local cc_total=$((cc_hits + cc_misses))
         if [[ $cc_total -gt 0 ]]; then
           local cc_rate=$((cc_hits * 100 / cc_total))
-          local cc_inv=$((100 - cc_rate))
-          color_pct "$cc_inv" 70 90
+          local cc_miss_rate=$((100 - cc_rate))
+          # color_pct colors high values red; invert for coloring only
+          printf '%b%3d%%%b' \
+            "$(if [[ $cc_miss_rate -ge 90 ]]; then echo "$RED"; elif [[ $cc_miss_rate -ge 70 ]]; then echo "$YELLOW"; else echo "$GREEN"; fi)" \
+            "$cc_rate" "$NC"
         else
           printf '%6s' "--"
         fi
         printf ' '
-        # ccache size
-        if [[ $cc_size_kb -gt 0 ]]; then
-          local cc_size_gb
-          cc_size_gb=$(format_kb "$cc_size_kb")
-          printf '%-7s' "${cc_size_gb}G"
-        else
-          printf '%-7s' "--"
-        fi
         # Auto-shutdown countdown
         local remaining=$(( 15 - idle_count ))
         if [[ $builds -gt 0 ]]; then

@@ -3,6 +3,7 @@
   imports = [
     ../common/croc-receive.nix
     ../common/nix-settings.nix
+    ./hardening.nix
     ./hardware.nix
     ./headscale.nix
     ./caddy.nix

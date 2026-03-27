@@ -1,6 +1,6 @@
 # Nix daemon configuration for remote builds.
 # Shared settings come from ../common/nix-settings.nix (imported in image.nix).
-# Defaults here are tuned for regular builders (4 cores per job).
+# Defaults here are tuned for regular builders (all cores per job).
 # Big-parallel builders override via /etc/nix/builder-override.conf at boot.
 _: {
   nix = {
@@ -9,8 +9,8 @@ _: {
         "root"
         "remotebuild"
       ];
-      max-jobs = 4;
-      cores = 4;
+      max-jobs = 10;
+      cores = 0;
       eval-cores = 3;
       fsync-metadata = false;
     };

@@ -37,5 +37,25 @@ When you change the builder configuration (e.g., add packages to `images/builder
 1. Edit `images/builder/image.nix`
 2. Build and upload: `./images/builder/upload-image.sh`
 3. Existing running builders continue with the old image; new builders automatically use the latest snapshot
+4. The upload script deletes all named builder snapshots, so every builder cold-starts from the new base image
 
 Note: The same snapshot is used for both regular and big-parallel builders. Cloud-init configures tier-specific settings at boot time.
+
+## Snapshot Warm-Start
+
+Builders snapshot themselves on shutdown (both auto-shutdown via inactivity monitor and manual `builders destroy`). On next launch, the same builder name boots from its snapshot instead of the base image, preserving the Nix store and ccache data from the previous session.
+
+**Label schema:**
+
+| Label | Used for |
+|---|---|
+| `type=builder` | Base image (uploaded by `upload-image.sh`) |
+| `builder-name=<name>` | Per-builder warm snapshot (created on shutdown) |
+
+These are disjoint — named snapshots do not carry `type=builder`, so base image resolution is unaffected.
+
+**Lifecycle:**
+
+1. Builder shuts down → creates snapshot with `builder-name=<name>` label → GCs older snapshots for the same name → deletes itself
+2. Builder re-created → resolves named snapshot first, falls back to base image if none exists
+3. New base image uploaded → all named snapshots deleted → next launch is a cold start from the new image

@@ -53,6 +53,8 @@
     parallel # Executing commands in parallel
     envsubst # Environment variable interpolation
     glow # markdown renderer for the CLI
+    unixtools.xxd # Hex dump utility
+    unixtools.quota # Disk quota reporting
 
     ################################
     ##  Process Isolation + Securtiy

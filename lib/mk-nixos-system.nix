@@ -14,7 +14,6 @@
   niks3,
   bun2nix,
   versions,
-  cacheModule,
   casModule,
   nixSettingsModule,
 }:
@@ -31,9 +30,6 @@ nixpkgs.lib.nixosSystem {
 
     # Provides nixpkgs-unstable module argument with nixpkgs-unstable.overlays option
     ../lib/nixpkgs-unstable.nix
-
-    # Shared binary cache configuration
-    cacheModule
 
     # Content-addressable storage configuration
     casModule

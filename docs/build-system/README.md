@@ -107,7 +107,7 @@ The build system has four layers, each building on the last. Content-addressed d
 │  │ └─────┬─────┘ │  │ └─────┬─────┘ │  │ └─────┬─────┘   │                │
 │  └───────┼───────┘  └───────┼───────┘  └───────┼─────────┘                │
 │          └──────────────────┴──────┬───────────┘                            │
-│    inactivity: hcloud server delete (self) after 60 min                     │
+│    inactivity: snapshot → GC → hcloud server delete (self) after 60 min     │
 │    cache-upload: SSH tunnel (:3099) ────┐                                   │
 │                                          ▼                                   │
 │  ┌──────────────────────────────────────────────┐                           │
@@ -141,7 +141,7 @@ The build system has four layers, each building on the last. Content-addressed d
 | **ccache module** | R2-backed compiler cache: s3fs mount, s5cmd sync, sandbox paths | `modules/common/ccache/default.nix` |
 | **SSH ProxyCommand** | Intercepts SSH to `builder-N`, provisions Hetzner VM if absent | `modules/common/remote-builders/proxy-command.sh` |
 | **Builder image** | Pre-built NixOS snapshot: nix-daemon, ccache, cache upload, inactivity monitor | `images/builder/image.nix` |
-| **Inactivity monitor** | Per-builder timer; self-deletes via Hetzner API after 60 min idle | `images/builder/inactivity-monitor.nix` |
+| **Inactivity monitor** | Per-builder timer; snapshots then self-deletes via Hetzner API after 60 min idle | `images/builder/inactivity-monitor.nix` |
 | **Binary cache module** | Client-side: SSH tunnel to niks3, upload queue, healthchecks | `modules/common/binary-cache/default.nix` |
 | **Cache server image** | Persistent Hetzner VM running niks3 + PostgreSQL | `images/cache/image.nix` |
 | **`builders` CLI** | Fleet management: list, status, dashboard, check, create, destroy | `modules/common/remote-builders/builders-cli.sh` |
@@ -162,7 +162,7 @@ The build system has four layers, each building on the last. Content-addressed d
 9. `cache-upload.service` batches 32 paths and pushes them to niks3 via SSH tunnel
 10. niks3 signs the NAR and uploads to R2; Cloudflare CDN serves it for future reads
 11. Early cutoff: if a rebuilt dependency produces identical content to its previous CA output, downstream dependents skip rebuilding
-12. After 60 minutes with no active builds, the inactivity monitor deletes the builder
+12. After 60 minutes with no active builds, the inactivity monitor snapshots the builder (for warm restart), then deletes it
 
 ## Secrets
 

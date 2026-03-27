@@ -73,11 +73,15 @@ in
         Description = "Load GitHub SSH key into agent";
         After = [ "ssh-agent.service" ];
         Requires = [ "ssh-agent.service" ];
+        StartLimitIntervalSec = 30;
+        StartLimitBurst = 5;
       };
       Service = {
         Type = "oneshot";
         ExecStart = "${pkgs.openssh}/bin/ssh-add ${config.age.secrets.git-ssh-key.path}";
         Environment = "SSH_AUTH_SOCK=%t/ssh-agent";
+        Restart = "on-failure";
+        RestartSec = 2;
       };
       Install = {
         WantedBy = [ "default.target" ];

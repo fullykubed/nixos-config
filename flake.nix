@@ -89,7 +89,6 @@
     }:
     let
       versions = import ./lib/versions.nix;
-      cacheModule = import ./modules/utility/cache-module.nix;
       casModule = import ./modules/utility/cas-module.nix;
       nixSettingsModule = import ./modules/utility/nix-settings.nix;
 
@@ -110,7 +109,6 @@
           niks3
           bun2nix
           versions
-          cacheModule
           casModule
           nixSettingsModule
           ;

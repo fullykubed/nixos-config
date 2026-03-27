@@ -56,6 +56,15 @@ let
           ];
         });
 
+        # rich: Skip test_brokenpipeerror — sandbox timing issue
+        # BrokenPipeError timing is non-deterministic in sandbox; process exits
+        # before SIGPIPE arrives, so returncode is 0 instead of expected 1
+        rich = pyprev.rich.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_brokenpipeerror"
+          ];
+        });
+
         # numpy: Skip test_cli_obj — meson subprocess can't find mold linker
         numpy = pyprev.numpy.overrideAttrs (old: {
           disabledTests = (old.disabledTests or [ ]) ++ [

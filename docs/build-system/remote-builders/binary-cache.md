@@ -100,7 +100,7 @@ If setting up the cache for the first time (builder setup is covered in [setup.m
 
 1. Generate cache SSH key pair, host key pair, and NAR signing key (see `docs/secrets.md`)
 2. Create a Cloudflare R2 bucket and store the credentials as agenix secrets
-3. Add the R2 custom domain and signing public key to `flake.nix` `cacheModule`
+3. Add the R2 custom domain and signing public key to `modules/utility/nix-settings.nix`
 4. Build and upload the cache image: `./images/cache/upload-image.sh`
 5. Create the server: `cache create`
 6. Rebuild the local system to deploy the cache module: `un.sh`

@@ -229,6 +229,9 @@ in
         description = "Process cache upload queue";
         after = [ "network-online.target" ];
         wants = [ "network-online.target" ];
+        # Don't let nixos-rebuild switch block waiting for an in-progress upload.
+        # The path unit and timer will trigger new runs as needed.
+        restartIfChanged = false;
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${uploadScript}/bin/cache-upload";
@@ -321,6 +324,7 @@ in
     paths.cache-upload = {
       description = "Watch cache upload queue for new items";
       wantedBy = [ "multi-user.target" ];
+      after = [ "systemd-tmpfiles-setup.service" ];
       pathConfig = {
         DirectoryNotEmpty = "${queueDir}/pending";
         MakeDirectory = true;

@@ -87,6 +87,27 @@ hcloud-upload-image upload \
 UPLOAD_COMPLETE=true
 trap - INT TERM EXIT
 
+# Delete all named builder snapshots so builders start fresh from the new base image
+echo -e "${YELLOW}Cleaning up named builder snapshots...${NC}"
+NAMED_SNAPSHOTS=$(hcloud image list -t snapshot -l builder-name -o json 2>/dev/null \
+  | jaq -r '.[].id' || true)
+
+DELETED=0
+for snap_id in $NAMED_SNAPSHOTS; do
+  echo -e "${YELLOW}  Deleting snapshot $snap_id...${NC}"
+  if hcloud image delete "$snap_id" 2>/dev/null; then
+    DELETED=$((DELETED + 1))
+  else
+    echo -e "${RED}  Warning: Failed to delete snapshot $snap_id${NC}"
+  fi
+done
+
+if [[ $DELETED -gt 0 ]]; then
+  echo -e "${GREEN}Deleted $DELETED named builder snapshot(s)${NC}"
+else
+  echo "No named builder snapshots to clean up."
+fi
+
 echo ""
 echo -e "${GREEN}Upload complete!${NC}"
 echo ""

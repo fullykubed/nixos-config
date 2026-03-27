@@ -28,7 +28,7 @@ All per-machine differentiation lives in the machine module.
 
 **Secrets** -- `agenix` + `agenix-rekey` with YubiKey master identities. Encrypted at rest in `secrets/`, rekeyed per-host, decrypted to `/run/agenix/` at activation.
 
-**Remote builders** -- Hetzner Cloud VMs provisioned on-demand via an SSH `ProxyCommand`. When Nix connects to `builder-*`, a proxy script creates the server if needed. A `builders` CLI manages the fleet.
+**Remote builders** -- Hetzner Cloud VMs provisioned on-demand via an SSH `ProxyCommand`. When Nix connects to `builder-*`, a proxy script creates the server if needed. Builders snapshot themselves on shutdown for warm restarts; a `builders` CLI manages the fleet.
 
 **Pinned versions** -- `lib/versions.nix` centralizes version strings and hashes for custom packages (workmux, voxtype, etc.) so modules don't embed version info inline.
 

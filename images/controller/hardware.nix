@@ -6,7 +6,6 @@
 {
   imports = [
     (modulesPath + "/profiles/qemu-guest.nix")
-    ../builder/hardening.nix
   ];
 
   # Boot configuration for Hetzner Cloud (UEFI)

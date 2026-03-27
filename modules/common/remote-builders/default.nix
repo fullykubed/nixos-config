@@ -6,7 +6,7 @@
 }:
 let
   maxRegularBuilders = 3;
-  maxBigBuilders = 1;
+  maxBigBuilders = 2;
 
   # Builder host public key for SSH host key verification
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
@@ -51,13 +51,13 @@ let
     text = builtins.readFile ./ensure-builder.sh;
   };
 
-  # Regular builders: 4 cores per job, max jobs = cores / 2
+  # Regular builders: each job can use all cores
   mkRegularBuilder = n: {
     hostName = "builder-${toString n}";
     sshUser = "remotebuild";
     sshKey = "/root/.ssh/builder-key";
     system = "x86_64-linux";
-    maxJobs = 4;
+    maxJobs = 20;
     speedFactor = 1;
     supportedFeatures = [
       "nixos-test"

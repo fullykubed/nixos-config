@@ -46,12 +46,12 @@ if [[ -z "${CF_API_TOKEN:-}" ]]; then
 else
   info "Querying Cloudflare GraphQL API for R2 bucket sizes"
 
-  today=$(date -u +"%Y-%m-%d")
-  yesterday=$(date -u -d "yesterday" +"%Y-%m-%d")
+  now=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  yesterday=$(date -u -d "yesterday" +"%Y-%m-%dT%H:%M:%SZ")
 
   graphql_query=$(cat <<EOF
 {
-  "query": "{ viewer { accounts(filter: { accountTag: \"${ACCOUNT_ID}\" }) { ccache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"ccache\", date_geq: \"${yesterday}\", date_leq: \"${today}\" }, orderBy: [date_DESC]) { max { payloadSize objectCount } } nixosCache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"fullykubed-nixos-cache\", date_geq: \"${yesterday}\", date_leq: \"${today}\" }, orderBy: [date_DESC]) { max { payloadSize objectCount } } } } }"
+  "query": "{ viewer { accounts(filter: { accountTag: \"${ACCOUNT_ID}\" }) { ccache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"ccache\", datetime_geq: \"${yesterday}\", datetime_leq: \"${now}\" }, orderBy: [datetime_DESC]) { dimensions { datetime } max { payloadSize objectCount } } nixosCache: r2StorageAdaptiveGroups(limit: 1, filter: { bucketName: \"fullykubed-nixos-cache\", datetime_geq: \"${yesterday}\", datetime_leq: \"${now}\" }, orderBy: [datetime_DESC]) { dimensions { datetime } max { payloadSize objectCount } } } } }"
 }
 EOF
 )
@@ -99,7 +99,7 @@ EOF
 
         # If API succeeded but all values are still null, the query returned empty results
         if [[ "$r2_ccache_payload_size" == "null" ]] && [[ "$r2_nixos_cache_payload_size" == "null" ]]; then
-          r2_error="API returned empty results (no data for date range ${yesterday} to ${today})"
+          r2_error="API returned empty results (no data for date range ${yesterday} to ${now})"
           warn "$r2_error"
         fi
       fi

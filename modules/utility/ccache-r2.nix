@@ -18,6 +18,38 @@ let
   r2MountDir = "/var/cache/ccache-r2";
   r2LocalDir = "/var/cache/ccache-r2-local";
 
+  # ccache reads $CCACHE_DIR/ccache.conf automatically. Keeping these settings
+  # in a config file instead of derivation env vars means changing tuning
+  # parameters no longer invalidates every derivation hash.
+  #
+  # compiler_check is set to "%compiler% -dumpversion" rather than the default
+  # "mtime". The default hashes the compiler's mtime and size, which changes on
+  # every nixpkgs update even when GCC itself is identical, invalidating the
+  # entire cache. The version-based check keeps entries valid across nixpkgs
+  # updates that don't bump GCC.
+  # RISK: if GCC is rebuilt with different patches but the same version number,
+  # stale cached objects could be returned. Clear the cache after applying GCC
+  # security patches.
+  #
+  # Sloppiness flags (each relaxes a check to improve hit rate in the sandbox):
+  #   include_file_ctime  - sandbox copies/links sources, giving them fresh ctimes; without this ccache skips caching
+  #   include_file_mtime  - generated headers during build get current mtime, same problem as ctime
+  #   random_seed         - nixpkgs passes -frandom-seed which varies per derivation; ignore for cross-build hits
+  #   time_macros         - ignore __DATE__/__TIME__/__TIMESTAMP__/SOURCE_DATE_EPOCH so timestamps don't bust cache
+  #   system_headers      - system headers change store paths on nixpkgs updates even when byte-identical; skip in manifests
+  #   locale              - LANG/LC_* may differ between sandbox runs; only affects warning text, not compiled output
+  ccacheConfig = pkgs.writeText "ccache.conf" ''
+    remote_storage = file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs
+    sloppiness = include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale
+    base_dir = /build
+    max_size = 200G
+    compress = true
+    compression_level = 3
+    compiler_check = %compiler% -dumpversion
+    hash_dir = false
+    umask = 002
+  '';
+
   credentialWaitSnippet = ''
     while [ ! -f "${cfg.accessKeyFile}" ] || [ ! -f "${cfg.secretKeyFile}" ]; do
       echo "Waiting for R2 credentials..."
@@ -70,6 +102,7 @@ in
         "d ${ccacheDir} 0775 root nixbld -"
         "d ${r2MountDir} 0775 root nixbld -"
         "d ${r2LocalDir} 0775 root nixbld -"
+        "C+ ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
       ];
 
       services.ccache-r2-mount = {

@@ -6,14 +6,12 @@
   additionalSpace,
 }:
 let
-  cacheModule = import ../modules/utility/cache-module.nix;
   casModule = import ../modules/utility/cas-module.nix;
   nixSettingsModule = import ../modules/utility/nix-settings.nix;
   pkgs = import nixpkgs { system = "x86_64-linux"; };
   system = nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules = [
-      cacheModule
       casModule
       nixSettingsModule
       determinate.nixosModules.default

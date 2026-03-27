@@ -1,12 +1,7 @@
-# Security hardening for ephemeral builder VMs.
+# Security hardening for the controller VM.
 #
-# Builders are ephemeral, Tailscale-only, and run nothing but Nix builds.
-# Kernel security mitigations are disabled to maximise compilation throughput
-# (~15-25% improvement). Compiler hardening flags (stack protector, FORTIFY,
-# PIE, etc.) are unaffected — built artifacts remain hardened.
-#
-# Sysctl network/kernel hardening is retained (zero perf cost) since the
-# builders still run SSH and Tailscale.
+# The controller is internet-facing (Headscale, Caddy on ports 80/443) so it
+# keeps full kernel security mitigations enabled.
 _: {
   boot = {
     # ── Kernel sysctl hardening ──────────────────────────────────────────
@@ -107,20 +102,22 @@ _: {
       "fs.protected_regular" = "2";
     };
 
-    # ── Boot kernel params (performance-optimised) ──────────────────────
-    # All CPU vulnerability mitigations disabled for compilation throughput.
-    # Memory zeroing and allocator hardening also disabled.
+    # ── Boot kernel params ────────────────────────────────────────────────
+    # Omitted vs local machines: intel_iommu, iommu.*, efi=disable_early_pci_dma
+    # (hypervisor-managed), nosmt (cloud VMs need all vCPUs).
     kernelParams = [
-      "mitigations=off"
-      "pti=off"
-      "init_on_alloc=0"
-      "init_on_free=0"
-      "page_alloc.shuffle=0"
-      "randomize_kstack_offset=off"
-      "vsyscall=native"
-      "transparent_hugepage=always"
+      "slab_nomerge"
+      "init_on_alloc=1"
+      "init_on_free=1"
+      "page_alloc.shuffle=1"
+      "randomize_kstack_offset=on"
+      "vsyscall=none"
       "debugfs=off"
       "oops=panic"
+      "random.trust_cpu=off"
+      "random.trust_bootloader=off"
+      "mitigations=auto"
+      "pti=on"
     ];
 
     # ── Blacklisted kernel modules ───────────────────────────────────────
@@ -156,6 +153,12 @@ _: {
     ];
   };
 
+  # Disable kexec and hibernation
+  security.protectKernelImage = true;
+
   # Don't store coredumps
   systemd.coredump.extraConfig = "Storage=none";
+
+  # Compensate for distrusted CPU/bootloader RNG
+  services.jitterentropy-rngd.enable = true;
 }

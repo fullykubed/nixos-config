@@ -3,6 +3,7 @@
   imports = [
     ../common/croc-receive.nix
     ../common/nix-settings.nix
+    ./hardening.nix
     ./hardware.nix
     ./ssh.nix
     ./ccache.nix
@@ -24,7 +25,6 @@
     users.remotebuild = {
       isSystemUser = true;
       group = "remotebuild";
-      extraGroups = [ "nixbld" ];
       shell = pkgs.bash;
       home = "/var/lib/remotebuild";
       createHome = true;
