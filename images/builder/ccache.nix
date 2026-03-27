@@ -6,6 +6,7 @@ _: {
     secretKeyFile = "/run/ccache-r2-secret-key";
     afterServices = [ "secrets-ready.target" ];
     waitForCredentials = true;
+    maxSize = "50G";
   };
 
   # Builder-specific: depend on secrets-ready for credential delivery

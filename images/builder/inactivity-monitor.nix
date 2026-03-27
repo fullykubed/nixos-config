@@ -56,6 +56,25 @@ let
         exit 1
       fi
 
+      # Read builder name for ccache volume detachment
+      BUILDER_NAME=""
+      if [ -f "/run/builder-name" ]; then
+        BUILDER_NAME=$(cat /run/builder-name)
+      fi
+
+      # Unmount and detach ccache volume before server deletion
+      if ${pkgs.util-linux}/bin/mountpoint -q /var/cache/ccache; then
+        echo "Unmounting /var/cache/ccache..."
+        sync
+        umount /var/cache/ccache || echo "WARNING: Failed to unmount /var/cache/ccache"
+      fi
+      if [ -n "$BUILDER_NAME" ]; then
+        echo "Detaching ccache volume ccache-$BUILDER_NAME..."
+        ${pkgs.hcloud}/bin/hcloud volume detach "ccache-$BUILDER_NAME" || \
+          echo "WARNING: Failed to detach ccache volume (may not exist or already detached)"
+      fi
+
+
       # Deregister from headscale before deleting — hcloud server delete
       # hard-kills the VM so ExecStop hooks never fire.
       echo "Logging out of tailscale..."

@@ -39,6 +39,53 @@ resolve_snapshot_id() {
 }
 LOCATION="hel1"
 
+# Ensure a ccache volume exists for a builder, creating if needed.
+# Usage: ensure_ccache_volume <builder-name>
+# Prints the volume name to stdout. Returns 0 on success, 1 on failure.
+ensure_ccache_volume() {
+  local name="$1"
+  local vol_name="ccache-${name}"
+
+  if hcloud volume describe "$vol_name" &>/dev/null; then
+    echo "$vol_name"
+    return 0
+  fi
+
+  echo -e "${YELLOW}Creating ccache volume $vol_name (50GB)...${NC}" >&2
+  if hcloud volume create \
+    --name "$vol_name" \
+    --size 50 \
+    --location "$LOCATION" \
+    --label "builder-ccache=true" \
+    --label "builder-name=$name" \
+    --format ext4 2>&1 >&2; then
+    echo -e "${GREEN}Created ccache volume $vol_name${NC}" >&2
+    echo "$vol_name"
+    return 0
+  else
+    echo -e "${RED}Warning: Failed to create ccache volume $vol_name${NC}" >&2
+    return 1
+  fi
+}
+
+# Detach the ccache volume for a builder (non-fatal).
+# Usage: detach_ccache_volume <builder-name>
+detach_ccache_volume() {
+  local name="$1"
+  local vol_name="ccache-${name}"
+
+  if ! hcloud volume describe "$vol_name" &>/dev/null; then
+    return 0  # Volume doesn't exist, nothing to detach
+  fi
+
+  echo -e "${YELLOW}Detaching ccache volume $vol_name...${NC}" >&2
+  if hcloud volume detach "$vol_name" 2>&1 >&2; then
+    echo -e "${GREEN}Detached ccache volume $vol_name${NC}" >&2
+  else
+    echo -e "${YELLOW}Warning: Failed to detach ccache volume $vol_name (may already be detached)${NC}" >&2
+  fi
+}
+
 # Server types per tier
 REGULAR_SERVER_TYPE="cpx62"
 REGULAR_FALLBACK_SERVER_TYPE="cpx52"
@@ -1052,6 +1099,17 @@ EOF
 
   echo -e "${GREEN}Created $name (${server_type})${NC}"
 
+  # Attach ccache volume (non-fatal — builder works without it)
+  local vol_name
+  if vol_name=$(ensure_ccache_volume "$name"); then
+    echo -e "${YELLOW}Attaching ccache volume $vol_name to $name...${NC}"
+    if hcloud volume attach "$vol_name" --server "$name" 2>&1; then
+      echo -e "${GREEN}Attached ccache volume $vol_name${NC}"
+    else
+      echo -e "${YELLOW}Warning: Failed to attach ccache volume $vol_name — builder will use R2-only ccache${NC}"
+    fi
+  fi
+
   # Read all secrets for the install script
   local ssh_pubkey host_privkey host_pubkey
   ssh_pubkey=$(cat "$PUBKEY_FILE")
@@ -1161,6 +1219,7 @@ cmd_destroy() {
     return
   fi
 
+  detach_ccache_volume "$name"
   echo -e "${YELLOW}Destroying $name...${NC}"
   hcloud server delete "$name"
   delete_headscale_node "$name"
@@ -1190,6 +1249,7 @@ cmd_destroy_all() {
   fi
 
   for server in $servers; do
+    detach_ccache_volume "$server"
     echo -e "${YELLOW}Destroying $server...${NC}"
     hcloud server delete "$server"
     delete_headscale_node "$server"

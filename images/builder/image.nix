@@ -10,6 +10,7 @@
     ./cache-pipeline.nix
     ./inactivity-monitor.nix
     ./tailscale.nix
+    ./volume.nix
   ];
 
   # System identity

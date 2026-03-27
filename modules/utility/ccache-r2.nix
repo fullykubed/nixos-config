@@ -42,7 +42,7 @@ let
     remote_storage = file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs
     sloppiness = include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale
     base_dir = /build
-    max_size = 200G
+    max_size = ${cfg.maxSize}
     compress = true
     compression_level = 3
     compiler_check = %compiler% -dumpversion
@@ -80,6 +80,12 @@ in
       default = false;
       description = "Whether to poll for credential files in preStart (for cloud-init).";
     };
+
+    maxSize = lib.mkOption {
+      type = lib.types.str;
+      default = "200G";
+      description = "Maximum size of the local ccache directory.";
+    };
   };
 
   config = {
@@ -102,7 +108,7 @@ in
         "d ${ccacheDir} 0775 root nixbld -"
         "d ${r2MountDir} 0775 root nixbld -"
         "d ${r2LocalDir} 0775 root nixbld -"
-        "C+ ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
+        "C ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
       ];
 
       services.ccache-r2-mount = {
