@@ -65,6 +65,17 @@ let
       export CC="$_ccache_wrap/$_cc_name"
       export CXX="$_ccache_wrap/$_cxx_name"
 
+      # Also wrap gcc/g++ and other compiler names that build systems (qmake,
+      # hand-written Makefiles) may invoke directly instead of using $CC/$CXX.
+      # This ensures ccache is used even when the compiler is called by name.
+      _cc_dir="$(dirname "$(command -v "''${_orig_cc%% *}")")"
+      for _extra in gcc g++ cc c++; do
+        if [ -x "$_cc_dir/$_extra" ] && [ ! -e "$_ccache_wrap/$_extra" ]; then
+          _mkwrapper "$_ccache_wrap/$_extra" "$_cc_dir/$_extra"
+        fi
+      done
+      export PATH="$_ccache_wrap:$PATH"
+
       # Haskell: setupCompilerEnvironmentPhase (a prePhase) bakes $CC into
       # configureFlags as --with-gcc=<path> before preConfigure runs.  Patch
       # the already-resolved path so GHC uses the ccache wrapper too.
