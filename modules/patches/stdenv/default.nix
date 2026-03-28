@@ -13,23 +13,12 @@
 # Per-package test/build overrides caused by the custom stdenv live in modules/patches/.
 {
   lib,
-  system,
-  nixpkgs-input,
+  nixpkgs-clean,
   ...
 }:
 let
-  # Import a clean nixpkgs (no overlays) for packages that our stdenv
-  # adds globally. Without this, they'd be built with our custom stdenv,
-  # creating a circular dependency.
-  cleanPkgs = import nixpkgs-input {
-    inherit system;
-    config = {
-      allowUnfree = true;
-      contentAddressedByDefault = true;
-    };
-  };
-  cleanMold = cleanPkgs.mold;
-  cleanCcache = cleanPkgs.ccache;
+  cleanMold = nixpkgs-clean.mold;
+  cleanCcache = nixpkgs-clean.ccache;
 
   # The mold flag fragments.
   moldCFragment = " -fuse-ld=mold";

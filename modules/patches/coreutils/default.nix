@@ -25,4 +25,5 @@ in
 {
   nixpkgs.overlays = [ overlay ];
   nixpkgs-unstable.overlays = [ overlay ];
+  nixpkgs-clean.overlays = [ overlay ];
 }

@@ -32,6 +32,9 @@ nixpkgs.lib.nixosSystem {
     # Provides nixpkgs-unstable module argument with nixpkgs-unstable.overlays option
     ../lib/nixpkgs-unstable.nix
 
+    # Provides nixpkgs-clean module argument (overlay-free nixpkgs for stdenv bootstrapping)
+    ../lib/nixpkgs-clean.nix
+
     # Content-addressable storage configuration
     casModule
 
