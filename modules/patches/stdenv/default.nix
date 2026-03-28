@@ -32,6 +32,30 @@ let
   moldCFragment = " -fuse-ld=mold";
   moldRustFragment = " -C link-arg=-fuse-ld=mold";
 
+  # Printf format for ccache wrapper scripts.
+  # Slots: ccache-binary, real-compiler, real-compiler.
+  wrapperFmt = ''#!/bin/sh\nfor _a in "$@"; do\n  if [ "$_a" = "-c" ]; then\n    exec %s %s "$@"\n  fi\ndone\nexec %s "$@"\n'';
+
+  # Cargo wrapper: rewrites CC_<target>/CXX_<target>/HOST_CC/HOST_CXX set by
+  # nixpkgs cargo build hooks to ccache wrappers before exec-ing real cargo.
+  cargoWrapperScript = ''
+    #!/bin/sh
+    _w="''${CCACHE_WRAP_DIR}"
+    _cb="''${CCACHE_BIN}"
+    for _var in $(env | sed -n 's/^\(CC_[A-Za-z0-9_]*\)=.*/\1/p; s/^\(CXX_[A-Za-z0-9_]*\)=.*/\1/p') HOST_CC HOST_CXX; do
+      eval "_val=\$$_var"
+      [ -z "$_val" ] && continue
+      case "$_val" in "$_w"/*) continue ;; esac
+      case "$_val" in /*) ;; *) continue ;; esac
+      if [ ! -f "$_w/$_var" ]; then
+        printf '${wrapperFmt}' "$_cb" "$_val" "$_val" > "$_w/$_var"
+        chmod +x "$_w/$_var"
+      fi
+      export "$_var=$_w/$_var"
+    done
+    exec "''${CCACHE_REAL_CARGO}" "$@"
+  '';
+
   # The ccache preConfigure hook, defined once at module level.
   ccacheHook = ''
 
@@ -57,7 +81,7 @@ let
       _cxx_name="$(basename "''${_orig_cxx%% *}")"
       _ccache_bin="$(command -v ccache)"
       _mkwrapper() {
-        printf '#!/bin/sh\nfor _a in "$@"; do\n  if [ "$_a" = "-c" ]; then\n    exec %s %s "$@"\n  fi\ndone\nexec %s "$@"\n' "$_ccache_bin" "$2" "$2" > "$1"
+        printf '${wrapperFmt}' "$_ccache_bin" "$2" "$2" > "$1"
         chmod +x "$1"
       }
       _mkwrapper "$_ccache_wrap/$_cc_name" "$_orig_cc"
@@ -75,6 +99,23 @@ let
         fi
       done
       export PATH="$_ccache_wrap:$PATH"
+
+      # Rust: nixpkgs cargo build hooks run `env CC_<target>=<store-path> cargo build`.
+      # The cc crate prefers CC_<target> over CC, so our ccache-wrapped CC is bypassed.
+      # Fix: interpose a cargo wrapper (found via PATH) that rewrites CC_*/CXX_*/HOST_*
+      # to ccache wrappers before exec-ing the real cargo.
+      _real_cargo=""
+      for _d in $(echo "$PATH" | tr ':' ' '); do
+        [ "$_d" = "$_ccache_wrap" ] && continue
+        [ -x "$_d/cargo" ] && { _real_cargo="$_d/cargo"; break; }
+      done
+      if [ -n "$_real_cargo" ]; then
+        printf '%s' ${lib.escapeShellArg cargoWrapperScript} > "$_ccache_wrap/cargo"
+        chmod +x "$_ccache_wrap/cargo"
+        export CCACHE_REAL_CARGO="$_real_cargo"
+        export CCACHE_WRAP_DIR="$_ccache_wrap"
+        export CCACHE_BIN="$_ccache_bin"
+      fi
 
       # Haskell: setupCompilerEnvironmentPhase (a prePhase) bakes $CC into
       # configureFlags as --with-gcc=<path> before preConfigure runs.  Patch

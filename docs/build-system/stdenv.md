@@ -29,6 +29,9 @@ The stdenv wraps every C/C++ compiler with ccache via a `preConfigure` hook. Eac
 gets environment variables pointing to the local cache and R2-backed remote storage. Packages
 can opt out by adding their `pname` to `ccacheExcludedNames`.
 
+For Rust builds, a cargo wrapper intercepts `CC_<target>` and `HOST_CC`/`HOST_CXX` variables
+set by nixpkgs cargo build hooks, ensuring C/C++ compilation within Rust crates also uses ccache.
+
 See [Compiler cache](ccache.md) for the full ccache architecture, environment variables,
 exclusion list, and R2 backend details.
 

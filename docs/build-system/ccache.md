@@ -58,6 +58,19 @@ The hook runs before each derivation's configure phase:
 
 The hook only activates when `preConfigure` is a string (or absent). Function-style `preConfigure` is passed through unchanged.
 
+### Rust Builds
+
+nixpkgs Rust build hooks (`cargo-build-hook.sh`, `cargo-check-hook.sh`) invoke cargo with inline environment variables like `CC_x86_64_unknown_linux_gnu=/nix/store/.../cc`. The Rust `cc` crate prefers these target-specific `CC_<target>` variables over the generic `CC`, so our ccache-wrapped `CC` is bypassed.
+
+The preConfigure hook fixes this by placing a `cargo` wrapper script in `/build/.ccache-wrap/` (already on PATH). When cargo is invoked:
+
+1. The wrapper discovers `CC_*`, `CXX_*`, `HOST_CC`, and `HOST_CXX` environment variables
+2. For each one pointing to a real compiler (absolute path, not already wrapped), it creates a ccache wrapper script
+3. It exports the overridden variables so the `cc` crate picks up the wrapped compilers
+4. It execs the real cargo (saved as `CCACHE_REAL_CARGO` before PATH was modified)
+
+The wrapper is only created when cargo is found on PATH (i.e., Rust builds). Non-Rust builds are unaffected. The wrapper creation is idempotent — if a wrapper already exists for a given variable, it is reused.
+
 ## Systemd Services
 
 ### `ccache-r2-download` — Periodic R2 Sync
