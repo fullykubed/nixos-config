@@ -175,6 +175,9 @@
           "--ro-bind-try"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
+          "--ro-bind-try"
+          "/etc"
+          "/etc"
         ];
       };
 
