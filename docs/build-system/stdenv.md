@@ -21,14 +21,13 @@ mold is built from a clean nixpkgs import (no overlays) to avoid a circular depe
 
 Some packages are incompatible with mold and opt out via the `moldExcludedNames` list:
 
-Packages can also opt out individually by setting `__noMold = true` via `overrideAttrs`.
+Packages opt out by adding their `pname` to `moldExcludedNames`.
 
 ## ccache Wrapping
 
 The stdenv wraps every C/C++ compiler with ccache via a `preConfigure` hook. Each derivation
 gets environment variables pointing to the local cache and R2-backed remote storage. Packages
-can opt out by setting `__noCcache = true` via `overrideAttrs`, or by adding their `pname` to
-`ccacheExcludedNames`.
+can opt out by adding their `pname` to `ccacheExcludedNames`.
 
 See [Compiler cache](ccache.md) for the full ccache architecture, environment variables,
 exclusion list, and R2 backend details.

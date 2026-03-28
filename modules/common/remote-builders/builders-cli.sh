@@ -58,7 +58,8 @@ ensure_ccache_volume() {
     --location "$LOCATION" \
     --label "builder-ccache=true" \
     --label "builder-name=$name" \
-    --format ext4 2>&1 >&2; then
+    --format ext4 \
+    --poll-interval 2s 2>&1 >&2; then
     echo -e "${GREEN}Created ccache volume $vol_name${NC}" >&2
     echo "$vol_name"
     return 0
@@ -805,8 +806,46 @@ cmd_check() {
     fi
   fi
 
-  # Check ccache R2 mount, sync timer, and stats
+  # Check ccache volume, R2 mount, sync timer, and stats
   if should_run "$check_ccache"; then
+    echo -n "ccache volume: "
+    local vol_info
+    if vol_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      svc=$(systemctl is-active builder-volume-mount.service 2>/dev/null || echo "inactive")
+      dev=$(echo /dev/disk/by-id/scsi-0HC_Volume_*)
+      if [ -b "$dev" ]; then
+        attached="yes"
+      else
+        attached="no"
+      fi
+      if mountpoint -q /var/cache/ccache 2>/dev/null; then
+        mounted="yes"
+        df_line=$(df -h /var/cache/ccache --output=size,used,avail,pcent | tail -1)
+        owner=$(stat -c "%U:%G" /var/cache/ccache 2>/dev/null || echo "unknown")
+        perms=$(stat -c "%a" /var/cache/ccache 2>/dev/null || echo "unknown")
+      else
+        mounted="no"
+        df_line=""
+        owner=""
+        perms=""
+      fi
+      printf "%s|%s|%s|%s|%s|%s" "$svc" "$attached" "$mounted" "$df_line" "$owner" "$perms"
+    ' 2>/dev/null); then
+      local vol_svc vol_attached vol_mounted vol_df vol_owner vol_perms
+      IFS='|' read -r vol_svc vol_attached vol_mounted vol_df vol_owner vol_perms <<< "$vol_info"
+      if [[ "$vol_mounted" == "yes" ]]; then
+        local vsize _vused vavail _vpct
+        read -r vsize _vused vavail _vpct <<< "$vol_df"
+        echo -e "${GREEN}OK${NC} (${vavail} free / ${vsize}, ${vol_owner} ${vol_perms})"
+      elif [[ "$vol_attached" == "yes" ]]; then
+        echo -e "${RED}FAILED${NC} (volume attached but not mounted, service: ${vol_svc})"
+      else
+        echo -e "${YELLOW}no volume attached${NC} (using R2-only ccache, service: ${vol_svc})"
+      fi
+    else
+      echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
+    fi
+
     echo -n "ccache R2 mount: "
     local mount_status
     if mount_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
@@ -1068,6 +1107,12 @@ write_files:
       $croc_code
 EOF
 
+  # Pre-create ccache volume so it can be attached at server creation
+  local vol_name volume_args=()
+  if vol_name=$(ensure_ccache_volume "$name"); then
+    volume_args=(--volume "$vol_name")
+  fi
+
   if ! hcloud server create \
     --name "$name" \
     --type "$server_type" \
@@ -1076,6 +1121,7 @@ EOF
     --label "builder=true" \
     --label "type=builder" \
     --label "size=$btype" \
+    "${volume_args[@]}" \
     --user-data-from-file "$user_data_file" \
     --poll-interval 2s 2>&1; then
     # Fall back to smaller server type for regular builders
@@ -1090,6 +1136,7 @@ EOF
         --label "builder=true" \
         --label "type=builder" \
         --label "size=$btype" \
+        "${volume_args[@]}" \
         --user-data-from-file "$user_data_file" \
         --poll-interval 2s
     else
@@ -1098,16 +1145,8 @@ EOF
   fi
 
   echo -e "${GREEN}Created $name (${server_type})${NC}"
-
-  # Attach ccache volume (non-fatal — builder works without it)
-  local vol_name
-  if vol_name=$(ensure_ccache_volume "$name"); then
-    echo -e "${YELLOW}Attaching ccache volume $vol_name to $name...${NC}"
-    if hcloud volume attach "$vol_name" --server "$name" 2>&1; then
-      echo -e "${GREEN}Attached ccache volume $vol_name${NC}"
-    else
-      echo -e "${YELLOW}Warning: Failed to attach ccache volume $vol_name — builder will use R2-only ccache${NC}"
-    fi
+  if [[ ${#volume_args[@]} -gt 0 ]]; then
+    echo -e "${GREEN}Attached ccache volume $vol_name${NC}"
   fi
 
   # Read all secrets for the install script

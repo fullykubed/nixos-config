@@ -6,7 +6,6 @@ _: {
     ./assimp
     ./avahi
     ./binutils
-    ./bison
     ./busybox
     ./cas
     ./coreutils
@@ -47,6 +46,7 @@ _: {
     ./libvpx
     ./lttng-ust
     ./lua
+    ./meson
     ./mupdf
     ./onnxruntime
     ./openexr

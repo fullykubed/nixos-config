@@ -5,8 +5,8 @@
   ...
 }:
 let
-  maxRegularBuilders = 3;
-  maxBigBuilders = 2;
+  maxRegularBuilders = 2;
+  maxBigBuilders = 3;
 
   # Builder host public key for SSH host key verification
   builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
@@ -36,6 +36,12 @@ let
       pkgs.curl
       pkgs.openssl
       pkgs.croc
+      pkgs.netcat-gnu
+      pkgs.tailscale
+      pkgs.openssh
+      pkgs.python3
+      pkgs.util-linux
+      pkgs.gnugrep
     ];
     text = builtins.readFile ./builders-cli.sh;
   };
@@ -74,7 +80,7 @@ let
     # which has correct [hostname]:3098 entries.
   };
 
-  # Big-parallel builders: 1 job using all cores
+  # Big-parallel builders: 1 job using all cores, only for big-parallel derivations
   mkBigBuilder = n: {
     hostName = "big-builder-${toString n}";
     sshUser = "remotebuild";
@@ -89,7 +95,7 @@ let
       "benchmark"
       "ca-derivations"
     ];
-    mandatoryFeatures = [ ];
+    mandatoryFeatures = [ "big-parallel" ];
   };
 
   regularBuilders = lib.genList (n: mkRegularBuilder (n + 1)) maxRegularBuilders;

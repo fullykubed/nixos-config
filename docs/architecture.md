@@ -20,7 +20,7 @@ All per-machine differentiation lives in the machine module.
 
 **Dual nixpkgs channels** -- In addition to the standard `pkgs`, `lib/nixpkgs-unstable.nix` exposes `nixpkgs-unstable` as a module argument with its own overlays option. Modules can pull bleeding-edge packages without touching stable.
 
-**Hardened stdenv with mold** -- `modules/patches/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via `__noMold = true` or the `moldExcludedNames` list.
+**Hardened stdenv with mold** -- `modules/patches/stdenv/` overrides the global stdenv to add extra hardening flags, link all packages with [mold](https://github.com/rui314/mold), and disable reference checks so CVE patches on bootstrap packages don't break the build. Packages opt out of mold via the `moldExcludedNames` list.
 
 **Content-addressed derivations** -- `modules/utility/cas-module.nix` enables `ca-derivations` and `contentAddressedByDefault` globally. Store paths are derived from output content rather than input hashes, enabling early-cutoff optimisation (unchanged outputs skip downstream rebuilds). Still experimental; packages can opt out via `__noCas = true` or the `casExcludedNames` list in the stdenv module.
 
