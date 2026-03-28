@@ -71,6 +71,15 @@ let
       if [[ "''${configureFlags:-}" == *--with-gcc=* ]]; then
         configureFlags="$(echo "$configureFlags" | sed "s|--with-gcc=[^ ]*|--with-gcc=$CC|g")"
       fi
+
+      # Tell cmake to use the real compiler with ccache as a launcher.
+      # Prepended to cmakeFlags so that:
+      #   1. They override the cmake hook's -DCMAKE_CXX_COMPILER=$CXX (which
+      #      would bake the ccache wrapper path into packages like shiboken6).
+      #   2. Any package-explicit CMAKE_CXX_COMPILER in cmakeFlags or
+      #      cmakeFlagsArray still takes precedence (cmake last-wins).
+      # Harmless for non-cmake builds (cmakeFlags is unused).
+      cmakeFlags="-DCMAKE_C_COMPILER=$_orig_cc -DCMAKE_CXX_COMPILER=$_orig_cxx -DCMAKE_C_COMPILER_LAUNCHER=$_ccache_bin -DCMAKE_CXX_COMPILER_LAUNCHER=$_ccache_bin''${cmakeFlags:+ $cmakeFlags}"
     fi
   '';
 
@@ -122,9 +131,7 @@ let
       ccacheExcludedNames = [
         "ghc-binary" # bakes CC path into settings file; downstream Haskell packages need a real store path
         "kexec-tools" # cached .d dependency files contain stale store paths; make install re-reads them and fails
-        "metis" # two-phase cmake configure loses install prefix when ccache changes CMAKE_C_COMPILER
         "sbsigntool" # ccan Makefile re-reads .d files with stale glibc-dev paths; same class as kexec-tools
-        "shiboken6" # bakes compiler path into installed config; ccache wrapper path breaks downstream pyside6
       ];
 
       # Packages excluded from mold by pname.
