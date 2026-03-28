@@ -100,6 +100,11 @@ _: {
       "net.ipv6.icmp.echo_ignore_anycast" = "1";
       "net.ipv6.icmp.echo_ignore_multicast" = "1";
 
+      # Scheduler: favour throughput over latency for compilation workloads
+      "kernel.sched_min_granularity_ns" = "250000000"; # 250 ms
+      "kernel.sched_wakeup_granularity_ns" = "15000000"; # 15 ms
+      "vm.max_map_count" = "262144";
+
       # Filesystem: protected hardlinks/symlinks/fifos/regular
       "fs.protected_hardlinks" = "1";
       "fs.protected_symlinks" = "1";
@@ -121,6 +126,7 @@ _: {
       "transparent_hugepage=always"
       "debugfs=off"
       "oops=panic"
+      "elevator=mq-deadline"
     ];
 
     # ── Blacklisted kernel modules ───────────────────────────────────────

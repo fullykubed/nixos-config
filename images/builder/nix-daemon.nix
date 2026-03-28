@@ -35,6 +35,7 @@ _: {
     serviceConfig = {
       MemoryMax = "90%";
       MemoryHigh = "85%";
+      LimitNOFILE = 1048576;
     };
   };
 }
