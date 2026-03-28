@@ -65,6 +65,65 @@ let
     fi
   '';
 
+  # Script to send an AI-summarized notification for a completed command
+  awayNotifyCmd = pkgs.writeShellScriptBin "away-notify-cmd" ''
+        # Recursion guard — prevent re-entry if called from within a Claude session
+        [[ "''${_AWAY_NOTIFY_ACTIVE:-}" = "1" ]] && exit 0
+
+        # Validate args (fail fast here)
+        command="''${1:?Usage: away-notify-cmd <command> <exit_code> [output]}"
+        exit_code="''${2:?Usage: away-notify-cmd <command> <exit_code> [output]}"
+        output="''${3:-}"
+
+        # Sanitize command text: collapse to single line, cap length
+        command=$(${pkgs.coreutils}/bin/printf '%s' "$command" | ${pkgs.coreutils}/bin/tr -d '\000' | ${pkgs.coreutils}/bin/tr '\n' ' ' | ${pkgs.coreutils}/bin/cut -c1-200)
+
+        # From here on, never exit on error — always try to send *something*
+        set +e
+
+        # Truncate output to last 3000 characters to stay within reasonable input size
+        if [[ -n "$output" ]]; then
+          output=$(${pkgs.coreutils}/bin/printf '%s' "$output" | ${pkgs.coreutils}/bin/tr -d '\000' | ${pkgs.coreutils}/bin/tail -c 3000)
+        fi
+
+        # Build prompt for Haiku
+        prompt="Command: $command
+    Exit code: $exit_code"
+        [[ -n "$output" ]] && prompt+="
+    Output (last lines):
+    $output"
+
+        # Re-check away status before making the LLM call (user may have returned)
+        ${isAway}/bin/is-away || exit 0
+
+        # Generate summary via Claude Haiku
+        summary=$(${pkgs.coreutils}/bin/printf '%s' "$prompt" | _AWAY_NOTIFY_ACTIVE=1 claude-wrapper -p \
+          --model haiku \
+          --no-session-persistence \
+          --tools "" \
+          --strict-mcp-config --mcp-config '{"mcpServers":{}}' \
+          --append-system-prompt "Summarize this command result in 20 words or less. Start with SUCCESS or FAILURE. Mention the command name. Output only the summary." \
+          2>/dev/null) || summary=""
+
+        # Fallback if Haiku failed or returned empty output
+        if [[ -z "$summary" ]]; then
+          if [[ "$exit_code" = "0" ]]; then
+            summary="✓ $command completed successfully"
+          else
+            summary="✗ $command failed (exit $exit_code)"
+          fi
+        fi
+
+        # Determine title based on exit code
+        if [[ "$exit_code" = "0" ]]; then
+          title="Command Succeeded"
+        else
+          title="Command Failed"
+        fi
+
+        ${notifyIfAway}/bin/notify-if-away --force "$title" "$summary"
+  '';
+
   # Script to monitor nix-daemon for build failures
   buildFailureMonitor = pkgs.writeShellScript "nix-build-failure-monitor" ''
     set -euo pipefail
@@ -111,6 +170,7 @@ in
   environment.systemPackages = [
     isAway
     notifyIfAway
+    awayNotifyCmd
   ];
 
   systemd.services.nix-build-failure-notify = {
@@ -134,5 +194,41 @@ in
       Restart = "always";
       RestartSec = 5;
     };
+  };
+
+  home-manager.users.${config.username} = {
+    programs.zsh.initContent = ''
+      # Away notification hooks
+      autoload -U add-zsh-hook
+
+      _away_notify_preexec() {
+        _AWAY_NOTIFY_CMD="$1"
+      }
+
+      _away_notify_precmd() {
+        local exit_code=$?
+
+        # Skip if no command was run (bare Enter)
+        [[ -z "''${_AWAY_NOTIFY_CMD:-}" ]] && return
+
+        local cmd="$_AWAY_NOTIFY_CMD"
+        _AWAY_NOTIFY_CMD=""
+
+        # Only notify if user is away
+        ${isAway}/bin/is-away || return
+
+        # Capture output if in tmux
+        local output=""
+        if [[ -n "''${TMUX:-}" ]]; then
+          output=$(tmux capture-pane -p -S -50 2>/dev/null | ${pkgs.gnused}/bin/sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g; s/\x1B\][^\x07]*\x07//g; s/\r//g' || true)
+        fi
+
+        # Send notification in background
+        (${awayNotifyCmd}/bin/away-notify-cmd "$cmd" "$exit_code" "$output" &) 2>/dev/null
+      }
+
+      add-zsh-hook preexec _away_notify_preexec
+      add-zsh-hook precmd _away_notify_precmd
+    '';
   };
 }
