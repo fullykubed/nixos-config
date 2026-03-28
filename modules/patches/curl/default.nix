@@ -11,18 +11,28 @@
 #
 # CVE-2026-3805 (Medium): Use-after-free in SMB connection reuse
 # See: https://curl.se/docs/CVE-2026-3805.html
-_: {
-  nixpkgs.overlays = [
-    (_final: prev: {
-      curl = prev.curl.overrideAttrs (old: {
-        patches = (old.patches or [ ]) ++ [
-          ./CVE-2026-1965.patch
-          ./CVE-2026-1965-2.patch
-          ./CVE-2026-3783.patch
-          ./CVE-2026-3784.patch
-          ./CVE-2026-3805.patch
-        ];
-      });
-    })
+_:
+let
+  cvePatches = [
+    ./CVE-2026-1965.patch
+    ./CVE-2026-1965-2.patch
+    ./CVE-2026-3783.patch
+    ./CVE-2026-3784.patch
+    ./CVE-2026-3805.patch
   ];
+
+  addCvePatches = old: {
+    patches = (old.patches or [ ]) ++ cvePatches;
+  };
+
+  # Patch curlMinimal, the base package. In nixpkgs, curl = curlMinimal.override { ... },
+  # so patching curlMinimal covers both curl and curlMinimal (and dependents like cmake).
+  # Patching only curl (as was done previously) left curlMinimal unpatched.
+  overlay = _final: prev: {
+    curlMinimal = prev.curlMinimal.overrideAttrs addCvePatches;
+  };
+in
+{
+  nixpkgs.overlays = [ overlay ];
+  nixpkgs-unstable.overlays = [ overlay ];
 }
