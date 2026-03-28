@@ -44,7 +44,7 @@ let
     _cb="''${CCACHE_BIN}"
     for _var in $(env | sed -n 's/^\(CC_[A-Za-z0-9_]*\)=.*/\1/p; s/^\(CXX_[A-Za-z0-9_]*\)=.*/\1/p') HOST_CC HOST_CXX; do
       eval "_val=\$$_var"
-      [ -z "$_val" ] && continue
+      if [ -z "$_val" ]; then continue; fi
       case "$_val" in "$_w"/*) continue ;; esac
       case "$_val" in /*) ;; *) continue ;; esac
       if [ ! -f "$_w/$_var" ]; then
@@ -75,13 +75,23 @@ let
     else
       _ccache_wrap=/build/.ccache-wrap
       mkdir -p "$_ccache_wrap"
-      _orig_cc="''${CC:-cc}"
-      _orig_cxx="''${CXX:-c++}"
-      _cc_name="$(basename "''${_orig_cc%% *}")"
-      _cxx_name="$(basename "''${_orig_cxx%% *}")"
+      # Resolve CC/CXX to absolute paths. The cc-wrapper setup hook may
+      # export bare names (CC=gcc) rather than store paths; wrappers must
+      # contain absolute paths so that `exec <compiler> "$@"` never
+      # resolves back to the wrapper itself via PATH.
+      _orig_cc="$(command -v "''${CC:-cc}" 2>/dev/null || echo "''${CC:-cc}")"
+      _orig_cxx="$(command -v "''${CXX:-c++}" 2>/dev/null || echo "''${CXX:-c++}")"
+      _cc_name="$(basename "$_orig_cc")"
+      _cxx_name="$(basename "$_orig_cxx")"
       _ccache_bin="$(command -v ccache)"
       _mkwrapper() {
-        printf '${wrapperFmt}' "$_ccache_bin" "$2" "$2" > "$1"
+        if [[ "$2" == /* ]]; then
+          printf '${wrapperFmt}' "$_ccache_bin" "$2" "$2" > "$1"
+        else
+          # Bare compiler name — skip ccache (would loop via PATH) but
+          # still create a passthrough so $CC/$CXX work.
+          printf '#!/bin/sh\nexec %s "$@"\n' "$2" > "$1"
+        fi
         chmod +x "$1"
       }
       _mkwrapper "$_ccache_wrap/$_cc_name" "$_orig_cc"
@@ -92,10 +102,10 @@ let
       # Also wrap gcc/g++ and other compiler names that build systems (qmake,
       # hand-written Makefiles) may invoke directly instead of using $CC/$CXX.
       # This ensures ccache is used even when the compiler is called by name.
-      _cc_dir="$(dirname "$(command -v "''${_orig_cc%% *}")")"
-      for _extra in gcc g++ cc c++; do
-        if [ -x "$_cc_dir/$_extra" ] && [ ! -e "$_ccache_wrap/$_extra" ]; then
-          _mkwrapper "$_ccache_wrap/$_extra" "$_cc_dir/$_extra"
+      for _extra in gcc g++ cc c++ clang clang++; do
+        if [ ! -e "$_ccache_wrap/$_extra" ]; then
+          _extra_path="$(command -v "$_extra" 2>/dev/null)" || continue
+          _mkwrapper "$_ccache_wrap/$_extra" "$_extra_path"
         fi
       done
       export PATH="$_ccache_wrap:$PATH"
@@ -106,8 +116,8 @@ let
       # to ccache wrappers before exec-ing the real cargo.
       _real_cargo=""
       for _d in $(echo "$PATH" | tr ':' ' '); do
-        [ "$_d" = "$_ccache_wrap" ] && continue
-        [ -x "$_d/cargo" ] && { _real_cargo="$_d/cargo"; break; }
+        if [ "$_d" = "$_ccache_wrap" ]; then continue; fi
+        if [ -x "$_d/cargo" ]; then _real_cargo="$_d/cargo"; break; fi
       done
       if [ -n "$_real_cargo" ]; then
         printf '%s' ${lib.escapeShellArg cargoWrapperScript} > "$_ccache_wrap/cargo"
@@ -135,6 +145,19 @@ let
 
       # Rewrite CC/CXX/HOSTCC/HOSTCXX in makeFlags so command-line
       # variables don't shadow the env-var wrappers above.
+      # Resolve bare names using PATH minus the wrapper dir to avoid
+      # wrapping an already-wrapped compiler.
+      _resolve_compiler() {
+        local _val="$1"
+        if [[ "$_val" == /* ]]; then echo "$_val"; return; fi
+        local _p
+        IFS=: read -ra _dirs <<< "$PATH"
+        for _p in "''${_dirs[@]}"; do
+          if [ "$_p" = "$_ccache_wrap" ]; then continue; fi
+          if [ -x "$_p/$_val" ]; then echo "$_p/$_val"; return; fi
+        done
+        echo "$_val"
+      }
       if declare -p makeFlags &>/dev/null; then
         case "$(declare -p makeFlags 2>/dev/null)" in
           "declare -a"*)
@@ -144,6 +167,8 @@ let
                 CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
                   _flagname="''${makeFlags[$_i]%%=*}"
                   _flagval="''${makeFlags[$_i]#*=}"
+                  if [[ "''${_flagval#"$_ccache_wrap"/}" != "$_flagval" ]]; then continue; fi
+                  _flagval="$(_resolve_compiler "$_flagval")"
                   _base="$(basename "''${_flagval%% *}")"
                   _wrapper="$_ccache_wrap/$_base-$_flagname"
                   _mkwrapper "$_wrapper" "$_flagval"
@@ -161,6 +186,8 @@ let
                 CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
                   _flagname="''${_tok%%=*}"
                   _flagval="''${_tok#*=}"
+                  if [[ "''${_flagval#"$_ccache_wrap"/}" != "$_flagval" ]]; then _new_flags="$_new_flags $_tok"; continue; fi
+                  _flagval="$(_resolve_compiler "$_flagval")"
                   _base="$(basename "''${_flagval%% *}")"
                   _wrapper="$_ccache_wrap/$_base-$_flagname"
                   _mkwrapper "$_wrapper" "$_flagval"
