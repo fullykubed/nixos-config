@@ -18,54 +18,57 @@
 #
 # Upstream: https://gstreamer.freedesktop.org/releases/1.26/#1.26.11
 # nixpkgs PR: https://github.com/NixOS/nixpkgs/pull/500412 (not yet merged)
-_: {
-  nixpkgs.overlays = [
-    (_final: prev: {
-      gst_all_1 = prev.gst_all_1.overrideScope (
-        _gstFinal: gstPrev:
-        let
-          bumpSrc =
-            pname: hash:
-            prev.fetchurl {
-              url = "https://gstreamer.freedesktop.org/src/${pname}/${pname}-1.26.11.tar.xz";
-              inherit hash;
-            };
-          bump =
-            pname: hash:
-            gstPrev.${pname}.overrideAttrs {
-              version = "1.26.11";
-              src = bumpSrc pname hash;
-            };
-        in
-        {
-          gstreamer = bump "gstreamer" "sha256-LgvRktBDjqYGpvdqlcjhZUIWdlb/7Cwrw6r27gg3+/Y=";
-          gst-plugins-base = bump "gst-plugins-base" "sha256-/FD4hdQfXQQHzgh27HI12ee4LUjbL0vHLF8kSkrHkmM=";
-          gst-plugins-good = bump "gst-plugins-good" "sha256-AB3rCHbV10PNNEir90onrew/2FABL8sbAJlIYb1sEUU=";
-          gst-plugins-bad = bump "gst-plugins-bad" "sha256-EQ+4J5Xw5Wmx4nsSq5aZ01x3YuH/TblTNdasjRRCrz0=";
-          gst-plugins-ugly = bump "gst-plugins-ugly" "sha256-v5yfcu43SCXP1DhowoW8sBcA3yWEBp51169FX+SCRPg=";
-          gst-libav = bump "gst-libav" "sha256-m7PSaB7w3pLRsanZVRhiNu4i5k83Lbm/wNIuLQ3xmGU=";
-          gst-editing-services = bump "gst-editing-services" "sha256-o26HkAtErBYIYS8tYW/AMvnX2SAyfE0jGv+2/pNJcU0=";
-          gst-rtsp-server = bump "gst-rtsp-server" "sha256-th1DBNjOqqoboTn7HOk18E8ac9fhgkPAoFsvsEMFQG8=";
-          gstreamer-vaapi = bump "gstreamer-vaapi" "sha256-8S+TAnPHodPg1/hblP+dE3nRYqzMky6Mo9OJk+0n/Kw=";
+_:
+let
+  overlay = _final: prev: {
+    gst_all_1 = prev.gst_all_1.overrideScope (
+      _gstFinal: gstPrev:
+      let
+        bumpSrc =
+          pname: hash:
+          prev.fetchurl {
+            url = "https://gstreamer.freedesktop.org/src/${pname}/${pname}-1.26.11.tar.xz";
+            inherit hash;
+          };
+        bump =
+          pname: hash:
+          gstPrev.${pname}.overrideAttrs {
+            version = "1.26.11";
+            src = bumpSrc pname hash;
+          };
+      in
+      {
+        gstreamer = bump "gstreamer" "sha256-LgvRktBDjqYGpvdqlcjhZUIWdlb/7Cwrw6r27gg3+/Y=";
+        gst-plugins-base = bump "gst-plugins-base" "sha256-/FD4hdQfXQQHzgh27HI12ee4LUjbL0vHLF8kSkrHkmM=";
+        gst-plugins-good = bump "gst-plugins-good" "sha256-AB3rCHbV10PNNEir90onrew/2FABL8sbAJlIYb1sEUU=";
+        gst-plugins-bad = bump "gst-plugins-bad" "sha256-EQ+4J5Xw5Wmx4nsSq5aZ01x3YuH/TblTNdasjRRCrz0=";
+        gst-plugins-ugly = bump "gst-plugins-ugly" "sha256-v5yfcu43SCXP1DhowoW8sBcA3yWEBp51169FX+SCRPg=";
+        gst-libav = bump "gst-libav" "sha256-m7PSaB7w3pLRsanZVRhiNu4i5k83Lbm/wNIuLQ3xmGU=";
+        gst-editing-services = bump "gst-editing-services" "sha256-o26HkAtErBYIYS8tYW/AMvnX2SAyfE0jGv+2/pNJcU0=";
+        gst-rtsp-server = bump "gst-rtsp-server" "sha256-th1DBNjOqqoboTn7HOk18E8ac9fhgkPAoFsvsEMFQG8=";
+        gstreamer-vaapi = bump "gstreamer-vaapi" "sha256-8S+TAnPHodPg1/hblP+dE3nRYqzMky6Mo9OJk+0n/Kw=";
 
-          # gst-devtools needs special handling: cargoDeps hash update + patch removal
-          gst-devtools = gstPrev.gst-devtools.overrideAttrs (
-            _old:
-            let
-              newSrc = bumpSrc "gst-devtools" "sha256-Vl9IU4jJSYr+v3gAQYPN/xATEhEoZBqlbtql6pRBK+I=";
-            in
-            {
-              version = "1.26.11";
+        # gst-devtools needs special handling: cargoDeps hash update + patch removal
+        gst-devtools = gstPrev.gst-devtools.overrideAttrs (
+          _old:
+          let
+            newSrc = bumpSrc "gst-devtools" "sha256-Vl9IU4jJSYr+v3gAQYPN/xATEhEoZBqlbtql6pRBK+I=";
+          in
+          {
+            version = "1.26.11";
+            src = newSrc;
+            patches = [ ];
+            cargoDeps = prev.rustPlatform.fetchCargoVendor {
               src = newSrc;
-              patches = [ ];
-              cargoDeps = prev.rustPlatform.fetchCargoVendor {
-                src = newSrc;
-                hash = "sha256-sqN1IBkbrT3pQqUQKU2pr8G1t4kNMKk0NR7NH7dTvAE=";
-              };
-            }
-          );
-        }
-      );
-    })
-  ];
+              hash = "sha256-sqN1IBkbrT3pQqUQKU2pr8G1t4kNMKk0NR7NH7dTvAE=";
+            };
+          }
+        );
+      }
+    );
+  };
+in
+{
+  nixpkgs.overlays = [ overlay ];
+  nixpkgs-unstable.overlays = [ overlay ];
 }
