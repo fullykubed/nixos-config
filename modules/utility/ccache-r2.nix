@@ -87,10 +87,10 @@ in
       description = "Maximum size of the local ccache directory.";
     };
 
-    syncDelete = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = "Whether s5cmd sync should delete local files not present in R2.";
+    downloadMaxSize = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "Maximum size of the download directory (e.g. \"100G\"). When exceeded after sync, oldest files are evicted until the directory is 80% of this limit. Null disables eviction.";
     };
   };
 
@@ -128,6 +128,7 @@ in
         path = with pkgs; [
           s5cmd
           coreutils
+          bfs
         ];
         script = ''
           set -euo pipefail
@@ -137,7 +138,26 @@ in
           export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
           export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
 
-          s5cmd --endpoint-url "${r2Endpoint}" sync${lib.optionalString cfg.syncDelete " --delete"} "s3://${r2Bucket}/" "${r2DownloadDir}/"
+          s5cmd --endpoint-url "${r2Endpoint}" sync "s3://${r2Bucket}/" "${r2DownloadDir}/"
+
+          ${lib.optionalString (cfg.downloadMaxSize != null) ''
+            MAX_BYTES=$(numfmt --from=iec "${cfg.downloadMaxSize}")
+            TARGET_BYTES=$((MAX_BYTES * 80 / 100))
+            CURRENT_BYTES=$(du -sb "${r2DownloadDir}" | cut -f1)
+
+            if [ "$CURRENT_BYTES" -gt "$MAX_BYTES" ]; then
+              echo "Download dir $(numfmt --to=iec "$CURRENT_BYTES") exceeds ${cfg.downloadMaxSize}, evicting oldest files..."
+              while IFS=$'\t' read -r _mtime size path; do
+                rm -f "$path"
+                CURRENT_BYTES=$((CURRENT_BYTES - size))
+                if [ "$CURRENT_BYTES" -le "$TARGET_BYTES" ]; then
+                  break
+                fi
+              done < <(bfs "${r2DownloadDir}" -type f -printf '%T@\t%s\t%p\n' | sort -n)
+              bfs "${r2DownloadDir}" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+              echo "Download dir now $(du -sh "${r2DownloadDir}" | cut -f1)"
+            fi
+          ''}
         '';
       };
 
@@ -164,7 +184,7 @@ in
         path = with pkgs; [
           s5cmd
           coreutils
-          findutils
+          bfs
         ];
         script = ''
           set -euo pipefail
@@ -176,7 +196,7 @@ in
 
           LOCAL="${r2UploadDir}"
 
-          mapfile -t files < <(find "$LOCAL" -type f)
+          mapfile -t files < <(bfs "$LOCAL" -type f)
           [ ''${#files[@]} -eq 0 ] && exit 0
 
           # Upload all files to R2 in parallel
@@ -187,7 +207,7 @@ in
 
           # Delete uploaded files and clean up empty subdirs
           rm -f "''${files[@]}"
-          find "$LOCAL" -mindepth 1 -type d -empty -delete 2>/dev/null || true
+          bfs "$LOCAL" -mindepth 1 -type d -empty -delete 2>/dev/null || true
         '';
       };
 

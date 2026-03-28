@@ -12,7 +12,7 @@
     secretKeyFile = config.age.secrets.ccache-r2-secret-key.path;
     afterServices = [ "agenix.service" ];
     waitForCredentials = false;
-    syncDelete = true;
+    downloadMaxSize = "100G";
   };
 
   age.secrets = {
