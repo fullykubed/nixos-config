@@ -11,34 +11,34 @@ ccache uses a three-tier storage hierarchy. On a cache miss, it checks each tier
 │  /var/cache/ccache          — Local cache (fastest)        │
 │  Populated by every build, checked first                   │
 ├────────────────────────────────────────────────────────────┤
-│  /var/cache/ccache-r2-local — Local R2 write dir           │
+│  /var/cache/ccache-r2-upload — Local R2 write dir           │
 │  New remote entries land here instantly                     │
 │  s5cmd syncs to R2 every 60s, then deletes local copies    │
 ├────────────────────────────────────────────────────────────┤
-│  /var/cache/ccache-r2       — s3fs FUSE mount (read-only)  │
-│  Shared cache from all machines, mounted from R2           │
+│  /var/cache/ccache-r2-download — s5cmd sync'd copy (r/o)   │
+│  Shared cache from all machines, synced from R2            │
 └────────────────────────────────────────────────────────────┘
 ```
 
 The `CCACHE_REMOTE_STORAGE` variable chains these:
 ```
-file:///var/cache/ccache-r2-local|umask=002|layout=subdirs
-file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs
+file:///var/cache/ccache-r2-upload|umask=002|layout=subdirs
+file:///var/cache/ccache-r2-download|read-only|umask=002|layout=subdirs
 ```
 
-When ccache writes a new entry to remote storage, it goes to the first writable backend (`ccache-r2-local`). The background sync service then uploads it to R2 where all machines can read it through the s3fs mount.
+When ccache writes a new entry to remote storage, it goes to the first writable backend (`ccache-r2-upload`). The background upload service then pushes it to R2 where all machines can read it through the periodically-synced local copy.
 
-### Why two components: s3fs mount _and_ a local staging directory
+### Why two components: a local staging directory _and_ a periodic download sync
 
-ccache's `CCACHE_REMOTE_STORAGE` feature needs file-system-like paths — it reads and writes cache entries as regular files. A single read-write s3fs mount would seem like the obvious choice, but s3fs writes are slow: each `write()` + `close()` triggers a full S3 PUT of the entire object, and s3fs serialises metadata operations. During a large build, hundreds of new cache entries would bottleneck on sequential S3 uploads inline with the compiler, adding latency to every compilation.
+ccache's `CCACHE_REMOTE_STORAGE` feature needs file-system-like paths — it reads and writes cache entries as regular files. Both the write path and the read path are optimised separately to avoid blocking builds.
 
 The two-component design solves this:
 
-- **`ccache-r2-local`** (local staging directory) is a plain filesystem directory. ccache writes land instantly with zero network latency. The `ccache-r2-sync` timer picks up new files every 60 seconds and uploads them to R2 in parallel using s5cmd, then deletes the local copies. This decouples write latency from build speed.
+- **`ccache-r2-upload`** (local staging directory) is a plain filesystem directory. ccache writes land instantly with zero network latency. The `ccache-r2-upload` timer picks up new files every 60 seconds and uploads them to R2 in parallel using s5cmd, then deletes the local copies. This decouples write latency from build speed.
 
-- **`ccache-r2`** (s3fs FUSE mount) is read-only. It serves as a shared read path so every machine can look up cache entries written by other machines. Since it only handles reads (and s3fs stat caching keeps metadata lookups fast), the latency penalty is minimal — a remote-storage cache miss just adds one fast `stat()` call. The `read-only` flag in `CCACHE_REMOTE_STORAGE` tells ccache to never attempt writes through this path.
+- **`ccache-r2-download`** (local download sync) is read-only. The `ccache-r2-download` service uses s5cmd to sync the full R2 bucket to a local directory every 30 minutes. This avoids per-file network latency on cache reads: all lookups hit local disk, and the periodic bulk sync keeps the local copy fresh without adding any latency to individual builds. The `read-only` flag in `CCACHE_REMOTE_STORAGE` tells ccache to never attempt writes through this path. (This replaces an earlier s3fs FUSE mount approach, which added too much latency on cache misses — every miss required a network round-trip to R2, and the overhead across thousands of compilation units made the shared cache a net negative for build performance.)
 
-The result: writes are instant (local filesystem), reads from the shared pool are fast (s3fs with a 2M-entry stat cache), and the background sync bridges the two without blocking builds.
+The result: writes are instant (local filesystem), reads from the shared pool are fast (local disk after a periodic bulk sync), and the background services bridge the two without blocking builds.
 
 ## stdenv Integration
 
@@ -60,20 +60,22 @@ The hook only activates when `preConfigure` is a string (or absent). Function-st
 
 ## Systemd Services
 
-### `ccache-r2-mount` — s3fs FUSE Mount
+### `ccache-r2-download` — Periodic R2 Sync
 
-Mounts the R2 bucket as `/var/cache/ccache-r2` read-only via s3fs-fuse.
+Downloads the full R2 bucket to `/var/cache/ccache-r2-download` via s5cmd sync.
 
+- **Type**: oneshot (triggered by timer)
+- **Timer**: 30s after boot, then every 30 min
 - **After**: `agenix.service`, `network-online.target`
-- **Restart**: on-failure, 10s delay
-- **Credentials**: Reads `ccache-r2-access-key` and `ccache-r2-secret-key` from agenix, writes to `/run/s3fs-credentials`
-- **Mount options**: `allow_other`, `umask=0002`, `gid=nixbld`, `complement_stat`, 2M stat cache entries, `listobjectsv2`, 5s connect timeout, 60s read/write timeout
+- **Restart**: on-failure, 5min delay
+- **Credentials**: Reads `ccache-r2-access-key` and `ccache-r2-secret-key` from agenix
+- **Command**: `s5cmd sync` — downloads all objects from the R2 bucket to the local directory in parallel
 
-On builders, the service waits for secrets-ready.target (croc transfer) to deliver R2 credentials before mounting. On local machines, credentials come from agenix at activation.
+On builders, the service waits for secrets-ready.target (croc transfer) to deliver R2 credentials before syncing. On local machines, credentials come from agenix at activation.
 
-### `ccache-r2-sync` — Background Upload
+### `ccache-r2-upload` — Background Upload
 
-Pushes new cache entries from `/var/cache/ccache-r2-local` to R2 via s5cmd.
+Pushes new cache entries from `/var/cache/ccache-r2-upload` to R2 via s5cmd.
 
 - **Type**: oneshot (triggered by timer)
 - **Timer**: 30s after boot, then every 60s
@@ -82,7 +84,7 @@ Pushes new cache entries from `/var/cache/ccache-r2-local` to R2 via s5cmd.
 
 ### Local vs Builder Differences
 
-Local machines and remote builders run the same services (`ccache-r2-mount`, `ccache-r2-sync`) with the same s3fs mount options. The only differences are operational:
+Local machines and remote builders run the same services (`ccache-r2-download`, `ccache-r2-upload`) with the same s5cmd sync approach. The only differences are operational:
 
 | Aspect | Local machines | Remote builders |
 |---|---|---|
@@ -96,13 +98,13 @@ Local machines and remote builders run the same services (`ccache-r2-mount`, `cc
 ├── ccache/              # Primary local cache (CCACHE_DIR)
 │                        #   Permissions: 0775 root:nixbld
 │                        #   Used by: all builds (sandbox-mounted)
-├── ccache-r2-local/     # Staging dir for R2 uploads
+├── ccache-r2-upload/     # Staging dir for R2 uploads
 │                        #   Permissions: 0775 root:nixbld
 │                        #   Used by: ccache remote_storage writes
-│                        #   Synced to R2 every 60s by ccache-r2-sync
-└── ccache-r2/           # s3fs FUSE mount (read-only shared cache)
+│                        #   Synced to R2 every 60s by ccache-r2-upload
+└── ccache-r2-download/  # s5cmd sync'd copy (read-only shared cache)
                          #   Permissions: 0775 root:nixbld
-                         #   Mounted by: ccache-r2-mount service
+                         #   Populated by: ccache-r2-download service
 ```
 
 All directories are created by `systemd.tmpfiles.rules` with `0775 root:nixbld` permissions so the nix build sandbox can read and write to them.
@@ -114,12 +116,12 @@ The directories are exposed into Nix build sandboxes via `extra-sandbox-paths`:
 ```nix
 extra-sandbox-paths = [
   "/var/cache/ccache"          # Always present
-  "/var/cache/ccache-r2-local?"  # Optional (? = graceful if missing)
-  "/var/cache/ccache-r2?"        # Optional (? = graceful if missing)
+  "/var/cache/ccache-r2-upload?"  # Optional (? = graceful if missing)
+  "/var/cache/ccache-r2-download?"  # Optional (? = graceful if missing)
 ];
 ```
 
-The `?` suffix is critical — it lets builds proceed even if the s3fs mount isn't ready yet (e.g., during early boot or on machines without R2 credentials).
+The `?` suffix is critical — it lets builds proceed even if the download sync hasn't completed yet (e.g., during early boot or on machines without R2 credentials).
 
 ## R2 Backend
 
@@ -128,7 +130,7 @@ The `?` suffix is critical — it lets builds proceed even if the s3fs mount isn
 | Bucket | `ccache` |
 | Endpoint | `https://f875b3b102f2a88a51db200ba95e1fc9.r2.cloudflarestorage.com` |
 | Upload tool | s5cmd (parallel S3 client) |
-| Mount tool | s3fs-fuse |
+| Download tool | s5cmd sync (parallel S3 sync) |
 | Layout | `subdirs` (ccache directory-based layout) |
 
 ## Secrets
@@ -138,7 +140,7 @@ The `?` suffix is critical — it lets builds proceed even if the s3fs mount isn
 | `ccache-r2-access-key` | `/run/agenix/ccache-r2-access-key` | Cloudflare R2 access key |
 | `ccache-r2-secret-key` | `/run/agenix/ccache-r2-secret-key` | Cloudflare R2 secret key |
 
-Both secrets are agenix-managed with `mode = "0400"` (root-only read). The s3fs mount and s5cmd sync read them at service start.
+Both secrets are agenix-managed with `mode = "0400"` (root-only read). The s5cmd download and upload services read them at service start.
 
 ## Troubleshooting
 
@@ -157,7 +159,7 @@ Both secrets are agenix-managed with `mode = "0400"` (root-only read). The s3fs 
 
 3. Check build logs for the ccache hook output — it prints diagnostics when the directory is missing or unwritable.
 
-### R2 mount fails
+### R2 download sync fails
 
 1. Check credentials:
    ```bash
@@ -165,25 +167,34 @@ Both secrets are agenix-managed with `mode = "0400"` (root-only read). The s3fs 
    ```
 2. Check service logs:
    ```bash
-   journalctl -u ccache-r2-mount
+   journalctl -u ccache-r2-download
    ```
 3. Verify network connectivity to R2:
    ```bash
    curl -I https://f875b3b102f2a88a51db200ba95e1fc9.r2.cloudflarestorage.com
+   ```
+4. Run the download manually:
+   ```bash
+   systemctl start ccache-r2-download
+   journalctl -u ccache-r2-download -n 20
+   ```
+5. Check the timer status:
+   ```bash
+   systemctl status ccache-r2-download.timer
    ```
 
 ### Sync not uploading
 
 1. Check timer status:
    ```bash
-   systemctl status ccache-r2-sync.timer
+   systemctl status ccache-r2-upload.timer
    ```
 2. Run sync manually:
    ```bash
-   systemctl start ccache-r2-sync
-   journalctl -u ccache-r2-sync -n 20
+   systemctl start ccache-r2-upload
+   journalctl -u ccache-r2-upload -n 20
    ```
 3. Check for files stuck in the local dir:
    ```bash
-   find /var/cache/ccache-r2-local -type f | head
+   find /var/cache/ccache-r2-upload -type f | head
    ```

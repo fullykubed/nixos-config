@@ -12,6 +12,7 @@
     secretKeyFile = config.age.secrets.ccache-r2-secret-key.path;
     afterServices = [ "agenix.service" ];
     waitForCredentials = false;
+    syncDelete = true;
   };
 
   age.secrets = {
@@ -40,6 +41,6 @@
     '';
   };
 
-  # Start mount at boot (builders start it via cloud-init runcmd instead)
-  systemd.services.ccache-r2-mount.wantedBy = [ "multi-user.target" ];
+  # Start download sync at boot
+  systemd.services.ccache-r2-download.wantedBy = [ "multi-user.target" ];
 }

@@ -1,4 +1,4 @@
-# Shared ccache-R2 configuration: s3fs mount, s5cmd sync, tmpfiles, sandbox paths
+# Shared ccache-R2 configuration: s5cmd download sync, s5cmd upload sync, tmpfiles, sandbox paths
 #
 # Used by both local machines (modules/common/ccache/) and remote builders
 # (images/builder/image.nix). Consumers set credential paths, service
@@ -15,8 +15,8 @@ let
   r2Endpoint = "https://f875b3b102f2a88a51db200ba95e1fc9.r2.cloudflarestorage.com";
   r2Bucket = "ccache";
   ccacheDir = "/var/cache/ccache";
-  r2MountDir = "/var/cache/ccache-r2";
-  r2LocalDir = "/var/cache/ccache-r2-local";
+  r2DownloadDir = "/var/cache/ccache-r2-download";
+  r2UploadDir = "/var/cache/ccache-r2-upload";
 
   # ccache reads $CCACHE_DIR/ccache.conf automatically. Keeping these settings
   # in a config file instead of derivation env vars means changing tuning
@@ -39,7 +39,7 @@ let
   #   system_headers      - system headers change store paths on nixpkgs updates even when byte-identical; skip in manifests
   #   locale              - LANG/LC_* may differ between sandbox runs; only affects warning text, not compiled output
   ccacheConfig = pkgs.writeText "ccache.conf" ''
-    remote_storage = file:///var/cache/ccache-r2-local|umask=002|layout=subdirs file:///var/cache/ccache-r2|read-only|umask=002|layout=subdirs
+    remote_storage = file:///var/cache/ccache-r2-upload|umask=002|layout=subdirs file:///var/cache/ccache-r2-download|read-only|umask=002|layout=subdirs
     sloppiness = include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale
     base_dir = /build
     max_size = ${cfg.maxSize}
@@ -86,73 +86,72 @@ in
       default = "200G";
       description = "Maximum size of the local ccache directory.";
     };
+
+    syncDelete = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = "Whether s5cmd sync should delete local files not present in R2.";
+    };
   };
 
   config = {
-    programs.fuse.userAllowOther = true;
-
     environment.systemPackages = with pkgs; [
       ccache
       s5cmd
-      s3fs
     ];
 
     nix.settings.extra-sandbox-paths = [
       ccacheDir
-      "${r2LocalDir}?"
-      "${r2MountDir}?"
+      "${r2UploadDir}?"
+      "${r2DownloadDir}?"
     ];
 
     systemd = {
       tmpfiles.rules = [
         "d ${ccacheDir} 0775 root nixbld -"
-        "d ${r2MountDir} 0775 root nixbld -"
-        "d ${r2LocalDir} 0775 root nixbld -"
+        "d ${r2DownloadDir} 0775 root nixbld -"
+        "d ${r2UploadDir} 0775 root nixbld -"
         "C ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
       ];
 
-      services.ccache-r2-mount = {
-        description = "Mount R2 bucket as ccache directory via s3fs-fuse";
+      services.ccache-r2-download = {
+        description = "Sync R2 ccache bucket to local directory via s5cmd";
         after = cfg.afterServices ++ [ "network-online.target" ];
         wants = [ "network-online.target" ];
+        restartIfChanged = false;
         serviceConfig = {
-          Type = "simple";
+          Type = "oneshot";
           Restart = "on-failure";
-          RestartSec = "10s";
+          RestartSec = "5min";
         };
-        path = [ pkgs.s3fs ];
-        preStart = ''
-          ${lib.optionalString cfg.waitForCredentials credentialWaitSnippet}
-          mkdir -p ${r2MountDir}
-          chown root:nixbld ${r2MountDir}
-          chmod 0775 ${r2MountDir}
-          ACCESS_KEY=$(cat ${cfg.accessKeyFile})
-          SECRET_KEY=$(cat ${cfg.secretKeyFile})
-          printf '%s:%s\n' "$ACCESS_KEY" "$SECRET_KEY" > /run/s3fs-credentials
-          chmod 0400 /run/s3fs-credentials
-        '';
+        startLimitIntervalSec = 0;
+        path = with pkgs; [
+          s5cmd
+          coreutils
+        ];
         script = ''
-          s3fs ${r2Bucket} ${r2MountDir} \
-            -o passwd_file=/run/s3fs-credentials \
-            -o url=${r2Endpoint} \
-            -o use_path_request_style \
-            -o endpoint=auto \
-            -o allow_other \
-            -o umask=0002 \
-            -o gid=${toString config.users.groups.nixbld.gid} \
-            -o complement_stat \
-            -o max_stat_cache_size=2000000 \
-            -o check_cache_dir_exist \
-            -o listobjectsv2 \
-            -o no_time_stamp_msg \
-            -o connect_timeout=5 \
-            -o readwrite_timeout=60 \
-            -f \
-            2> >(${pkgs.gnugrep}/bin/grep -v 'parser error' >&2)
+          set -euo pipefail
+
+          ${lib.optionalString cfg.waitForCredentials credentialWaitSnippet}
+
+          export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
+          export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
+
+          s5cmd --endpoint-url "${r2Endpoint}" sync${lib.optionalString cfg.syncDelete " --delete"} "s3://${r2Bucket}/" "${r2DownloadDir}/"
         '';
       };
 
-      services.ccache-r2-sync = {
+      timers.ccache-r2-download = {
+        description = "Periodic trigger for ccache R2 download sync";
+        wantedBy = [ "timers.target" ];
+        timerConfig = {
+          OnBootSec = "30s";
+          OnUnitActiveSec = "30min";
+          RandomizedDelaySec = "10min";
+        };
+      };
+
+      services.ccache-r2-upload = {
         description = "Push new ccache entries from local dir to R2";
         after = cfg.afterServices ++ [ "network-online.target" ];
         wants = [ "network-online.target" ];
@@ -175,7 +174,7 @@ in
           export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
           export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
 
-          LOCAL="${r2LocalDir}"
+          LOCAL="${r2UploadDir}"
 
           mapfile -t files < <(find "$LOCAL" -type f)
           [ ''${#files[@]} -eq 0 ] && exit 0
@@ -192,7 +191,7 @@ in
         '';
       };
 
-      timers.ccache-r2-sync = {
+      timers.ccache-r2-upload = {
         description = "Periodic trigger for ccache R2 sync";
         wantedBy = [ "timers.target" ];
         timerConfig = {

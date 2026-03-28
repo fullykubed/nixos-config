@@ -846,23 +846,45 @@ cmd_check() {
       echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
 
-    echo -n "ccache R2 mount: "
-    local mount_status
-    if mount_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-        'mountpoint -q /var/cache/ccache-r2 2>/dev/null && echo "mounted" || echo "not-mounted"' 2>/dev/null); then
-      if [[ "$mount_status" == "mounted" ]]; then
-        echo -e "${GREEN}OK (/var/cache/ccache-r2 mounted)${NC}"
+    echo -n "ccache R2 download: "
+    local dl_info
+    if dl_info=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" '
+      svc_result=$(systemctl show ccache-r2-download.service --property=Result --value 2>/dev/null || echo "unknown")
+      svc_exit_epoch=$(systemctl show ccache-r2-download.service --property=ExecMainExitTimestampMonotonic --value 2>/dev/null || echo "0")
+      now_epoch=$(date +%s)
+      exit_unix=$(systemctl show ccache-r2-download.service --property=ExecMainExitTimestamp --value 2>/dev/null || echo "")
+      if [ -n "$exit_unix" ]; then
+        exit_epoch=$(date -d "$exit_unix" +%s 2>/dev/null || echo "0")
+        mins_ago=$(( (now_epoch - exit_epoch) / 60 ))
       else
-        echo -e "${RED}FAILED (not mounted)${NC}"
+        mins_ago=""
+      fi
+      if [ -d /var/cache/ccache-r2-download ]; then
+        dir_size=$(du -sh /var/cache/ccache-r2-download 2>/dev/null | cut -f1 || echo "?")
+      else
+        dir_size="missing"
+      fi
+      printf "%s|%s|%s" "$svc_result" "$mins_ago" "$dir_size"
+    ' 2>/dev/null); then
+      local dl_result dl_mins dl_size
+      IFS='|' read -r dl_result dl_mins dl_size <<< "$dl_info"
+      if [[ "$dl_size" == "missing" ]]; then
+        echo -e "${RED}FAILED (dir missing)${NC}"
+      elif [[ "$dl_result" == "success" ]]; then
+        echo -e "${GREEN}OK${NC} (${dl_size}, ${dl_mins} min ago)"
+      elif [[ -z "$dl_mins" ]]; then
+        echo -e "${YELLOW}not yet run${NC} (${dl_size})"
+      else
+        echo -e "${RED}FAILED${NC} (${dl_size}, ${dl_mins} min ago)"
       fi
     else
       echo -e "${YELLOW}SKIPPED (SSH error)${NC}"
     fi
 
-    echo -n "ccache R2 sync: "
+    echo -n "ccache R2 upload: "
     local sync_status
     if sync_status=$(ssh -o ConnectTimeout=10 "${SSH_OPTS[@]}" "remotebuild@$ip" \
-        'systemctl is-active ccache-r2-sync.timer 2>/dev/null || echo inactive' 2>/dev/null); then
+        'systemctl is-active ccache-r2-upload.timer 2>/dev/null || echo inactive' 2>/dev/null); then
       if [[ "$sync_status" == "active" ]]; then
         echo -e "${GREEN}OK (timer active)${NC}"
       else

@@ -126,19 +126,29 @@ else
   ccache_local_dir="false"
 fi
 
-# 2. R2 mount
-if mountpoint -q /var/cache/ccache-r2 2>/dev/null; then
-  ccache_r2_mount="true"
+# 2. R2 download sync
+if [[ -d /var/cache/ccache-r2-download ]]; then
+  ccache_r2_download="true"
 else
-  ccache_r2_mount="false"
+  ccache_r2_download="false"
 fi
 
-# 3. Sync timer
-sync_timer_state=$(systemctl is-active ccache-r2-sync.timer 2>/dev/null || echo "inactive")
+# 3. Upload timer
+sync_timer_state=$(systemctl is-active ccache-r2-upload.timer 2>/dev/null || echo "inactive")
 if [[ "$sync_timer_state" == "active" ]]; then
   ccache_sync_timer="true"
 else
   ccache_sync_timer="false"
+fi
+
+# 4. Last download sync (minutes ago)
+ccache_last_download="null"
+if last_run=$(systemctl show ccache-r2-download.service --property=ExecMainExitTimestamp --value 2>/dev/null) \
+   && [[ -n "$last_run" ]]; then
+  last_epoch=$(date -d "$last_run" +%s 2>/dev/null || echo "")
+  if [[ -n "$last_epoch" ]]; then
+    ccache_last_download=$(( ($(date +%s) - last_epoch) / 60 ))
+  fi
 fi
 
 # 4. ccache stats via nix-ccache setgid wrapper
@@ -218,8 +228,9 @@ jaq -cn \
   --argjson r2NixosCache "${r2_nixos_json}" \
   --argjson r2Error "${r2_error_json}" \
   --argjson localDir "${ccache_local_dir}" \
-  --argjson r2Mount "${ccache_r2_mount}" \
+  --argjson r2Download "${ccache_r2_download}" \
   --argjson syncTimer "${ccache_sync_timer}" \
+  --argjson lastDownload "$(if [[ "$ccache_last_download" == "null" ]]; then echo null; else printf '"%s"' "$ccache_last_download"; fi)" \
   --argjson stats "${ccache_stats_json}" \
   --arg timestamp "${timestamp}" \
   '{
@@ -230,8 +241,9 @@ jaq -cn \
     },
     ccache: {
       localDir: $localDir,
-      r2Mount: $r2Mount,
+      r2Download: $r2Download,
       syncTimer: $syncTimer,
+      lastDownload: $lastDownload,
       stats: $stats
     },
     timestamp: $timestamp

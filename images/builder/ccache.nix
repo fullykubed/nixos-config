@@ -10,7 +10,7 @@ _: {
   };
 
   # Builder-specific: depend on secrets-ready for credential delivery
-  systemd.services.ccache-r2-mount = {
+  systemd.services.ccache-r2-download = {
     requires = [ "secrets-ready.target" ];
     wantedBy = [ "multi-user.target" ];
   };

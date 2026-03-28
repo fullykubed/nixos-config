@@ -73,7 +73,7 @@ Each builder runs these services:
 | `croc-receive` | Downloads and installs secrets via croc relay |
 | `cache-tunnel` | SSH tunnel to niks3 cache (local:9751 → cache:5751 via SSH:3099) |
 | `cache-upload` | Processes upload queue, batches 32 paths per niks3 push |
-| `ccache-r2-mount` | s3fs FUSE mount of R2 bucket for shared compiler cache |
+| `ccache-r2-download` | Periodic s5cmd sync of R2 bucket for shared compiler cache |
 | `inactivity-monitor` | Checks every minute; self-deletes after 15 min idle |
 
 ### Nix Daemon Configuration
@@ -92,7 +92,7 @@ auto-optimise-store = true
 post-build-hook = /etc/nix/enqueue-to-cache.sh
 connect-timeout = 5       # Fail fast if substituters are slow
 stalled-download-timeout = 15
-extra-sandbox-paths = /var/cache/ccache /var/cache/ccache-r2?
+extra-sandbox-paths = /var/cache/ccache /var/cache/ccache-r2-upload? /var/cache/ccache-r2-download?
 ```
 
 The `!include /etc/nix/builder-override.conf` directive in `nix.extraOptions` loads the croc-transferred override for big-parallel builders. Regular builders get an empty file.

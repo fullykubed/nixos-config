@@ -47,7 +47,7 @@
     fio # For disk performance testing via builders check
     niks3-cli # For pushing build results to cache
     ccache # Compiler cache (client-side, no daemon)
-    s3fs # FUSE mount for R2-backed ccache directory
+
     bfs # find replacement used by builders check
   ];
 

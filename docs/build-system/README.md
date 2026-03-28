@@ -27,7 +27,7 @@ The build system has four layers, each building on the last. Content-addressed d
 
 **Layer 1** ([stdenv](stdenv.md)) overrides every package's build environment: the mold linker replaces GNU ld for faster linking, additional hardening flags are enabled globally, and every C/C++ compilation is wrapped with ccache. This is the foundation — it runs on local machines and remote builders alike.
 
-**Layer 2** ([ccache](ccache.md)) backs the compiler cache with Cloudflare R2 so cache hits are shared across all machines. New compilations write to a local directory that syncs to R2 every 60 seconds; an s3fs FUSE mount provides read-only access to the full shared cache.
+**Layer 2** ([ccache](ccache.md)) backs the compiler cache with Cloudflare R2 so cache hits are shared across all machines. New compilations write to a local directory that syncs to R2 every 60 seconds; s5cmd sync periodically downloads the full shared cache to local disk for fast read-only access.
 
 **Layer 3** ([remote builders](remote-builders/README.md)) provisions ephemeral NixOS VMs on Hetzner Cloud on-demand when `nix` initiates a build. They auto-destroy after 60 minutes idle. Two tiers — regular and big-parallel — route heavy derivations to appropriately-sized machines.
 
@@ -65,8 +65,8 @@ The build system has four layers, each building on the last. Content-addressed d
 │                                                         │  │                 │
 │  ┌─────────────────────────────────────────────┐       │  │                 │
 │  │  Custom stdenv (mold + ccache + hardening)  │       │  │                 │
-│  │  ccache-r2-mount (s3fs → R2, read-only)     │       │  │                 │
-│  │  ccache-r2-sync  (s5cmd → R2, every 60s)    │       │  │                 │
+│  │  ccache-r2-download (s5cmd ← R2, every 30m) │       │  │                 │
+│  │  ccache-r2-upload (s5cmd → R2, every 60s)   │       │  │                 │
 │  └─────────────────────────────────────────────┘       │  │                 │
 │                                                         │  │                 │
 │  nix.substituters ── HTTPS ──────────────────────────────────────▶ CDN (R2) │
@@ -95,7 +95,7 @@ The build system has four layers, each building on the last. Content-addressed d
 │  │ └───────────┘ │  │ └───────────┘ │  │ └───────────┘   │                │
 │  │ ┌───────────┐ │  │ ┌───────────┐ │  │ ┌───────────┐   │                │
 │  │ │ ccache-r2 │ │  │ │ ccache-r2 │ │  │ │ ccache-r2 │   │                │
-│  │ │ (s3fs)    │ │  │ │ (s3fs)    │ │  │ │ (s3fs)    │   │                │
+│  │ │ (s5cmd)   │ │  │ │ (s5cmd)   │ │  │ │ (s5cmd)   │   │                │
 │  │ └───────────┘ │  │ └───────────┘ │  │ └───────────┘   │                │
 │  │ ┌───────────┐ │  │ ┌───────────┐ │  │ ┌───────────┐   │                │
 │  │ │cache-     │ │  │ │cache-     │ │  │ │cache-     │   │                │
@@ -138,7 +138,7 @@ The build system has four layers, each building on the last. Content-addressed d
 |---|---|---|
 | **Custom stdenv** | Overrides mkDerivation for all packages: mold linker, ccache wrapping, hardening flags | `modules/common/stdenv/default.nix` |
 | **CAS module** | Enables ca-derivations and contentAddressedByDefault globally | `modules/utility/cas-module.nix` |
-| **ccache module** | R2-backed compiler cache: s3fs mount, s5cmd sync, sandbox paths | `modules/common/ccache/default.nix` |
+| **ccache module** | R2-backed compiler cache: s5cmd download sync, s5cmd upload sync, sandbox paths | `modules/common/ccache/default.nix` |
 | **SSH ProxyCommand** | Intercepts SSH to `builder-N`, provisions Hetzner VM if absent | `modules/common/remote-builders/proxy-command.sh` |
 | **Builder image** | Pre-built NixOS snapshot: nix-daemon, ccache, cache upload, inactivity monitor | `images/builder/image.nix` |
 | **Inactivity monitor** | Per-builder timer; self-deletes via Hetzner API after 15 min idle | `images/builder/inactivity-monitor.nix` |
