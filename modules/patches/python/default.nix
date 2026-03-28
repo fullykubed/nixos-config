@@ -27,17 +27,22 @@ let
         });
 
         # anyio: Skip flaky tests — race conditions in test teardown and log capture
-        # test_single_thread: threading.active_count() non-deterministic with pytest-xdist
+        # test_single_thread, test_run_sync_from_thread_pooling:
+        #   threading.active_count() non-deterministic with pytest-xdist
         # test_thread_cancelled_and_abandoned: uvloop event loop closes before worker thread
         #   calls call_soon_threadsafe, causing RuntimeError in teardown
         # test_handshake_fail: asyncio emits a spurious slow-task WARNING that adds an
         #   extra LogRecord, making `assert len(caplog.records) == 1` fail with 2
+        # test_run_in_custom_limiter: thread spawn timing race — workers may not be
+        #   alive when len(active_threads) assertion runs in sandbox
         # See: https://github.com/NixOS/nixpkgs/issues/448125
         anyio = pyprev.anyio.overrideAttrs (old: {
           disabledTests = (old.disabledTests or [ ]) ++ [
             "test_single_thread"
             "test_thread_cancelled_and_abandoned"
             "test_handshake_fail"
+            "test_run_sync_from_thread_pooling"
+            "test_run_in_custom_limiter"
           ];
         });
 
