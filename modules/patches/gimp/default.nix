@@ -11,11 +11,13 @@
       # - CVE-2026-2044: PGM uninitialized memory -> RCE (ZDI-CAN-28158)
       # - CVE-2026-2045: XWD out-of-bounds write -> RCE (ZDI-CAN-28265)
       # - CVE-2026-2047: ICNS heap buffer overflow -> RCE (ZDI-CAN-28530)
+      # NOTE: Override openexr to use our patched version (eliminates openexr-3.3.5 CVEs)
       # NOTE: Override gegl to use our patched openexr (eliminates openexr_2 CVEs)
       # NOTE: Override ghostscript to use our patched jbig2dec (CVE-2023-46361)
       # NOTE: Override libjxl to use our patched openexr (eliminates openexr-3.3.5 CVEs)
       gimp =
         (nixpkgs-unstable.gimp.override {
+          inherit (final) openexr;
           gegl = nixpkgs-unstable.gegl.override {
             openexr_2 = final.openexr;
           };
