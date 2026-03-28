@@ -64,6 +64,13 @@ let
       _mkwrapper "$_ccache_wrap/$_cxx_name" "$_orig_cxx"
       export CC="$_ccache_wrap/$_cc_name"
       export CXX="$_ccache_wrap/$_cxx_name"
+
+      # Haskell: setupCompilerEnvironmentPhase (a prePhase) bakes $CC into
+      # configureFlags as --with-gcc=<path> before preConfigure runs.  Patch
+      # the already-resolved path so GHC uses the ccache wrapper too.
+      if [[ "''${configureFlags:-}" == *--with-gcc=* ]]; then
+        configureFlags="$(echo "$configureFlags" | sed "s|--with-gcc=[^ ]*|--with-gcc=$CC|g")"
+      fi
     fi
   '';
 
