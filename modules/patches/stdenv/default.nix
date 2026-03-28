@@ -91,6 +91,50 @@ let
       #      cmakeFlagsArray still takes precedence (cmake last-wins).
       # Harmless for non-cmake builds (cmakeFlags is unused).
       cmakeFlags="-DCMAKE_C_COMPILER=$_orig_cc -DCMAKE_CXX_COMPILER=$_orig_cxx -DCMAKE_C_COMPILER_LAUNCHER=$_ccache_bin -DCMAKE_CXX_COMPILER_LAUNCHER=$_ccache_bin''${cmakeFlags:+ $cmakeFlags}"
+
+      # Rewrite CC/CXX/HOSTCC/HOSTCXX in makeFlags so command-line
+      # variables don't shadow the env-var wrappers above.
+      if declare -p makeFlags &>/dev/null; then
+        case "$(declare -p makeFlags 2>/dev/null)" in
+          "declare -a"*)
+            # Structured attrs / bash array
+            for _i in "''${!makeFlags[@]}"; do
+              case "''${makeFlags[$_i]}" in
+                CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
+                  _flagname="''${makeFlags[$_i]%%=*}"
+                  _flagval="''${makeFlags[$_i]#*=}"
+                  _base="$(basename "''${_flagval%% *}")"
+                  _wrapper="$_ccache_wrap/$_base-$_flagname"
+                  _mkwrapper "$_wrapper" "$_flagval"
+                  makeFlags[$_i]="$_flagname=$_wrapper"
+                  echo >&2 "ccache: rewrote makeFlags $_flagname -> $_wrapper (was $_flagval)"
+                  ;;
+              esac
+            done
+            ;;
+          "declare --"*|"declare -x"*)
+            # Plain string
+            _new_flags=""
+            for _tok in $makeFlags; do
+              case "$_tok" in
+                CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
+                  _flagname="''${_tok%%=*}"
+                  _flagval="''${_tok#*=}"
+                  _base="$(basename "''${_flagval%% *}")"
+                  _wrapper="$_ccache_wrap/$_base-$_flagname"
+                  _mkwrapper "$_wrapper" "$_flagval"
+                  _new_flags="$_new_flags $_flagname=$_wrapper"
+                  echo >&2 "ccache: rewrote makeFlags $_flagname -> $_wrapper (was $_flagval)"
+                  ;;
+                *)
+                  _new_flags="$_new_flags $_tok"
+                  ;;
+              esac
+            done
+            makeFlags="''${_new_flags# }"
+            ;;
+        esac
+      fi
     fi
   '';
 
