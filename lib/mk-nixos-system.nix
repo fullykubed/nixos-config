@@ -22,6 +22,7 @@ nixpkgs.lib.nixosSystem {
   inherit system;
   specialArgs = {
     inherit system;
+    nixpkgs-input = nixpkgs;
     nixpkgs-unstable-input = nixpkgs-unstable;
     stylix-home-module = stylix.homeModules.stylix;
     nix-index-database-home-module = nix-index-database.homeModules.nix-index;

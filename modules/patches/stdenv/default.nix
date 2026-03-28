@@ -14,16 +14,19 @@
 {
   lib,
   system,
-  nixpkgs-unstable-input,
+  nixpkgs-input,
   ...
 }:
 let
   # Import a clean nixpkgs (no overlays) for packages that our stdenv
   # adds globally. Without this, they'd be built with our custom stdenv,
   # creating a circular dependency.
-  cleanPkgs = import nixpkgs-unstable-input {
+  cleanPkgs = import nixpkgs-input {
     inherit system;
-    config.allowUnfree = true;
+    config = {
+      allowUnfree = true;
+      contentAddressedByDefault = true;
+    };
   };
   cleanMold = cleanPkgs.mold;
   cleanCcache = cleanPkgs.ccache;
@@ -280,7 +283,7 @@ let
               # (not .cc or other derivation attrs, which would cause infinite recursion).
               isBootstrap = prev.lib.hasPrefix "bootstrap-" (_stdenv.name or "");
               useMold = !isBootstrap && !(a ? pname && builtins.elem a.pname moldExcludedNames);
-              useCcache = !isBootstrap && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
+              useCcache = !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
 
               # Build env incrementally. Mold flags go into env.* unless the
               # derivation sets NIX_CFLAGS_LINK / RUSTFLAGS as top-level attrs,
@@ -322,7 +325,7 @@ let
             # originalAttrs).  In the make-derivation.nix fixpoint, attribute
             # names of the additions attrset are needed to resolve the `//`
             # merge, which would force evaluation of finalAttrs and recurse.
-            # Gate on `useCcache` (depends only on pname / isBootstrap) so the
+            # Gate on `useCcache` (depends only on pname) so the
             # name is always present when ccache is active; the VALUE is lazy.
             // (prev.lib.optionalAttrs useCcache {
               preConfigure =

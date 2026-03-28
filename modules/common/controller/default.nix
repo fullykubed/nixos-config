@@ -259,12 +259,25 @@ in
           rm -rf ${queueDir}/done
           mkdir -p ${queueDir}/done ${queueDir}/pending
 
+          enqueue_paths() {
+            while IFS= read -r path; do
+              [ -n "$path" ] || continue
+              hash=$(basename "$path" | cut -d- -f1)
+              echo "$path" > ${queueDir}/pending/"$hash"
+            done
+          }
+
           echo "Re-enqueuing current system closure..."
-          nix-store -qR /run/current-system | while IFS= read -r path; do
-            [ -n "$path" ] || continue
-            hash=$(basename "$path" | cut -d- -f1)
-            echo "$path" > ${queueDir}/pending/"$hash"
-          done
+          nix-store -qR /run/current-system | enqueue_paths
+
+          # Also enqueue build-time deps (bison, flex, m4, etc.) so they
+          # survive niks3 GC — the runtime closure alone misses them.
+          drv=$(nix-store -qd /run/current-system 2>/dev/null || true)
+          if [ -n "$drv" ] && [ "$drv" != "unknown-deriver" ] && [ -e "$drv" ]; then
+            echo "Re-enqueuing build-time dependencies..."
+            nix-store -qR --include-outputs "$drv" | grep -v '\.drv$' | enqueue_paths
+          fi
+
           echo "Done. $(ls ${queueDir}/pending | wc -l) paths queued."
         '';
       };
