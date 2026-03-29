@@ -17,7 +17,9 @@
   ...
 }:
 let
-  cleanMold = nixpkgs-clean.mold;
+  # nixpkgs stable: `mold-wrapped` has the ld-wrapper that injects RPATH entries.
+  # nixpkgs unstable renames this to just `mold`.
+  cleanMold = nixpkgs-clean.mold-wrapped;
   cleanCcache = nixpkgs-clean.ccache;
 
   # The mold flag fragments.
@@ -94,7 +96,7 @@ let
       # Also wrap gcc/g++ and other compiler names that build systems (qmake,
       # hand-written Makefiles) may invoke directly instead of using $CC/$CXX.
       # This ensures ccache is used even when the compiler is called by name.
-      for _extra in gcc g++ cc c++ clang clang++; do
+      for _extra in gcc g++ cc c++ clang clang++ xgcc xg++; do
         if [ ! -e "$_ccache_wrap/$_extra" ]; then
           _extra_path="$(command -v "$_extra" 2>/dev/null)" || continue
           _mkwrapper "$_ccache_wrap/$_extra" "$_extra_path"
@@ -127,13 +129,29 @@ let
       fi
 
       # Tell cmake to use the real compiler with ccache as a launcher.
-      # Prepended to cmakeFlags so that:
-      #   1. They override the cmake hook's -DCMAKE_CXX_COMPILER=$CXX (which
-      #      would bake the ccache wrapper path into packages like shiboken6).
-      #   2. Any package-explicit CMAKE_CXX_COMPILER in cmakeFlags or
-      #      cmakeFlagsArray still takes precedence (cmake last-wins).
-      # Harmless for non-cmake builds (cmakeFlags is unused).
-      cmakeFlags="-DCMAKE_C_COMPILER=$_orig_cc -DCMAKE_CXX_COMPILER=$_orig_cxx -DCMAKE_C_COMPILER_LAUNCHER=$_ccache_bin -DCMAKE_CXX_COMPILER_LAUNCHER=$_ccache_bin''${cmakeFlags:+ $cmakeFlags}"
+      # Everything is merged into cmakeFlagsArray so each -D flag stays a
+      # separate array element. Packages like x265 and llvm-tblgen run
+      # multiple cmake invocations and pass flags through quoted contexts
+      # where a plain cmakeFlags string gets escaped into a single argument.
+      # The cmakeFlags string is absorbed into the array and cleared so the
+      # ordering is preserved (cmake last-wins):
+      #   1. original cmakeFlags entries (lowest priority)
+      #   2. ccache flags (override hook and package cmakeFlags)
+      #   3. original cmakeFlagsArray entries (highest priority)
+      # Harmless for non-cmake builds (cmakeFlagsArray is unused).
+      _ccache_cmake_flags=(
+        "-DCMAKE_C_COMPILER=$_orig_cc"
+        "-DCMAKE_CXX_COMPILER=$_orig_cxx"
+        "-DCMAKE_C_COMPILER_LAUNCHER=$_ccache_bin"
+        "-DCMAKE_CXX_COMPILER_LAUNCHER=$_ccache_bin"
+      )
+      if [ -n "''${cmakeFlags:-}" ]; then
+        read -ra _orig_cmake_flags <<< "$cmakeFlags"
+        cmakeFlagsArray=("''${_orig_cmake_flags[@]}" "''${_ccache_cmake_flags[@]}" ''${cmakeFlagsArray[@]+"''${cmakeFlagsArray[@]}"})
+      else
+        cmakeFlagsArray=("''${_ccache_cmake_flags[@]}" ''${cmakeFlagsArray[@]+"''${cmakeFlagsArray[@]}"})
+      fi
+      cmakeFlags=""
 
       # Rewrite CC/CXX/HOSTCC/HOSTCXX in makeFlags so command-line
       # variables don't shadow the env-var wrappers above.
@@ -195,6 +213,7 @@ let
             ;;
         esac
       fi
+
     fi
   '';
 
@@ -325,6 +344,35 @@ let
                   ccacheHook
                 else if builtins.isString existing then
                   existing + ccacheHook
+                else
+                  existing;
+            })
+            // (prev.lib.optionalAttrs (useCcache && isBootstrap) {
+              preBuild =
+                let
+                  existing = a.preBuild or null;
+                  hook = ''
+
+                    # GCC bootstrap: prev-gcc/ contains the previous-stage compiler
+                    # invoked by full path, bypassing PATH-based ccache wrappers.
+                    _prev_gcc="/build/build/./prev-gcc"
+                    if [ -d "$_prev_gcc" ]; then
+                      _ccache_bin="$(command -v ccache)"
+                      for _bin in gcc xgcc g++ xg++; do
+                        if [ -x "$_prev_gcc/$_bin" ]; then
+                          mv "$_prev_gcc/$_bin" "$_prev_gcc/.$_bin.real"
+                          printf '${wrapperFmt}' "$_ccache_bin" "$_prev_gcc/.$_bin.real" "$_prev_gcc/.$_bin.real" > "$_prev_gcc/$_bin"
+                          chmod +x "$_prev_gcc/$_bin"
+                          echo >&2 "ccache: wrapped prev-gcc/$_bin"
+                        fi
+                      done
+                    fi
+                  '';
+                in
+                if existing == null then
+                  hook
+                else if builtins.isString existing then
+                  existing + hook
                 else
                   existing;
             });
