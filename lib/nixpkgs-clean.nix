@@ -9,6 +9,27 @@
   nixpkgs-input,
   ...
 }:
+let
+  # Bootstrap-safe mtune fallback for architectures not recognised by the
+  # clean nixpkgs compiler (GCC 14).  Must mirror the fallback table in
+  # modules/patches/stdenv/default.nix.
+  mtuneFallback = {
+    arrowlake = "alderlake";
+    arrowlake-s = "alderlake";
+    lunarlake = "alderlake";
+    pantherlake = "alderlake";
+    clearwaterforest = "sierraforest";
+    znver5 = "znver4";
+  };
+  effectiveTune =
+    if config.cpuTune != null && mtuneFallback ? ${config.cpuTune} then
+      mtuneFallback.${config.cpuTune}
+    else
+      config.cpuTune;
+  marchFragment = lib.optionalString (config.cpuArch != null) " -march=${config.cpuArch}";
+  mtuneFragment = lib.optionalString (effectiveTune != null) " -mtune=${effectiveTune}";
+  cflagsFragment = marchFragment + mtuneFragment;
+in
 {
   options.nixpkgs-clean = {
     overlays = lib.mkOption {
@@ -74,14 +95,16 @@
                 ltoFlag
               ];
               env = (old.env or { }) // {
-                NIX_CFLAGS_COMPILE = toString (old.env.NIX_CFLAGS_COMPILE or "") + " -ffat-lto-objects";
+                NIX_CFLAGS_COMPILE =
+                  toString (old.env.NIX_CFLAGS_COMPILE or "") + " -ffat-lto-objects" + cflagsFragment;
               };
             });
           # zstd uses BUILD_STATIC/BUILD_SHARED instead of BUILD_SHARED_LIBS.
           staticZstd = (prev.zstd.override { enableStatic = true; }).overrideAttrs (old: {
             cmakeFlags = (old.cmakeFlags or [ ]) ++ [ ltoFlag ];
             env = (old.env or { }) // {
-              NIX_CFLAGS_COMPILE = toString (old.env.NIX_CFLAGS_COMPILE or "") + " -ffat-lto-objects";
+              NIX_CFLAGS_COMPILE =
+                toString (old.env.NIX_CFLAGS_COMPILE or "") + " -ffat-lto-objects" + cflagsFragment;
             };
           });
           mkStaticInput = pkg: if pkg.pname or "" == "zstd" then staticZstd else mkStatic pkg;
@@ -97,6 +120,9 @@
               "-DMOLD_USE_SYSTEM_TBB:BOOL=OFF"
               ltoFlag
             ];
+            env = (old.env or { }) // {
+              NIX_CFLAGS_COMPILE = toString (old.env.NIX_CFLAGS_COMPILE or "") + cflagsFragment;
+            };
           });
 
           ccache = prev.ccache.overrideAttrs (old: {
@@ -108,6 +134,9 @@
               "-DDEPS=LOCAL"
               ltoFlag
             ];
+            env = (old.env or { }) // {
+              NIX_CFLAGS_COMPILE = toString (old.env.NIX_CFLAGS_COMPILE or "") + cflagsFragment;
+            };
           });
         }
       )

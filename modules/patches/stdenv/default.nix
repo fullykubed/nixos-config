@@ -33,6 +33,24 @@ let
   cflagsFragment = marchFragment + mtuneFragment;
   useCflags = cflagsFragment != "";
 
+  # Fallback mtune values for bootstrap stages where the compiler (GCC 14)
+  # may not recognise newer architecture names added in GCC 15+.
+  bootstrapMtuneFallback = {
+    arrowlake = "alderlake";
+    arrowlake-s = "alderlake";
+    lunarlake = "alderlake";
+    pantherlake = "alderlake";
+    clearwaterforest = "sierraforest";
+    znver5 = "znver4";
+  };
+  bootstrapMtune =
+    if config.cpuTune != null && bootstrapMtuneFallback ? ${config.cpuTune} then
+      bootstrapMtuneFallback.${config.cpuTune}
+    else
+      config.cpuTune;
+  bootstrapMtuneFragment = lib.optionalString (bootstrapMtune != null) " -mtune=${bootstrapMtune}";
+  bootstrapCflagsFragment = marchFragment + bootstrapMtuneFragment;
+
   # Printf format for ccache wrapper scripts.
   # Slots: ccache-binary, real-compiler, real-compiler.
   wrapperFmt = ''#!/bin/sh\nfor _a in "$@"; do\n  if [ "$_a" = "-c" ]; then\n    exec %s %s "$@"\n  fi\ndone\nexec %s "$@"\n'';
@@ -299,6 +317,7 @@ let
               isBootstrap = prev.lib.hasPrefix "bootstrap-" (_stdenv.name or "");
               useMold = !isBootstrap && !(a ? pname && builtins.elem a.pname moldExcludedNames);
               useCcache = !isBootstrap && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
+              effectiveCflags = if isBootstrap then bootstrapCflagsFragment else cflagsFragment;
 
               # Build env incrementally. Mold flags go into env.* unless the
               # derivation sets NIX_CFLAGS_LINK / RUSTFLAGS as top-level attrs,
@@ -315,8 +334,8 @@ let
                 // (prev.lib.optionalAttrs useCcache {
                   CCACHE_DIR = "/var/cache/ccache";
                 })
-                // (prev.lib.optionalAttrs (useCflags && !isBootstrap && !(a ? NIX_CFLAGS_COMPILE)) {
-                  NIX_CFLAGS_COMPILE = toString (baseEnv.NIX_CFLAGS_COMPILE or "") + cflagsFragment;
+                // (prev.lib.optionalAttrs (useCflags && !(a ? NIX_CFLAGS_COMPILE)) {
+                  NIX_CFLAGS_COMPILE = toString (baseEnv.NIX_CFLAGS_COMPILE or "") + effectiveCflags;
                 });
 
             in
@@ -339,8 +358,8 @@ let
             // (prev.lib.optionalAttrs (useMold && a ? RUSTFLAGS) {
               RUSTFLAGS = toString a.RUSTFLAGS + moldRustFragment;
             })
-            // (prev.lib.optionalAttrs (useCflags && !isBootstrap && a ? NIX_CFLAGS_COMPILE) {
-              NIX_CFLAGS_COMPILE = toString a.NIX_CFLAGS_COMPILE + cflagsFragment;
+            // (prev.lib.optionalAttrs (useCflags && a ? NIX_CFLAGS_COMPILE) {
+              NIX_CFLAGS_COMPILE = toString a.NIX_CFLAGS_COMPILE + effectiveCflags;
             })
             # Attribute NAME must not depend on a.preConfigure (a value from
             # originalAttrs).  In the make-derivation.nix fixpoint, attribute
