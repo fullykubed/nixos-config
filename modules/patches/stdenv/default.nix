@@ -291,7 +291,7 @@ let
               # (not .cc or other derivation attrs, which would cause infinite recursion).
               isBootstrap = prev.lib.hasPrefix "bootstrap-" (_stdenv.name or "");
               useMold = !isBootstrap && !(a ? pname && builtins.elem a.pname moldExcludedNames);
-              useCcache = !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
+              useCcache = !isBootstrap && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
 
               # Build env incrementally. Mold flags go into env.* unless the
               # derivation sets NIX_CFLAGS_LINK / RUSTFLAGS as top-level attrs,
@@ -344,35 +344,6 @@ let
                   ccacheHook
                 else if builtins.isString existing then
                   existing + ccacheHook
-                else
-                  existing;
-            })
-            // (prev.lib.optionalAttrs (useCcache && isBootstrap) {
-              preBuild =
-                let
-                  existing = a.preBuild or null;
-                  hook = ''
-
-                    # GCC bootstrap: prev-gcc/ contains the previous-stage compiler
-                    # invoked by full path, bypassing PATH-based ccache wrappers.
-                    _prev_gcc="/build/build/./prev-gcc"
-                    if [ -d "$_prev_gcc" ]; then
-                      _ccache_bin="$(command -v ccache)"
-                      for _bin in gcc xgcc g++ xg++; do
-                        if [ -x "$_prev_gcc/$_bin" ]; then
-                          mv "$_prev_gcc/$_bin" "$_prev_gcc/.$_bin.real"
-                          printf '${wrapperFmt}' "$_ccache_bin" "$_prev_gcc/.$_bin.real" "$_prev_gcc/.$_bin.real" > "$_prev_gcc/$_bin"
-                          chmod +x "$_prev_gcc/$_bin"
-                          echo >&2 "ccache: wrapped prev-gcc/$_bin"
-                        fi
-                      done
-                    fi
-                  '';
-                in
-                if existing == null then
-                  hook
-                else if builtins.isString existing then
-                  existing + hook
                 else
                   existing;
             });
