@@ -6,6 +6,8 @@ in
 
   cpuVendor = "amd";
   cpuCount = 32;
+  cpuArch = "x86-64-v3";
+  cpuTune = "znver4";
   gpuVendor = "amd";
   deviceType = "desktop";
   disableWakeupTriggers = true;

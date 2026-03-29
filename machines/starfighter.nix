@@ -13,6 +13,8 @@ in
 
   cpuVendor = "intel";
   cpuCount = 16;
+  cpuArch = "x86-64-v3";
+  cpuTune = "arrowlake";
   deviceType = "laptop";
   firmwareType = "coreboot";
 

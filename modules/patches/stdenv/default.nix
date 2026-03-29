@@ -13,6 +13,7 @@
 # Per-package test/build overrides caused by the custom stdenv live in modules/patches/.
 {
   lib,
+  config,
   nixpkgs-clean,
   ...
 }:
@@ -25,6 +26,12 @@ let
   # The mold flag fragments.
   moldCFragment = " -fuse-ld=mold";
   moldRustFragment = " -C link-arg=-fuse-ld=mold";
+
+  # Per-machine CPU architecture flag fragments.
+  marchFragment = lib.optionalString (config.cpuArch != null) " -march=${config.cpuArch}";
+  mtuneFragment = lib.optionalString (config.cpuTune != null) " -mtune=${config.cpuTune}";
+  cflagsFragment = marchFragment + mtuneFragment;
+  useCflags = cflagsFragment != "";
 
   # Printf format for ccache wrapper scripts.
   # Slots: ccache-binary, real-compiler, real-compiler.
@@ -307,6 +314,9 @@ let
                 })
                 // (prev.lib.optionalAttrs useCcache {
                   CCACHE_DIR = "/var/cache/ccache";
+                })
+                // (prev.lib.optionalAttrs (useCflags && !isBootstrap && !(a ? NIX_CFLAGS_COMPILE)) {
+                  NIX_CFLAGS_COMPILE = toString (baseEnv.NIX_CFLAGS_COMPILE or "") + cflagsFragment;
                 });
 
             in
@@ -328,6 +338,9 @@ let
             })
             // (prev.lib.optionalAttrs (useMold && a ? RUSTFLAGS) {
               RUSTFLAGS = toString a.RUSTFLAGS + moldRustFragment;
+            })
+            // (prev.lib.optionalAttrs (useCflags && !isBootstrap && a ? NIX_CFLAGS_COMPILE) {
+              NIX_CFLAGS_COMPILE = toString a.NIX_CFLAGS_COMPILE + cflagsFragment;
             })
             # Attribute NAME must not depend on a.preConfigure (a value from
             # originalAttrs).  In the make-derivation.nix fixpoint, attribute

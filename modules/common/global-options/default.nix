@@ -3,6 +3,72 @@
   lib,
   ...
 }:
+let
+  # Base microarchitecture values accepted by GCC 14 / Clang 18
+  marchValues = [
+    # Generic x86-64 levels
+    "x86-64"
+    "x86-64-v2"
+    "x86-64-v3"
+    "x86-64-v4"
+    # AMD
+    "k8"
+    "k8-sse3"
+    "amdfam10"
+    "bdver1"
+    "bdver2"
+    "bdver3"
+    "bdver4"
+    "btver1"
+    "btver2"
+    "znver1"
+    "znver2"
+    "znver3"
+    "znver4"
+    "znver5"
+    # Intel
+    "core2"
+    "nehalem"
+    "westmere"
+    "sandybridge"
+    "ivybridge"
+    "haswell"
+    "broadwell"
+    "skylake"
+    "skylake-avx512"
+    "cascadelake"
+    "cooperlake"
+    "icelake-client"
+    "icelake-server"
+    "tigerlake"
+    "sapphirerapids"
+    "rocketlake"
+    "alderlake"
+    "raptorlake"
+    "meteorlake"
+    "arrowlake"
+    "arrowlake-s"
+    "lunarlake"
+    "pantherlake"
+    "clearwaterforest"
+    # Atom
+    "bonnell"
+    "silvermont"
+    "goldmont"
+    "goldmont-plus"
+    "tremont"
+    "gracemont"
+    "crestmont"
+    "sierraforest"
+    # Special
+    "native"
+  ];
+
+  # x86-64-v* levels are not valid for -mtune; add "generic" instead
+  mtuneValues = builtins.filter (v: !(lib.hasPrefix "x86-64-v" v) && v != "x86-64") marchValues ++ [
+    "generic"
+  ];
+in
 {
   options = with lib; {
     username = mkOption {
@@ -32,6 +98,18 @@
       ];
       default = "standard";
       description = "Firmware type — 'coreboot' enables fwupd and flashrom for coreboot-based firmware updates.";
+    };
+
+    cpuArch = mkOption {
+      type = types.nullOr (types.enum marchValues);
+      default = null;
+      description = "CPU microarchitecture for -march. Null means no flag is injected.";
+    };
+
+    cpuTune = mkOption {
+      type = types.nullOr (types.enum mtuneValues);
+      default = null;
+      description = "CPU tuning target for -mtune. Null means no flag is injected.";
     };
 
     monitors = mkOption {
