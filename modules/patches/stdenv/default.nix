@@ -1,4 +1,4 @@
-# Custom stdenv with additional hardening flags, mold linker, and ccache
+# Custom stdenv with additional hardening flags, mold linker, ccache, and optimization flags
 #
 # This module overrides the default stdenv to:
 # 1. Enable additional hardening flags globally (trivialautovarinit)
@@ -6,6 +6,7 @@
 # 3. Use ccache as a C/C++ compiler wrapper for all compatible packages
 # 4. Disable reference checks to allow CVE patches on bootstrap packages
 # 5. Exclude specific packages from aggressive hardening
+# 6. Inject per-compiler optimization flags (GCC-only and universal)
 #
 # Mold and ccache are built from a clean nixpkgs import (no overlays) to
 # avoid a circular dependency (they need stdenv, our stdenv adds them).
@@ -32,6 +33,27 @@ let
   mtuneFragment = lib.optionalString (config.cpuTune != null) " -mtune=${config.cpuTune}";
   cflagsFragment = marchFragment + mtuneFragment;
   useCflags = cflagsFragment != "";
+
+  # GCC-only optimization flags (cherry-picked from -O3, not in -O2).
+  # These are GCC internal pass names; Clang will error on them.
+  gccOptimizationFragment = lib.concatStrings [
+    " -ftree-partial-pre" # More aggressive partial redundancy elimination
+    " -fsplit-paths" # Path splitting for better DCE/CSE
+    " -fgcse-after-reload" # Post-register-allocation redundancy elimination
+    " -funswitch-loops" # Move loop-invariant conditions outside loops
+    " -fpeel-loops" # Peel initial/final loop iterations
+    " -fpredictive-commoning" # Reuse computations from previous loop iterations
+    " -ftree-loop-distribution" # Split loops for better cache behavior
+    " -floop-interchange" # Reorder nested loops for cache optimization
+    " -floop-unroll-and-jam" # Unroll outer loops and fuse inner loops
+  ];
+
+  # Optimization flags supported by both GCC (5.3+) and Clang (13+).
+  universalOptimizationFragment = lib.concatStrings [
+    " -fno-semantic-interposition" # Assume functions cannot be interposed; enables direct calls
+    " -pipe" # Use pipes instead of temp files between stages (faster compilation)
+    " -fno-var-tracking" # Skip expensive DWARF var-tracking pass (10-20% faster compilation)
+  ];
 
   # Fallback mtune values for bootstrap stages where the compiler (GCC 14)
   # may not recognise newer architecture names added in GCC 15+.
@@ -304,6 +326,11 @@ let
         "firefox-unwrapped" # elfhack passes --real-linker to ld.lld; mold doesn't support it
       ];
 
+      # Packages excluded from optimization flags by pname.
+      optimizationExcludedNames = [
+        # Initially empty — populated as build failures are discovered
+      ];
+
       addFlags =
         _stdenv: args:
         let
@@ -318,6 +345,18 @@ let
               useMold = !isBootstrap && !(a ? pname && builtins.elem a.pname moldExcludedNames);
               useCcache = !isBootstrap && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
               effectiveCflags = if isBootstrap then bootstrapCflagsFragment else cflagsFragment;
+
+              # Compiler detection: only safe to read _stdenv.cc outside bootstrap
+              # (bootstrap stdenvs don't have a full .cc attr set).
+              isGNU = !isBootstrap && (_stdenv.cc.isGNU or false);
+              useOptimization = !isBootstrap && !(a ? pname && builtins.elem a.pname optimizationExcludedNames);
+
+              # Combined cflags: arch flags (always) + optimization flags (non-bootstrap only).
+              # Must be a single string since NIX_CFLAGS_COMPILE can only be set once.
+              optimizationCflags =
+                (if isGNU then gccOptimizationFragment else "") + universalOptimizationFragment;
+              allCflags = effectiveCflags + (if useOptimization then optimizationCflags else "");
+              useAnyCflags = useCflags || useOptimization;
 
               # Build env incrementally. Mold flags go into env.* unless the
               # derivation sets NIX_CFLAGS_LINK / RUSTFLAGS as top-level attrs,
@@ -334,8 +373,8 @@ let
                 // (prev.lib.optionalAttrs useCcache {
                   CCACHE_DIR = "/var/cache/ccache";
                 })
-                // (prev.lib.optionalAttrs (useCflags && !(a ? NIX_CFLAGS_COMPILE)) {
-                  NIX_CFLAGS_COMPILE = toString (baseEnv.NIX_CFLAGS_COMPILE or "") + effectiveCflags;
+                // (prev.lib.optionalAttrs (useAnyCflags && !(a ? NIX_CFLAGS_COMPILE)) {
+                  NIX_CFLAGS_COMPILE = toString (baseEnv.NIX_CFLAGS_COMPILE or "") + allCflags;
                 });
 
             in
@@ -358,8 +397,8 @@ let
             // (prev.lib.optionalAttrs (useMold && a ? RUSTFLAGS) {
               RUSTFLAGS = toString a.RUSTFLAGS + moldRustFragment;
             })
-            // (prev.lib.optionalAttrs (useCflags && a ? NIX_CFLAGS_COMPILE) {
-              NIX_CFLAGS_COMPILE = toString a.NIX_CFLAGS_COMPILE + effectiveCflags;
+            // (prev.lib.optionalAttrs (useAnyCflags && a ? NIX_CFLAGS_COMPILE) {
+              NIX_CFLAGS_COMPILE = toString a.NIX_CFLAGS_COMPILE + allCflags;
             })
             # Attribute NAME must not depend on a.preConfigure (a value from
             # originalAttrs).  In the make-derivation.nix fixpoint, attribute
