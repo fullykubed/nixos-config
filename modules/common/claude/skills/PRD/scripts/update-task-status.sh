@@ -41,7 +41,7 @@ fi
 # Check if task exists (either as top-level or subtask)
 TASK_EXISTS=$($JAQ --from yaml "
     [.[] | select(.name == \"$TASK_NAME\" and .status),
-     .[] | .subtasks[]? | select(.name == \"$TASK_NAME\")] | length
+     .[] | select(.subtasks) | .subtasks[] | select(.name == \"$TASK_NAME\")] | length
 " "$TASKS_FILE")
 
 if [[ "$TASK_EXISTS" -eq 0 ]]; then
@@ -53,7 +53,7 @@ fi
 # This handles both top-level leaf tasks and subtasks
 $JAQ -i --from yaml --to yaml "
     (.[] | select(.name == \"$TASK_NAME\" and .status) | .status) = \"$NEW_STATUS\" |
-    (.[] | .subtasks[]? | select(.name == \"$TASK_NAME\") | .status) = \"$NEW_STATUS\"
+    (.[] | select(.subtasks) | .subtasks[] | select(.name == \"$TASK_NAME\") | .status) = \"$NEW_STATUS\"
 " "$TASKS_FILE"
 
 echo "Updated task '$TASK_NAME' status to '$NEW_STATUS'"

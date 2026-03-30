@@ -43,7 +43,7 @@ fi
 PRD_DIR=$(dirname "$FILE_PATH")
 SPEC_PATHS=$($JAQ --from yaml '
     [.[] | select(.status == "defined") | {"name": .name, "spec": .spec},
-     .[] | .subtasks[]? | select(.status == "defined") | {"name": .name, "spec": .spec}]
+     .[] | select(.subtasks) | .subtasks[] | select(.status == "defined") | {"name": .name, "spec": .spec}]
     | .[] | .name + "|" + .spec
 ' "$FILE_PATH" 2>/dev/null || echo "")
 
