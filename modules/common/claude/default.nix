@@ -29,6 +29,22 @@
 
       extractFrontmatter = pkgs.callPackage ./lib/extract-frontmatter.nix { };
 
+      # Helper: expand a list of paths into --ro-bind-try or --bind-try triples.
+      roBind =
+        paths:
+        lib.concatMap (p: [
+          "--ro-bind-try"
+          p
+          p
+        ]) paths;
+      rwBind =
+        paths:
+        lib.concatMap (p: [
+          "--bind-try"
+          p
+          p
+        ]) paths;
+
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
         runScript = "${nixpkgs-unstable.claude-code}/bin/claude";
@@ -77,107 +93,93 @@
           "SHELL"
           "${pkgs.bashInteractive}/bin/bash"
 
-          "--ro-bind-try"
+        ]
+        ++ roBind [
           "\${HOME}/.gitconfig"
-          "\${HOME}/.gitconfig"
-          "--ro-bind-try"
           "\${HOME}/.ssh"
-          "\${HOME}/.ssh"
-          "--ro-bind-try"
           "\${HOME}/.gnupg"
-          "\${HOME}/.gnupg"
-          "--ro-bind-try"
           "\${HOME}/.tmux"
-          "\${HOME}/.tmux"
-          "--ro-bind-try"
           "\${HOME}/.config"
-          "\${HOME}/.config"
-          "--ro-bind-try"
           "\${HOME}/.themes"
-          "\${HOME}/.themes"
-          "--ro-bind-try"
           "\${HOME}/.bashrc"
-          "\${HOME}/.bashrc"
-          "--ro-bind-try"
           "\${HOME}/.bash_profile"
-          "\${HOME}/.bash_profile"
-          "--ro-bind-try"
           "\${HOME}/.profile"
-          "\${HOME}/.profile"
-
-          "--bind-try"
+        ]
+        ++ rwBind [
           "\${HOME}/repos"
-          "\${HOME}/repos"
-          "--bind-try"
           "\${HOME}/.cache"
-          "\${HOME}/.cache"
-          "--bind-try"
           "\${HOME}/.npm"
-          "\${HOME}/.npm"
-          "--bind-try"
           "\${HOME}/.cargo"
-          "\${HOME}/.cargo"
-          "--bind-try"
           "\${HOME}/.local"
-          "\${HOME}/.local"
-          "--bind-try"
           "\${HOME}/.claude"
-          "\${HOME}/.claude"
-          "--bind-try"
           "\${HOME}/.claude.json"
-          "\${HOME}/.claude.json"
-          "--bind-try"
           "\${HOME}/.claude.json.backup"
-          "\${HOME}/.claude.json.backup"
-          "--bind-try"
           "\${HOME}/.aws"
-          "\${HOME}/.aws"
-          "--bind-try"
           "\${HOME}/.kube"
-          "\${HOME}/.kube"
-
+        ]
+        ++ [
           "--tmpfs"
           "/run"
-          "--ro-bind-try"
+        ]
+        ++ roBind [
           "/run/current-system"
-          "/run/current-system"
-          "--ro-bind-try"
           "/run/booted-system"
-          "/run/booted-system"
-          "--ro-bind-try"
           "/run/wrappers"
-          "/run/wrappers"
-          "--ro-bind-try"
           "/run/systemd"
-          "/run/systemd"
-          "--bind-try"
+        ]
+        ++ rwBind [
           "/run/podman"
-          "/run/podman"
-          "--ro-bind-try"
+        ]
+        ++ roBind [
           "/run/blkid"
-          "/run/blkid"
-          "--bind-try"
+        ]
+        ++ rwBind [
           "/run/dbus"
-          "/run/dbus"
+        ]
+        ++ [
           "--dir"
           "/run/user"
-          "--bind-try"
+        ]
+        ++ rwBind [
           "/run/user/$_run_uid"
-          "/run/user/$_run_uid"
-          "--ro-bind-try"
+        ]
+        ++ roBind [
           "/run/last-user-input"
-          "/run/last-user-input"
+        ]
+        ++ [
           "--dir"
           "/run/agenix"
-          "--ro-bind-try"
+        ]
+        ++ roBind [
           "/run/agenix/pushover-token"
-          "/run/agenix/pushover-token"
-          "--ro-bind-try"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
-          "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
-          "--ro-bind-try"
-          "/etc"
-          "/etc"
+        ]
+        # NOTE: Do NOT bind /etc wholesale here. The FHS env creates a
+        # writable tmpfs at /etc so containerInit can generate ld.so.conf
+        # and run ldconfig. A --ro-bind-try /etc /etc would override that
+        # tmpfs and break startup. The FHS env already selectively binds
+        # the important /etc entries (passwd, group, hosts, resolv.conf,
+        # shells, fonts, ssl/certs, pam.d, localtime, etc.).
+        ++ roBind [
+          "/etc/binfmt.d"
+          "/etc/bluetooth"
+          "/etc/brave"
+          "/etc/chromium"
+          "/etc/containers"
+          "/etc/geoclue"
+          "/etc/NetworkManager"
+          "/etc/nixos"
+          "/etc/secureboot"
+          "/etc/ssh"
+          "/etc/stylix"
+          "/etc/subgid"
+          "/etc/subuid"
+          "/etc/sway"
+          "/etc/udisks2"
+          "/etc/X11"
+          "/etc/xdg"
+          "/etc/Yubico"
+          "/etc/zfs"
         ];
       };
 

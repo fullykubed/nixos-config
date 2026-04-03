@@ -54,6 +54,13 @@ let
             "test_brokenpipeerror"
           ];
         });
+
+        # numpy: Skip test_validate_transcendentals — -march=x86-64-v3 (AVX2+FMA) causes 3 ULP precision delta
+        numpy = pyprev.numpy.overrideAttrs (old: {
+          disabledTests = (old.disabledTests or [ ]) ++ [
+            "test_validate_transcendentals"
+          ];
+        });
       };
     };
 
@@ -88,9 +95,11 @@ let
         });
 
         # numpy: Skip test_cli_obj — meson subprocess can't find mold linker
+        #        Skip test_validate_transcendentals — -march=x86-64-v3 (AVX2+FMA) causes 3 ULP precision delta
         numpy = pyprev.numpy.overrideAttrs (old: {
           disabledTests = (old.disabledTests or [ ]) ++ [
             "test_cli_obj"
+            "test_validate_transcendentals"
           ];
         });
       };

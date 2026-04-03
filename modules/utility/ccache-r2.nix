@@ -36,11 +36,14 @@ let
   #   include_file_mtime  - generated headers during build get current mtime, same problem as ctime
   #   random_seed         - nixpkgs passes -frandom-seed which varies per derivation; ignore for cross-build hits
   #   time_macros         - ignore __DATE__/__TIME__/__TIMESTAMP__/SOURCE_DATE_EPOCH so timestamps don't bust cache
-  #   system_headers      - system headers change store paths on nixpkgs updates even when byte-identical; skip in manifests
   #   locale              - LANG/LC_* may differ between sandbox runs; only affects warning text, not compiled output
+  #
+  # NOT included (correctness risks outweigh hit-rate gains):
+  #   system_headers      - in Nix, header store paths change when content changes; skipping them can return
+  #                         objects compiled against old headers, producing subtly broken binaries
   ccacheConfig = pkgs.writeText "ccache.conf" ''
     remote_storage = file:///var/cache/ccache-r2-upload|umask=002|layout=subdirs file:///var/cache/ccache-r2-download|read-only|umask=002|layout=subdirs
-    sloppiness = include_file_ctime,include_file_mtime,random_seed,time_macros,system_headers,locale
+    sloppiness = include_file_ctime,include_file_mtime,random_seed,time_macros,locale
     base_dir = /build
     max_size = ${cfg.maxSize}
     compress = true

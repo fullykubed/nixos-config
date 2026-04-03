@@ -36,17 +36,26 @@ let
 
   # GCC-only optimization flags (cherry-picked from -O3, not in -O2).
   # These are GCC internal pass names; Clang will error on them.
-  gccOptimizationFragment = lib.concatStrings [
-    " -ftree-partial-pre" # More aggressive partial redundancy elimination
-    " -fsplit-paths" # Path splitting for better DCE/CSE
-    " -fgcse-after-reload" # Post-register-allocation redundancy elimination
-    " -funswitch-loops" # Move loop-invariant conditions outside loops
-    " -fpeel-loops" # Peel initial/final loop iterations
-    " -fpredictive-commoning" # Reuse computations from previous loop iterations
-    " -ftree-loop-distribution" # Split loops for better cache behavior
-    " -floop-interchange" # Reorder nested loops for cache optimization
-    " -floop-unroll-and-jam" # Unroll outer loops and fuse inner loops
+  # The flag names list is also used to generate stripping lines in
+  # the compiler wrapper (see @GCC_FLAG_STRIP@ placeholder).
+  gccOnlyFlags = [
+    "-ftree-partial-pre" # More aggressive partial redundancy elimination
+    "-fsplit-paths" # Path splitting for better DCE/CSE
+    "-fgcse-after-reload" # Post-register-allocation redundancy elimination
+    "-funswitch-loops" # Move loop-invariant conditions outside loops
+    "-fpeel-loops" # Peel initial/final loop iterations
+    "-fpredictive-commoning" # Reuse computations from previous loop iterations
+    "-ftree-loop-distribution" # Split loops for better cache behavior
+    "-floop-interchange" # Reorder nested loops for cache optimization
+    "-floop-unroll-and-jam" # Unroll outer loops and fuse inner loops
   ];
+  gccOptimizationFragment = lib.concatMapStrings (f: " ${f}") gccOnlyFlags;
+
+  # Bash lines that strip each GCC-only flag from NIX_CFLAGS_COMPILE.
+  # Substituted into compiler-wrapper.sh as @GCC_FLAG_STRIP@.
+  gccFlagStripLines = lib.concatMapStrings (
+    f: "  NIX_CFLAGS_COMPILE=\"\${NIX_CFLAGS_COMPILE// ${f}/}\"\n"
+  ) gccOnlyFlags;
 
   # Optimization flags supported by both GCC (5.3+) and Clang (13+).
   universalOptimizationFragment = lib.concatStrings [
@@ -73,29 +82,33 @@ let
   bootstrapMtuneFragment = lib.optionalString (bootstrapMtune != null) " -mtune=${bootstrapMtune}";
   bootstrapCflagsFragment = marchFragment + bootstrapMtuneFragment;
 
-  # Printf format for ccache wrapper scripts.
-  # Slots: ccache-binary, real-compiler, real-compiler.
-  wrapperFmt = ''#!/bin/sh\nfor _a in "$@"; do\n  if [ "$_a" = "-c" ]; then\n    exec %s %s "$@"\n  fi\ndone\nexec %s "$@"\n'';
+  # Compiler wrapper template as a store derivation.
+  # See compiler-wrapper.sh for the full script.
+  # @...@ placeholders are resolved at Nix eval time;
+  # %...% placeholders are substituted by sed at build time.
+  wrapperTemplate = nixpkgs-clean.writeText "compiler-wrapper-template" (
+    builtins.replaceStrings
+      [ "@CPU_ARCH@" "@CPU_TUNE@" "@CCACHE_BIN@" "@GCC_FLAG_STRIP@" ]
+      [
+        (if config.cpuArch != null then config.cpuArch else "")
+        (if config.cpuTune != null then config.cpuTune else "")
+        "${cleanCcache}/bin/ccache"
+        gccFlagStripLines
+      ]
+      (builtins.readFile ./compiler-wrapper.sh)
+  );
 
-  # Cargo wrapper: rewrites CC_<target>/CXX_<target>/HOST_CC/HOST_CXX set by
-  # nixpkgs cargo build hooks to ccache wrappers before exec-ing real cargo.
-  cargoWrapperScript = ''
-    #!/bin/sh
-    _w="''${CCACHE_WRAP_DIR}"
-    _cb="''${CCACHE_BIN}"
-    for _var in $(env | sed -n 's/^\(CC_[A-Za-z0-9_]*\)=.*/\1/p; s/^\(CXX_[A-Za-z0-9_]*\)=.*/\1/p') HOST_CC HOST_CXX; do
-      eval "_val=\$$_var"
-      if [ -z "$_val" ]; then continue; fi
-      case "$_val" in "$_w"/*) continue ;; esac
-      case "$_val" in /*) ;; *) continue ;; esac
-      if [ ! -f "$_w/$_var" ]; then
-        printf '${wrapperFmt}' "$_cb" "$_val" "$_val" > "$_w/$_var"
-        chmod +x "$_w/$_var"
-      fi
-      export "$_var=$_w/$_var"
-    done
-    exec "''${CCACHE_REAL_CARGO}" "$@"
-  '';
+  # Cargo wrapper as a store derivation.
+  # See cargo-wrapper.sh for the full script.
+  cargoWrapperTemplate = nixpkgs-clean.writeText "cargo-wrapper-template" (
+    builtins.replaceStrings [ "@WRAPPER_TEMPLATE@" ] [ "${wrapperTemplate}" ] (
+      builtins.readFile ./cargo-wrapper.sh
+    )
+  );
+
+  # Resolve a compiler name to its absolute path, skipping the wrapper dir.
+  # See resolve-unwrapped.sh — no placeholders, takes wrap-dir as an argument.
+  resolveUnwrapped = ./resolve-unwrapped.sh;
 
   # The ccache preConfigure hook, defined once at module level.
   ccacheHook = ''
@@ -114,8 +127,9 @@ let
     elif [[ "''${CC:-}" == */build/.ccache-wrap/* ]] || [[ "''${CXX:-}" == */build/.ccache-wrap/* ]]; then
       : # CC/CXX already point to ccache wrapper; skip to avoid infinite recursion
     else
-      _ccache_wrap=/build/.ccache-wrap
-      mkdir -p "$_ccache_wrap"
+      _wrap_dir=/build/.ccache-wrap
+      mkdir -p "$_wrap_dir"
+      install -m755 ${resolveUnwrapped} "$_wrap_dir/_resolve_unwrapped"
       # Resolve CC/CXX to absolute paths. The cc-wrapper setup hook may
       # export bare names (CC=gcc) rather than store paths; wrappers must
       # contain absolute paths so that `exec <compiler> "$@"` never
@@ -126,46 +140,39 @@ let
       _cxx_name="$(basename "$_orig_cxx")"
       _ccache_bin="$(command -v ccache)"
       _mkwrapper() {
-        if [[ "$2" == /* ]]; then
-          printf '${wrapperFmt}' "$_ccache_bin" "$2" "$2" > "$1"
-        else
-          # Bare compiler name — skip ccache (would loop via PATH) but
-          # still create a passthrough so $CC/$CXX work.
-          printf '#!/bin/sh\nexec %s "$@"\n' "$2" > "$1"
-        fi
+        sed -e "s|%REAL_COMPILER%|$2|g" \
+          ${wrapperTemplate} > "$1"
         chmod +x "$1"
       }
-      _mkwrapper "$_ccache_wrap/$_cc_name" "$_orig_cc"
-      _mkwrapper "$_ccache_wrap/$_cxx_name" "$_orig_cxx"
-      export CC="$_ccache_wrap/$_cc_name"
-      export CXX="$_ccache_wrap/$_cxx_name"
+      _mkwrapper "$_wrap_dir/$_cc_name" "$_orig_cc"
+      _mkwrapper "$_wrap_dir/$_cxx_name" "$_orig_cxx"
+      export CC="$_wrap_dir/$_cc_name"
+      export CXX="$_wrap_dir/$_cxx_name"
+      echo >&2 "ccache: CC=$_orig_cc -> $CC"
+      echo >&2 "ccache: CXX=$_orig_cxx -> $CXX"
 
       # Also wrap gcc/g++ and other compiler names that build systems (qmake,
       # hand-written Makefiles) may invoke directly instead of using $CC/$CXX.
       # This ensures ccache is used even when the compiler is called by name.
       for _extra in gcc g++ cc c++ clang clang++ xgcc xg++; do
-        if [ ! -e "$_ccache_wrap/$_extra" ]; then
+        if [ ! -e "$_wrap_dir/$_extra" ]; then
           _extra_path="$(command -v "$_extra" 2>/dev/null)" || continue
-          _mkwrapper "$_ccache_wrap/$_extra" "$_extra_path"
+          _mkwrapper "$_wrap_dir/$_extra" "$_extra_path"
+          echo >&2 "ccache: PATH wrapper $_extra -> $_extra_path"
         fi
       done
-      export PATH="$_ccache_wrap:$PATH"
+      export PATH="$_wrap_dir:$PATH"
 
       # Rust: nixpkgs cargo build hooks run `env CC_<target>=<store-path> cargo build`.
       # The cc crate prefers CC_<target> over CC, so our ccache-wrapped CC is bypassed.
       # Fix: interpose a cargo wrapper (found via PATH) that rewrites CC_*/CXX_*/HOST_*
       # to ccache wrappers before exec-ing the real cargo.
-      _real_cargo=""
-      for _d in $(echo "$PATH" | tr ':' ' '); do
-        if [ "$_d" = "$_ccache_wrap" ]; then continue; fi
-        if [ -x "$_d/cargo" ]; then _real_cargo="$_d/cargo"; break; fi
-      done
-      if [ -n "$_real_cargo" ]; then
-        printf '%s' ${lib.escapeShellArg cargoWrapperScript} > "$_ccache_wrap/cargo"
-        chmod +x "$_ccache_wrap/cargo"
-        export CCACHE_REAL_CARGO="$_real_cargo"
-        export CCACHE_WRAP_DIR="$_ccache_wrap"
-        export CCACHE_BIN="$_ccache_bin"
+      _real_cargo="$("$_wrap_dir/_resolve_unwrapped" "$_wrap_dir" cargo)"
+      if [[ "$_real_cargo" == /* ]]; then
+        sed -e "s|%WRAP_DIR%|$_wrap_dir|g" -e "s|%REAL_CARGO%|$_real_cargo|g" \
+          ${cargoWrapperTemplate} > "$_wrap_dir/cargo"
+        chmod +x "$_wrap_dir/cargo"
+        echo >&2 "ccache: wrapped cargo -> $_real_cargo"
       fi
 
       # Haskell: setupCompilerEnvironmentPhase (a prePhase) bakes $CC into
@@ -173,6 +180,7 @@ let
       # the already-resolved path so GHC uses the ccache wrapper too.
       if [[ "''${configureFlags:-}" == *--with-gcc=* ]]; then
         configureFlags="$(echo "$configureFlags" | sed "s|--with-gcc=[^ ]*|--with-gcc=$CC|g")"
+        echo >&2 "ccache: rewrote configure flag --with-gcc -> $CC"
       fi
 
       # Tell cmake to use the real compiler with ccache as a launcher.
@@ -199,22 +207,10 @@ let
         cmakeFlagsArray=("''${_ccache_cmake_flags[@]}" ''${cmakeFlagsArray[@]+"''${cmakeFlagsArray[@]}"})
       fi
       cmakeFlags=""
+      echo >&2 "ccache: cmakeFlagsArray=(''${cmakeFlagsArray[*]})"
 
       # Rewrite CC/CXX/HOSTCC/HOSTCXX in makeFlags so command-line
       # variables don't shadow the env-var wrappers above.
-      # Resolve bare names using PATH minus the wrapper dir to avoid
-      # wrapping an already-wrapped compiler.
-      _resolve_compiler() {
-        local _val="$1"
-        if [[ "$_val" == /* ]]; then echo "$_val"; return; fi
-        local _p
-        IFS=: read -ra _dirs <<< "$PATH"
-        for _p in "''${_dirs[@]}"; do
-          if [ "$_p" = "$_ccache_wrap" ]; then continue; fi
-          if [ -x "$_p/$_val" ]; then echo "$_p/$_val"; return; fi
-        done
-        echo "$_val"
-      }
       if declare -p makeFlags &>/dev/null; then
         case "$(declare -p makeFlags 2>/dev/null)" in
           "declare -a"*)
@@ -224,10 +220,10 @@ let
                 CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
                   _flagname="''${makeFlags[$_i]%%=*}"
                   _flagval="''${makeFlags[$_i]#*=}"
-                  if [[ "''${_flagval#"$_ccache_wrap"/}" != "$_flagval" ]]; then continue; fi
-                  _flagval="$(_resolve_compiler "$_flagval")"
+                  if [[ "''${_flagval#"$_wrap_dir"/}" != "$_flagval" ]]; then continue; fi
+                  _flagval="$("$_wrap_dir/_resolve_unwrapped" "$_wrap_dir" "$_flagval")"
                   _base="$(basename "''${_flagval%% *}")"
-                  _wrapper="$_ccache_wrap/$_base-$_flagname"
+                  _wrapper="$_wrap_dir/$_base-$_flagname"
                   _mkwrapper "$_wrapper" "$_flagval"
                   makeFlags[$_i]="$_flagname=$_wrapper"
                   echo >&2 "ccache: rewrote makeFlags $_flagname -> $_wrapper (was $_flagval)"
@@ -243,10 +239,10 @@ let
                 CC=*|CXX=*|HOSTCC=*|HOSTCXX=*)
                   _flagname="''${_tok%%=*}"
                   _flagval="''${_tok#*=}"
-                  if [[ "''${_flagval#"$_ccache_wrap"/}" != "$_flagval" ]]; then _new_flags="$_new_flags $_tok"; continue; fi
-                  _flagval="$(_resolve_compiler "$_flagval")"
+                  if [[ "''${_flagval#"$_wrap_dir"/}" != "$_flagval" ]]; then _new_flags="$_new_flags $_tok"; continue; fi
+                  _flagval="$("$_wrap_dir/_resolve_unwrapped" "$_wrap_dir" "$_flagval")"
                   _base="$(basename "''${_flagval%% *}")"
-                  _wrapper="$_ccache_wrap/$_base-$_flagname"
+                  _wrapper="$_wrap_dir/$_base-$_flagname"
                   _mkwrapper "$_wrapper" "$_flagval"
                   _new_flags="$_new_flags $_flagname=$_wrapper"
                   echo >&2 "ccache: rewrote makeFlags $_flagname -> $_wrapper (was $_flagval)"
@@ -276,7 +272,7 @@ let
       #   - glibcxxassertions: libstdc++ runtime assertions (-D_GLIBCXX_ASSERTIONS)
       #   - nostrictaliasing: Disable strict aliasing (-fno-strict-aliasing)
       #   - strictflexarrays3: Strict flexible array bounds (-fstrict-flex-arrays=3)
-      #   - libcxxhardeningextensive: libc++ hardening (-D_LIBCPP_HARDENING_MODE=...)
+      #   - libcxxhardeningextensive: libc++ hardening (-D_LIBCPP_HARDENING_MODE=...
       #   - shadowstack: Intel CET shadow stack (-fcf-protection=return)
       #
       hardeningFlags = [
@@ -324,11 +320,52 @@ let
         "zlib" # bootstrap package; mold causes circular dependency in early stages
         "monero-gui" # mold misparses Qt5 rpath entries, concatenating .so paths as directories
         "firefox-unwrapped" # elfhack passes --real-linker to ld.lld; mold doesn't support it
+        "babl" # mold breaks dlopen-based SIMD extension loading at runtime
       ];
 
       # Packages excluded from optimization flags by pname.
       optimizationExcludedNames = [
-        # Initially empty — populated as build failures are discovered
+        "ppp" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
+        "tpm2-tss" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
+        "usrsctp" # optimization flags expose -Wmaybe-uninitialized in mbuf code; package uses -Werror
+        "libcamera" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
+        "babl" # -fno-semantic-interposition breaks dlopen-based extension loading
+        "umockdev" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
+      ];
+
+      # Packages excluded from -march/-mtune arch flags by pname.
+      # Use this for cross-compilation packages where x86 arch flags are
+      # invalid (e.g. wasm32, aarch64 targets).  These packages still
+      # receive optimization flags.
+      archExcludedNames = [
+        "compiler-rt" # wasm32 variant rejects -march for non-x86 targets; pname is shared with native build
+        "libcxx" # wasm32 variant rejects -march for non-x86 targets; pname is shared with native build
+        "babl" # -march=x86-64-v3 conflicts with babl's own runtime SIMD extension loading
+        "qtbase" # -march=x86-64-v3 implies F16C; Qt5 configure detects it and defines QFLOAT16_INCLUDE_FAST causing redefinition errors
+      ];
+
+      # Packages excluded from GCC-only optimization flags by pname.
+      # Use this for packages that invoke clang/libclang internally (e.g. via
+      # rust-bindgen) where the compiler wrapper cannot intercept the call.
+      # These packages still receive universal optimization flags.
+      gccFlagExcludedNames = [
+        "mesa" # rust-bindgen passes NIX_CFLAGS_COMPILE to libclang, which rejects GCC flags
+        "libsignal-node" # boring-sys uses bindgen/libclang internally
+        "deno" # uses bindgen/libclang internally
+        "thin-provisioning-tools" # devicemapper-sys uses bindgen/libclang internally
+        "hotdoc" # C extension invokes clang/libclang internally
+        "yubioath-flutter" # Flutter Linux build uses clang++ internally
+        "gstreamer-vaapi" # hotdoc build step invokes clang internally
+        "helvum" # libspa-sys uses bindgen/libclang internally
+        "pyside6" # shiboken invokes clang++ internally for Qt binding generation
+        # KDE Frameworks packages that generate Python bindings via shiboken/clang
+        "kcoreaddons"
+        "kguiaddons"
+        "knotifications"
+        "kstatusnotifieritem"
+        "kunitconversion"
+        "kwidgetsaddons"
+        "kxmlgui"
       ];
 
       addFlags =
@@ -344,17 +381,25 @@ let
               isBootstrap = prev.lib.hasPrefix "bootstrap-" (_stdenv.name or "");
               useMold = !isBootstrap && !(a ? pname && builtins.elem a.pname moldExcludedNames);
               useCcache = !isBootstrap && !(a ? pname && builtins.elem a.pname ccacheExcludedNames);
-              effectiveCflags = if isBootstrap then bootstrapCflagsFragment else cflagsFragment;
+              useArch = !(a ? pname && builtins.elem a.pname archExcludedNames);
+              effectiveCflags =
+                if !useArch then
+                  ""
+                else if isBootstrap then
+                  bootstrapCflagsFragment
+                else
+                  cflagsFragment;
 
-              # Compiler detection: only safe to read _stdenv.cc outside bootstrap
-              # (bootstrap stdenvs don't have a full .cc attr set).
-              isGNU = !isBootstrap && (_stdenv.cc.isGNU or false);
-              useOptimization = !isBootstrap && !(a ? pname && builtins.elem a.pname optimizationExcludedNames);
+              # Bootstrap compilers are always GCC (14 or 15); reading
+              # _stdenv.cc in bootstrap would cause infinite recursion.
+              isGNU = isBootstrap || (_stdenv.cc.isGNU or false);
+              useGccFlags = isGNU && !(a ? pname && builtins.elem a.pname gccFlagExcludedNames);
+              useOptimization = !(a ? pname && builtins.elem a.pname optimizationExcludedNames);
 
               # Combined cflags: arch flags (always) + optimization flags (non-bootstrap only).
               # Must be a single string since NIX_CFLAGS_COMPILE can only be set once.
               optimizationCflags =
-                (if isGNU then gccOptimizationFragment else "") + universalOptimizationFragment;
+                (if useGccFlags then gccOptimizationFragment else "") + universalOptimizationFragment;
               allCflags = effectiveCflags + (if useOptimization then optimizationCflags else "");
               useAnyCflags = useCflags || useOptimization;
 
