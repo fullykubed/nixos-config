@@ -77,6 +77,7 @@
         extraPreBwrapCmds = ''
           ignored+=(/run)
           _run_uid=$(id -u)
+          _rtk_path="/opt/rtk/bin:$PATH"
         '';
 
         extraBwrapArgs = [
@@ -108,6 +109,12 @@
           "--setenv"
           "SHELL"
           "${pkgs.bashInteractive}/bin/bash"
+          "--ro-bind"
+          "${claudeRTK.wrappers}/bin"
+          "/opt/rtk/bin"
+          "--setenv"
+          "PATH"
+          "$_rtk_path"
 
         ]
         ++ roBind [
@@ -455,8 +462,6 @@
                     ];
                   }
                 ];
-
-                inherit (claudeRTK.hooks) PreToolUse;
 
                 PostToolUse = claudePRD.hooks.PostToolUse ++ claudeSkill.hooks.PostToolUse;
               };

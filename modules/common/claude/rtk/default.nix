@@ -1,4 +1,9 @@
-{ pkgs, versions, ... }:
+{
+  pkgs,
+  lib,
+  versions,
+  ...
+}:
 let
   package = pkgs.rustPlatform.buildRustPackage {
     pname = "rtk";
@@ -20,22 +25,60 @@ let
       mainProgram = "rtk";
     };
   };
+
+  wrappedCommands = [
+    "git"
+    "gh"
+    "aws"
+    "psql"
+    "pnpm"
+    "npm"
+    "npx"
+    "docker"
+    "kubectl"
+    "curl"
+    "wget"
+    "ls"
+    "tree"
+    "find"
+    "diff"
+    "grep"
+    "wc"
+    "cargo"
+    "go"
+    "ruff"
+    "pytest"
+    "mypy"
+    "rake"
+    "rubocop"
+    "rspec"
+    "pip"
+    "vitest"
+    "prisma"
+    "tsc"
+    "next"
+    "prettier"
+    "playwright"
+    "dotnet"
+    "lint"
+  ];
+
+  wrappers = pkgs.runCommand "rtk-wrappers" { } ''
+    mkdir -p $out/bin
+    ${lib.concatMapStringsSep "\n" (cmd: ''
+            cat > $out/bin/${cmd} <<'WRAPPER'
+      #!/bin/bash
+      # RTK wrapper for ${cmd} -- strips wrapper dir to prevent loops
+      export PATH="''${PATH//\/opt\/rtk\/bin:/}"
+      export PATH="''${PATH%/opt/rtk/bin}"
+      exec ${package}/bin/rtk ${cmd} "$@"
+      WRAPPER
+            chmod +x $out/bin/${cmd}
+    '') wrappedCommands}
+  '';
 in
 {
-  inherit package;
-
-  hooks.PreToolUse = [
-    {
-      matcher = "Bash";
-      hooks = [
-        {
-          type = "command";
-          command = "${package}/bin/rtk hook";
-          timeout = 5;
-        }
-      ];
-    }
-  ];
+  inherit package wrappers;
 
   homeFiles = {
     ".config/rtk/config.toml" = {
