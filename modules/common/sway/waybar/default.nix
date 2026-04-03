@@ -117,6 +117,11 @@ let
         color: #2d3436;
     }
 
+    /* AI spend module styles */
+    #custom-ai-spend {
+        padding: 0 10px;
+    }
+
     /* Battery module styles */
     #battery {
         padding: 0 10px;
@@ -147,6 +152,23 @@ let
   waybarTailscaleScript = pkgs.writeShellScriptBin "waybar-tailscale" (
     builtins.readFile ./waybar-tailscale.sh
   );
+  aiSpendStatusScript = pkgs.writeShellApplication {
+    name = "ai-spend-status";
+    runtimeInputs = [
+      pkgs.curl
+      pkgs.jaq
+      pkgs.coreutils
+    ];
+    text = builtins.readFile ./ai-spend-status.sh;
+  };
+  waybarAiSpendScript = pkgs.writeShellApplication {
+    name = "waybar-ai-spend";
+    runtimeInputs = [
+      pkgs.jaq
+      pkgs.coreutils
+    ];
+    text = builtins.readFile ./waybar-ai-spend.sh;
+  };
 in
 {
   age.secrets.cloudflare-api-token = {
@@ -156,29 +178,64 @@ in
     owner = "root";
   };
 
-  systemd.services.cloud-status = {
-    description = "Collect R2 bucket sizes and ccache health for waybar";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
-    serviceConfig = {
-      Type = "oneshot";
-      RuntimeDirectory = "cloud-status";
-      RuntimeDirectoryPreserve = "yes";
-    };
-    path = [ cloudStatusScript ];
-    script = ''
-      export CF_API_TOKEN
-      CF_API_TOKEN=$(cat ${config.age.secrets.cloudflare-api-token.path})
-      cloud-status
-    '';
+  age.secrets.exa-token-spend = {
+    rekeyFile = ../../../../secrets/exa-token.age;
+    path = "/run/agenix/exa-token-spend";
+    mode = "0400";
+    owner = "root";
   };
 
-  systemd.timers.cloud-status = {
-    description = "Poll R2 bucket sizes and ccache health every 5 minutes";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnBootSec = "30s";
-      OnUnitActiveSec = "5min";
+  systemd = {
+    services.cloud-status = {
+      description = "Collect R2 bucket sizes and ccache health for waybar";
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RuntimeDirectory = "cloud-status";
+        RuntimeDirectoryPreserve = "yes";
+      };
+      path = [ cloudStatusScript ];
+      script = ''
+        export CF_API_TOKEN
+        CF_API_TOKEN=$(cat ${config.age.secrets.cloudflare-api-token.path})
+        cloud-status
+      '';
+    };
+
+    timers.cloud-status = {
+      description = "Poll R2 bucket sizes and ccache health every 5 minutes";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "30s";
+        OnUnitActiveSec = "5min";
+      };
+    };
+
+    services.ai-spend-status = {
+      description = "Collect AI service spend data for waybar";
+      after = [ "network-online.target" ];
+      wants = [ "network-online.target" ];
+      serviceConfig = {
+        Type = "oneshot";
+        RuntimeDirectory = "ai-spend-status";
+        RuntimeDirectoryPreserve = "yes";
+      };
+      path = [ aiSpendStatusScript ];
+      script = ''
+        export EXA_API_TOKEN
+        EXA_API_TOKEN=$(cat ${config.age.secrets.exa-token-spend.path})
+        ai-spend-status
+      '';
+    };
+
+    timers.ai-spend-status = {
+      description = "Poll AI service spend data every 5 minutes";
+      wantedBy = [ "timers.target" ];
+      timerConfig = {
+        OnBootSec = "30s";
+        OnUnitActiveSec = "5min";
+      };
     };
   };
 
@@ -202,6 +259,7 @@ in
               waybarControllerScript
               waybarSecurebootScript
               waybarTailscaleScript
+              waybarAiSpendScript
               pkgs.tailscale
               pkgs.jaq
               pkgs.curl

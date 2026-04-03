@@ -18,6 +18,7 @@
     "custom/systemd-failed",
     "custom/builders",
     "custom/controller",
+    "custom/ai-spend",
     "custom/tailscale",
     "custom/voxtype",
     "idle_inhibitor",
@@ -227,6 +228,14 @@
     "interval": 60,
     "tooltip": true,
     "on-click": "swaymsg exec 'wezterm start --always-new-process -- doas controller check'"
+  },
+  "custom/ai-spend": {
+    "exec": "waybar-ai-spend",
+    "exec-if": "which waybar-ai-spend",
+    "return-type": "json",
+    "format": "{}",
+    "interval": 60,
+    "tooltip": true
   },
   "custom/tailscale": {
     "exec": "waybar-tailscale",
