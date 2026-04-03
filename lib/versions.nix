@@ -31,7 +31,7 @@
   rtk = "0.34.3";
   rtkRev = "v0.34.3";
   rtkSrcHash = "sha256-SQJhPit7efAjBezCNHtn5iZEEly6eApxsO9jGHLrKlg=";
-  rtkCargoHash = "sha256-fAjEBl+5M3ltee6WuYMiUR73Yn5EZ0uHervHdIIBvzk=";
+  rtkCargoHash = "sha256-WpSwEx/pkGTIlDv1cTFtTcTC3YgddMYVbOLlqKYeDK0=";
 
   # ccusage (modules/common/claude)
   ccusage = "16.2.5";
