@@ -1,4 +1,9 @@
-{ config, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   # Create a sudo wrapper script for backwards compatibility
   sudo-compat = pkgs.writeShellScriptBin "sudo" ''
@@ -80,6 +85,18 @@ in
 
   # Prevent imperative user/group changes (useradd, passwd, etc.)
   users.mutableUsers = false;
+
+  # Upstream sets restartTriggers = [ config.system.path ], causing a full polkit
+  # restart on every switch where any package changes. Since polkit is Type=notify-reload,
+  # switch-to-configuration blocks until the new polkitd re-acquires its D-Bus name --
+  # which can hang when dbus.service was just reloaded in the preceding step.
+  # Binary changes are already caught by unit file comparison (ExecStart has the store path).
+  # Move system.path to reloadTriggers instead: SIGHUP re-reads rules in milliseconds
+  # with zero downtime, covering package-provided rules in share/polkit-1/rules.d/.
+  systemd.services.polkit = {
+    restartTriggers = lib.mkForce [ ];
+    reloadTriggers = [ config.system.path ];
+  };
 
   services.passSecretService.enable = true;
   services.dbus.packages = [ pkgs.grc ];
