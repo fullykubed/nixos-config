@@ -141,7 +141,7 @@ in
           export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
           export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
 
-          s5cmd --endpoint-url "${r2Endpoint}" sync "s3://${r2Bucket}/" "${r2DownloadDir}/"
+          s5cmd --endpoint-url "${r2Endpoint}" sync "s3://${r2Bucket}/*" "${r2DownloadDir}/"
 
           ${lib.optionalString (cfg.downloadMaxSize != null) ''
             MAX_BYTES=$(numfmt --from=iec "${cfg.downloadMaxSize}")
