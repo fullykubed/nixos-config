@@ -139,5 +139,16 @@ in
       );
       description = "Monitor configuration where keys are output names and values contain mode, position, and number.";
     };
+
+    systemRam = lib.mkOption {
+      type = lib.types.int;
+      description = "Physical RAM in GB — used for swap partition sizing and zswap pool configuration.";
+    };
+
+    enableZswap = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Whether to enable zswap (compressed swap cache with encrypted disk backing).";
+    };
   };
 }

@@ -15,6 +15,7 @@ in
   cpuCount = 16;
   cpuArch = "x86-64-v3";
   cpuTune = "arrowlake";
+  systemRam = 64;
   deviceType = "laptop";
   firmwareType = "coreboot";
 
@@ -49,7 +50,7 @@ in
       partitions = {
         boot = disko.mkBootPartition 1;
         swap = {
-          size = "16G";
+          size = "64G";
           content = {
             type = "swap";
             randomEncryption = true;

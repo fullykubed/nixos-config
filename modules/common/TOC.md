@@ -18,6 +18,7 @@
 - **time/** - Chrony NTP time synchronization with NTS security and multiple redundant time servers.
 - **users/** - Creates the primary user account with Zsh shell and group memberships.
 - **zfs/** - Enables ZFS filesystem support with dataset management.
+- **zswap/** - Enables zswap compressed swap cache with zstd compression and zsmalloc allocation, replacing zram with a disk-backed pool capped at 50% of RAM.
 
 ## Security
 

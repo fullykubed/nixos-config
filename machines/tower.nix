@@ -8,6 +8,7 @@ in
   cpuCount = 32;
   cpuArch = "x86-64-v3";
   cpuTune = "znver4";
+  systemRam = 64;
   gpuVendor = "amd";
   deviceType = "desktop";
   disableWakeupTriggers = true;
@@ -61,14 +62,14 @@ in
         boot1 = disko.mkBootPartition 1;
         boot2 = disko.mkBootPartition 2;
         swap1 = {
-          size = "16G";
+          size = "64G";
           content = {
             type = "swap";
             randomEncryption = true;
           };
         };
         swap2 = {
-          size = "16G";
+          size = "64G";
           content = {
             type = "swap";
             randomEncryption = true;

@@ -5,6 +5,7 @@
   imports = [
     ./common/nix
     ./common/boot
+    ./common/zswap
     ./common/zfs
     ./common/locale
     ./common/networking

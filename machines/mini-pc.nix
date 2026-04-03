@@ -8,7 +8,9 @@ in
   cpuCount = 16;
   cpuArch = "x86-64-v3";
   cpuTune = "arrowlake";
+  systemRam = 64;
   deviceType = "desktop";
+  enableZswap = false;
 
   ######################################
   ## Networking
@@ -45,7 +47,6 @@ in
   ## Filesystem
   ######################################
   # Two NVMe drives in a ZFS mirror, each with its own EFI partition.
-  # No swap partitions — uses zram.
   disko.devices = {
     disk.nvme0 = {
       type = "disk";

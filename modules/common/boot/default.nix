@@ -261,12 +261,6 @@
     Storage=none
   '';
 
-  # zram allows swapping to RAM by compressing memory. This reduces the chance
-  # that sensitive data is written to disk, and eliminates it if zram is used
-  # to completely replace swap to disk. Generally *improves* storage lifespan
-  # and performance, there usually isn't a need to disable this.
-  zramSwap.enable = true;
-
   # Shared Secure Boot PKI — private keys decrypted by agenix, public certs copied from repo
   age.secrets = {
     secureboot-pk-key = {
