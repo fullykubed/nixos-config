@@ -18,6 +18,22 @@
       type = lib.types.str;
       description = "Source hash for ccusage NPM package";
     };
+    rtk = lib.mkOption {
+      type = lib.types.str;
+      description = "Version of rtk token optimizer";
+    };
+    rtkRev = lib.mkOption {
+      type = lib.types.str;
+      description = "Git revision tag for rtk";
+    };
+    rtkSrcHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Source hash for rtk fetchFromGitHub";
+    };
+    rtkCargoHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Cargo dependencies hash for rtk";
+    };
   };
 
   # ===========================================================================
@@ -335,6 +351,7 @@
       claudeGit = pkgs.callPackage ./skills/Git { };
       claudeTempScript = import ./skills/TempScript { };
       claudeSystemd = import ./skills/Systemd { };
+      claudeRTK = pkgs.callPackage ./rtk { inherit versions; };
     in
     {
       home-manager.users.${config.username} = {
@@ -439,6 +456,8 @@
                   }
                 ];
 
+                inherit (claudeRTK.hooks) PreToolUse;
+
                 PostToolUse = claudePRD.hooks.PostToolUse ++ claudeSkill.hooks.PostToolUse;
               };
             };
@@ -453,7 +472,8 @@
         // claudeGitHub.homeFiles
         // claudeGit.homeFiles
         // claudeTempScript.homeFiles
-        // claudeSystemd.homeFiles;
+        // claudeSystemd.homeFiles
+        // claudeRTK.homeFiles;
 
       };
 
@@ -477,6 +497,7 @@
         claude-code-sandboxed
         claude-wrapper
         ccusage
+        claudeRTK.package
       ];
 
       age.secrets = {
