@@ -178,9 +178,8 @@ in
     owner = "root";
   };
 
-  age.secrets.exa-token-spend = {
-    rekeyFile = ../../../../secrets/exa-token.age;
-    path = "/run/agenix/exa-token-spend";
+  age.secrets.exa-service-key = {
+    rekeyFile = ../../../../secrets/exa-service-key.age;
     mode = "0400";
     owner = "root";
   };
@@ -224,7 +223,7 @@ in
       path = [ aiSpendStatusScript ];
       script = ''
         export EXA_API_TOKEN
-        EXA_API_TOKEN=$(cat ${config.age.secrets.exa-token-spend.path})
+        EXA_API_TOKEN=$(cat ${config.age.secrets.exa-service-key.path})
         ai-spend-status
       '';
     };
