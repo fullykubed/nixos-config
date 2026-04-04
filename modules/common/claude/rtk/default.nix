@@ -71,6 +71,9 @@ let
       # RTK wrapper for ${cmd} -- strips wrapper dir to prevent loops
       export PATH="''${PATH//\/opt\/rtk\/bin:/}"
       export PATH="''${PATH%/opt/rtk/bin}"
+      if [[ -n "''${NO_RTK:-}" ]]; then
+        exec ${cmd} "$@"
+      fi
       exec ${package}/bin/rtk ${cmd} "$@"
       WRAPPER
             chmod +x $out/bin/${cmd}
