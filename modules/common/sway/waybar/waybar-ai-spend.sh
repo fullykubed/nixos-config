@@ -5,7 +5,7 @@
 set -euo pipefail
 
 AI_SPEND_STATUS_FILE="/run/ai-spend-status/status.json"
-AI_ICON=$'\U000F0109' # nf-md-brain (󰄉)
+AI_ICON=$'\U000F06A9' # nf-md-robot (󰚩)
 
 # Output JSON for waybar
 output_json() {
@@ -23,7 +23,7 @@ output_json() {
 
 # Handle missing status file
 if [[ ! -s "$AI_SPEND_STATUS_FILE" ]]; then
-  output_json "${AI_ICON} --" "AI Spend: no data available" "error"
+  output_json "${AI_ICON}  --" "AI Spend: no data available" "error"
   exit 0
 fi
 
@@ -32,21 +32,21 @@ status=$(< "$AI_SPEND_STATUS_FILE")
 
 # Check for top-level error (malformed JSON guard)
 if ! echo "$status" | jaq -e '.' > /dev/null 2>&1; then
-  output_json "${AI_ICON} err" "AI Spend: invalid status file" "error"
+  output_json "${AI_ICON}  err" "AI Spend: invalid status file" "error"
   exit 0
 fi
 
 # Check for Exa-level error
 exa_error=$(echo "$status" | jaq -r '.exa.error // empty' 2>/dev/null || true)
 if [[ -n "$exa_error" ]]; then
-  output_json "${AI_ICON} err" "AI Spend: API error — ${exa_error}" "error"
+  output_json "${AI_ICON}  err" "AI Spend: API error — ${exa_error}" "error"
   exit 0
 fi
 
 # Extract total cost
 total_cost=$(echo "$status" | jaq -r '.total_cost_usd // empty' 2>/dev/null || true)
 if [[ -z "$total_cost" ]]; then
-  output_json "${AI_ICON} --" "AI Spend: no data available" "error"
+  output_json "${AI_ICON}  --" "AI Spend: no data available" "error"
   exit 0
 fi
 
@@ -216,6 +216,70 @@ RTK – shell compression
   fi
 fi
 
+# ------------------------------------------------------------------------------
+# Claude Code token stats (from ccusage-cache systemd timer)
+# ------------------------------------------------------------------------------
+
+CCUSAGE_CACHE="${XDG_RUNTIME_DIR}/ccusage-cache.json"
+
+if [[ -s "$CCUSAGE_CACHE" ]]; then
+  cc_raw=$(< "$CCUSAGE_CACHE")
+
+  if echo "$cc_raw" | jaq -e '.daily' > /dev/null 2>&1; then
+    cc_count=$(echo "$cc_raw" | jaq '.daily | length')
+
+    if (( cc_count > 0 )); then
+      # Today = last entry in the daily array
+      cc_today=$(echo "$cc_raw" | jaq '.daily[-1]')
+
+      t_input=$(echo "$cc_today" | jaq -r '.inputTokens // 0')
+      t_output=$(echo "$cc_today" | jaq -r '.outputTokens // 0')
+      t_cache_read=$(echo "$cc_today" | jaq -r '.cacheReadTokens // 0')
+      t_cache_write=$(echo "$cc_today" | jaq -r '.cacheCreationTokens // 0')
+      t_total=$(echo "$cc_today" | jaq -r '.totalTokens // 0')
+
+      if (( t_total > 0 )); then
+        tooltip="${tooltip}
+
+Claude Code – today
+  $(fmt_tokens "$t_total") total ($(fmt_tokens "$t_input") in, $(fmt_tokens "$t_output") out)
+  Cache: $(fmt_tokens "$t_cache_read") read, $(fmt_tokens "$t_cache_write") write"
+
+        # Per-model breakdown for today
+        # shellcheck disable=SC2016
+        cc_model_tsv=$(echo "$cc_today" | jaq -r '
+          .modelBreakdowns[]? |
+          [.modelName, (.inputTokens | tostring), (.outputTokens | tostring),
+           (.cacheReadTokens | tostring), (.cacheCreationTokens | tostring),
+           ((.inputTokens + .outputTokens + .cacheReadTokens + .cacheCreationTokens) | tostring)] |
+          join("\t")
+        ' 2>/dev/null || true)
+
+        if [[ -n "$cc_model_tsv" ]]; then
+          while IFS=$'\t' read -r model input output _cache_r _cache_w model_total; do
+            [[ -z "$model" ]] && continue
+            model_name=$(fmt_model "$model")
+            tooltip="${tooltip}
+  ${model_name}: $(fmt_tokens "$model_total") ($(fmt_tokens "$input") in, $(fmt_tokens "$output") out)"
+          done <<< "$cc_model_tsv"
+        fi
+      fi
+
+      # Monthly total (sum all entries)
+      # shellcheck disable=SC2016
+      monthly_total=$(echo "$cc_raw" | jaq '[.daily[].totalTokens] | add // 0')
+
+      if (( monthly_total > 0 )); then
+        month_name=$(date '+%B')
+        tooltip="${tooltip}
+
+Claude Code – ${month_name}
+  $(fmt_tokens "$monthly_total") total tokens"
+      fi
+    fi
+  fi
+fi
+
 # Last-updated timestamp
 if [[ -n "$timestamp" ]]; then
   last_updated=$(date -d "$timestamp" '+%I:%M %p' 2>/dev/null || echo "$timestamp")
@@ -226,4 +290,4 @@ if [[ -n "$timestamp" ]]; then
 Last updated: ${last_updated}"
 fi
 
-output_json "${AI_ICON} ${total_formatted}" "$tooltip" "$class"
+output_json "${AI_ICON}  ${total_formatted}" "$tooltip" "$class"

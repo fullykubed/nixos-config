@@ -169,6 +169,14 @@ let
     ];
     text = builtins.readFile ./waybar-ai-spend.sh;
   };
+  ccusageCacheScript = pkgs.writeShellApplication {
+    name = "ccusage-cache";
+    runtimeInputs = [
+      pkgs.jaq
+      pkgs.coreutils
+    ];
+    text = builtins.readFile ./ccusage-cache.sh;
+  };
 in
 {
   age.secrets.cloudflare-api-token = {
@@ -240,38 +248,63 @@ in
   };
 
   home-manager.users.${config.username} = {
-    # Waybar status bar systemd service
-    systemd.user.services.waybar = {
-      Unit = {
-        Description = "Highly customizable Wayland bar for Sway";
-        Documentation = "https://github.com/Alexays/Waybar/wiki";
-        PartOf = [ "sway-session.target" ];
-        After = [ "sway-session.target" ];
+    # Waybar status bar + ccusage cache systemd units
+    systemd.user = {
+      services.waybar = {
+        Unit = {
+          Description = "Highly customizable Wayland bar for Sway";
+          Documentation = "https://github.com/Alexays/Waybar/wiki";
+          PartOf = [ "sway-session.target" ];
+          After = [ "sway-session.target" ];
+        };
+        Service = {
+          Type = "simple";
+          ExecStart = "${pkgs.waybar}/bin/waybar";
+          Environment = [
+            "PATH=${
+              lib.makeBinPath [
+                pkgs.waybar
+                waybarBuildersScript
+                waybarControllerScript
+                waybarSecurebootScript
+                waybarTailscaleScript
+                waybarAiSpendScript
+                pkgs.tailscale
+                pkgs.jaq
+                pkgs.curl
+                pkgs.bfs
+              ]
+            }:/run/current-system/sw/bin"
+          ];
+          Restart = "on-failure";
+          RestartSec = 1;
+        };
+        Install = {
+          WantedBy = [ "sway-session.target" ];
+        };
       };
-      Service = {
-        Type = "simple";
-        ExecStart = "${pkgs.waybar}/bin/waybar";
-        Environment = [
-          "PATH=${
-            lib.makeBinPath [
-              pkgs.waybar
-              waybarBuildersScript
-              waybarControllerScript
-              waybarSecurebootScript
-              waybarTailscaleScript
-              waybarAiSpendScript
-              pkgs.tailscale
-              pkgs.jaq
-              pkgs.curl
-              pkgs.bfs
-            ]
-          }:/run/current-system/sw/bin"
-        ];
-        Restart = "on-failure";
-        RestartSec = 1;
+
+      services.ccusage-cache = {
+        Unit = {
+          Description = "Cache ccusage token stats for waybar";
+        };
+        Service = {
+          Type = "oneshot";
+          ExecStart = "${ccusageCacheScript}/bin/ccusage-cache";
+        };
       };
-      Install = {
-        WantedBy = [ "sway-session.target" ];
+
+      timers.ccusage-cache = {
+        Unit = {
+          Description = "Refresh ccusage token cache every 5 minutes";
+        };
+        Timer = {
+          OnBootSec = "1min";
+          OnUnitActiveSec = "5min";
+        };
+        Install = {
+          WantedBy = [ "timers.target" ];
+        };
       };
     };
 
