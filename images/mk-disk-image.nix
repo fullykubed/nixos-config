@@ -8,12 +8,14 @@
 let
   casModule = import ../modules/utility/cas-module.nix;
   nixSettingsModule = import ../modules/utility/nix-settings.nix;
+  grubMirrorOverlay = (import ../modules/patches/grub { inherit (nixpkgs) lib; }).nixpkgs.overlays;
   pkgs = import nixpkgs { system = "x86_64-linux"; };
   system = nixpkgs.lib.nixosSystem {
     system = "x86_64-linux";
     modules = [
       casModule
       nixSettingsModule
+      { nixpkgs.overlays = grubMirrorOverlay; }
       determinate.nixosModules.default
       {
         fileSystems."/" = {

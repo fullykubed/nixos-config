@@ -25,6 +25,7 @@ _: {
     ./gjs
     ./gnupg
     ./go
+    ./grub
     ./gstreamer
     ./gpsd
     ./gvfs
