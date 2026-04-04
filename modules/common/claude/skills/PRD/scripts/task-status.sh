@@ -32,9 +32,9 @@ fi
 # Parent tasks have 'subtasks' array where each subtask has a 'status'
 $JAQ --from yaml '
 {
-  "draft": [.[] | select(.status == "draft"), .[] | select(.subtasks) | .subtasks[] | select(.status == "draft")] | length,
-  "defined": [.[] | select(.status == "defined"), .[] | select(.subtasks) | .subtasks[] | select(.status == "defined")] | length,
-  "completed": [.[] | select(.status == "completed"), .[] | select(.subtasks) | .subtasks[] | select(.status == "completed")] | length,
-  "total": [.[] | select(.status), .[] | select(.subtasks) | .subtasks[] | select(.status)] | length
+  "draft": [(.[] | select(.status == "draft")), (.[] | select(.subtasks) | .subtasks[] | select(.status == "draft"))] | length,
+  "defined": [(.[] | select(.status == "defined")), (.[] | select(.subtasks) | .subtasks[] | select(.status == "defined"))] | length,
+  "completed": [(.[] | select(.status == "completed")), (.[] | select(.subtasks) | .subtasks[] | select(.status == "completed"))] | length,
+  "total": [(.[] | select(.status)), (.[] | select(.subtasks) | .subtasks[] | select(.status))] | length
 }
 ' "$TASKS_FILE"
