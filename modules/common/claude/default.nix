@@ -71,7 +71,10 @@
 
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
-        runScript = "${nixpkgs-unstable.claude-code}/bin/claude";
+        runScript = pkgs.writeShellScript "claude-sandboxed-run" ''
+          unset NO_RTK
+          exec ${nixpkgs-unstable.claude-code}/bin/claude "$@"
+        '';
         targetPkgs = _pkgs: [ nixpkgs-unstable.claude-code ];
 
         unshareUser = false;
@@ -83,6 +86,11 @@
         # Exclude /run from auto-mounts so agenix secrets aren't exposed.
         # We mount a clean tmpfs and selectively bind only what's needed.
         profile = ''
+          # Suppress RTK during login-shell init so Claude Code's snapshot
+          # capture isn't corrupted by compressed output from starship, direnv,
+          # etc.  The runScript wrapper unsets NO_RTK before starting Claude,
+          # and non-login Bash-tool shells never re-source this profile.
+          export NO_RTK=1
           export PATH="/opt/rtk/bin:/opt/find-grep/bin:$PATH"
         '';
 
@@ -126,8 +134,8 @@
           "--ro-bind"
           "${findGrepAliases}/bin"
           "/opt/find-grep/bin"
-          # PATH is set via `profile` so it prepends after FHS init.
-          # Do not use --setenv PATH here; FHS init would shadow our entries.
+          # PATH is set via `profile` (not --setenv) so it prepends after FHS init.
+          # NO_RTK=1 is also set there to protect snapshot capture; see profile comment.
           "--setenv"
           "ANTHROPIC_BASE_URL"
           "http://127.0.0.1:8787"
