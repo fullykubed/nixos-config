@@ -103,6 +103,95 @@ ${line_fmt}"
   fi
 fi
 
+# ------------------------------------------------------------------------------
+# Headroom stats (from status file, collected by ai-spend-status service)
+# ------------------------------------------------------------------------------
+
+# Format token count with K/M suffix
+fmt_tokens() {
+  local n=$1
+  if (( n >= 1000000 )); then
+    # shellcheck disable=SC2016
+    jaq -rn --argjson n "$n" '($n / 1000000 * 10 | round) / 10 | tostring + "M"'
+  elif (( n >= 1000 )); then
+    # shellcheck disable=SC2016
+    jaq -rn --argjson n "$n" '($n / 1000 | round | tostring) + "K"'
+  else
+    echo "$n"
+  fi
+}
+
+# Format model name: "claude-sonnet-4-6" -> "Sonnet 4.6"
+fmt_model() {
+  local m=$1
+  m=${m#claude-}
+  m=${m%%-[0-9][0-9][0-9][0-9][0-9]*}
+  local name version
+  case $m in
+    haiku-*)  name="Haiku";  version="${m#haiku-}" ;;
+    opus-*)   name="Opus";   version="${m#opus-}" ;;
+    sonnet-*) name="Sonnet"; version="${m#sonnet-}" ;;
+    *)        echo "$m"; return ;;
+  esac
+  echo "${name} ${version//-/.}"
+}
+
+hr_error=$(echo "$status" | jaq -r '.headroom.error // empty' 2>/dev/null || true)
+
+if [[ -z "$hr_error" ]] && echo "$status" | jaq -e '.headroom.session' > /dev/null 2>&1; then
+  # 30-day totals
+  td_requests=$(echo "$status" | jaq -r '.headroom.thirty_day.requests // 0')
+  td_cache=$(echo "$status" | jaq -r '.headroom.thirty_day.cache_savings_usd // 0')
+  td_compress=$(echo "$status" | jaq -r '.headroom.thirty_day.compress_savings_usd // 0')
+  td_tokens=$(echo "$status" | jaq -r '.headroom.thirty_day.tokens_saved // 0')
+
+  # shellcheck disable=SC2016
+  td_total_saved=$(jaq -rn --argjson a "$td_cache" --argjson b "$td_compress" '$a + $b')
+  td_total_fmt=$(printf '$%.2f' "$td_total_saved")
+  td_cache_fmt=$(printf '$%.2f' "$td_cache")
+  td_compress_fmt=$(printf '$%.2f' "$td_compress")
+
+  tooltip="${tooltip}
+
+Headroom – 30 day
+  ${td_total_fmt} saved (${td_requests} req)
+  Cache: ${td_cache_fmt}  |  Compression: ${td_compress_fmt}, $(fmt_tokens "$td_tokens") tokens"
+
+  # Session stats
+  s_requests=$(echo "$status" | jaq -r '.headroom.session.requests // 0')
+  s_cache=$(echo "$status" | jaq -r '.headroom.session.cache_savings_usd // 0')
+  s_compress=$(echo "$status" | jaq -r '.headroom.session.compress_savings_usd // 0')
+  s_overhead=$(echo "$status" | jaq -r '.headroom.session.avg_overhead_ms // 0')
+  s_hit_rate=$(echo "$status" | jaq -r '.headroom.session.cache_hit_rate // 0')
+
+  # shellcheck disable=SC2016
+  s_total_saved=$(jaq -rn --argjson a "$s_cache" --argjson b "$s_compress" '$a + $b')
+  s_total_fmt=$(printf '$%.2f' "$s_total_saved")
+  s_overhead_fmt=$(printf '%.0f' "$s_overhead")
+
+  tooltip="${tooltip}
+
+Headroom – session
+  ${s_total_fmt} saved (${s_requests} req, ${s_overhead_fmt}ms overhead)
+  Cache: ${s_hit_rate}% hit rate"
+
+  # Per-model breakdown from session data
+  # shellcheck disable=SC2016
+  model_tsv=$(echo "$status" | jaq -r '
+    .headroom.session.per_model | to_entries[] |
+    [.key, (.value.requests | tostring), (.value.reduction_pct | tostring)] | join("\t")
+  ' 2>/dev/null || true)
+
+  if [[ -n "$model_tsv" ]]; then
+    while IFS=$'\t' read -r model requests reduction; do
+      [[ -z "$model" ]] && continue
+      model_name=$(fmt_model "$model")
+      tooltip="${tooltip}
+  ${model_name}: ${requests} req, ${reduction}% reduced"
+    done <<< "$model_tsv"
+  fi
+fi
+
 # Last-updated timestamp
 if [[ -n "$timestamp" ]]; then
   last_updated=$(date -d "$timestamp" '+%I:%M %p' 2>/dev/null || echo "$timestamp")

@@ -13,6 +13,10 @@ EXA_API_BASE="https://admin-api.exa.ai/team-management"
 OUTPUT_DIR="/run/ai-spend-status"
 OUTPUT_FILE="${OUTPUT_DIR}/status.json"
 OUTPUT_TMP="${OUTPUT_DIR}/status.json.tmp"
+STATE_DIR="/var/lib/ai-spend-status"
+HEADROOM_FILE="${STATE_DIR}/headroom.json"
+HEADROOM_URL="http://127.0.0.1:8787/stats"
+PRUNE_DAYS=30
 
 # ------------------------------------------------------------------------------
 # Logging helpers (all output goes to stderr)
@@ -142,6 +146,173 @@ else
 fi
 
 # ------------------------------------------------------------------------------
+# Headroom proxy: collect session stats and accumulate 30-day deltas
+# ------------------------------------------------------------------------------
+
+mkdir -p "$STATE_DIR"
+
+hr_session_json="null"
+hr_thirty_day_json="null"
+hr_error=""
+
+info "Querying headroom proxy at ${HEADROOM_URL}"
+
+headroom_raw=""
+if headroom_raw=$(curl -sf --max-time 5 "$HEADROOM_URL" 2>/dev/null); then
+  # Extract session counters from live proxy
+  hr_requests=$(echo "$headroom_raw" | jaq -r '.requests.total // 0')
+  hr_cache_usd=$(echo "$headroom_raw" | jaq -r '.cost.cache_savings_usd // 0')
+  hr_compress_usd=$(echo "$headroom_raw" | jaq -r '.cost.compression_savings_usd // 0')
+  hr_tokens=$(echo "$headroom_raw" | jaq -r '.cost.total_tokens_saved // 0')
+  hr_avg_overhead=$(echo "$headroom_raw" | jaq -r '.overhead.average_ms // 0')
+  hr_cache_hit_rate=$(echo "$headroom_raw" | jaq -r '.prefix_cache.totals.hit_rate // 0')
+
+  # Per-model breakdown (filter to claude-* models only)
+  # shellcheck disable=SC2016
+  hr_per_model=$(echo "$headroom_raw" | jaq -c '
+    .cost.per_model | to_entries
+    | map(select(.key | startswith("claude-")))
+    | map({key: .key, value: {requests: .value.requests, reduction_pct: .value.reduction_pct}})
+    | from_entries
+  ' 2>/dev/null || echo '{}')
+
+  # Build session JSON
+  # shellcheck disable=SC2016
+  hr_session_json=$(jaq -cn \
+    --argjson requests "$hr_requests" \
+    --argjson cache_usd "$hr_cache_usd" \
+    --argjson compress_usd "$hr_compress_usd" \
+    --argjson tokens "$hr_tokens" \
+    --argjson overhead "$hr_avg_overhead" \
+    --argjson hit_rate "$hr_cache_hit_rate" \
+    --argjson per_model "$hr_per_model" \
+    '{
+      requests: $requests,
+      cache_savings_usd: $cache_usd,
+      compress_savings_usd: $compress_usd,
+      tokens_saved: $tokens,
+      avg_overhead_ms: $overhead,
+      cache_hit_rate: $hit_rate,
+      per_model: $per_model
+    }')
+
+  # --------------------------------------------------------------------------
+  # Delta accumulation against persistent history
+  # --------------------------------------------------------------------------
+
+  now_iso=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Read existing history (or start fresh)
+  if [[ -f "$HEADROOM_FILE" ]] && jaq -e '.' "$HEADROOM_FILE" > /dev/null 2>&1; then
+    history=$(< "$HEADROOM_FILE")
+  else
+    history='{"last":{"requests":0,"cache_usd":0,"compress_usd":0,"tokens":0},"deltas":[]}'
+  fi
+
+  last_requests=$(echo "$history" | jaq -r '.last.requests // 0')
+  last_cache=$(echo "$history" | jaq -r '.last.cache_usd // 0')
+  last_compress=$(echo "$history" | jaq -r '.last.compress_usd // 0')
+  last_tokens=$(echo "$history" | jaq -r '.last.tokens // 0')
+
+  # Detect proxy restart: if any current value < last snapshot, proxy reset
+  # shellcheck disable=SC2016
+  restarted=$(jaq -rn \
+    --argjson cr "$hr_requests" --argjson lr "$last_requests" \
+    --argjson cc "$hr_cache_usd" --argjson lc "$last_cache" \
+    --argjson cp "$hr_compress_usd" --argjson lp "$last_compress" \
+    --argjson ct "$hr_tokens" --argjson lt "$last_tokens" \
+    'if ($cr < $lr) or ($cc < $lc) or ($cp < $lp) or ($ct < $lt) then "yes" else "no" end')
+
+  if [[ "$restarted" == "yes" ]]; then
+    info "Headroom proxy restart detected; using current values as delta"
+    d_requests="$hr_requests"
+    d_cache="$hr_cache_usd"
+    d_compress="$hr_compress_usd"
+    d_tokens="$hr_tokens"
+  else
+    # shellcheck disable=SC2016
+    d_requests=$(jaq -rn --argjson a "$hr_requests" --argjson b "$last_requests" '$a - $b')
+    # shellcheck disable=SC2016
+    d_cache=$(jaq -rn --argjson a "$hr_cache_usd" --argjson b "$last_cache" '$a - $b')
+    # shellcheck disable=SC2016
+    d_compress=$(jaq -rn --argjson a "$hr_compress_usd" --argjson b "$last_compress" '$a - $b')
+    # shellcheck disable=SC2016
+    d_tokens=$(jaq -rn --argjson a "$hr_tokens" --argjson b "$last_tokens" '$a - $b')
+  fi
+
+  # Only append a delta entry if something changed
+  # shellcheck disable=SC2016
+  has_change=$(jaq -rn \
+    --argjson r "$d_requests" --argjson c "$d_cache" \
+    --argjson p "$d_compress" --argjson t "$d_tokens" \
+    'if ($r > 0) or ($c > 0) or ($p > 0) or ($t > 0) then "yes" else "no" end')
+
+  if [[ "$has_change" == "yes" ]]; then
+    # shellcheck disable=SC2016
+    new_delta=$(jaq -cn \
+      --arg ts "$now_iso" \
+      --argjson requests "$d_requests" \
+      --argjson cache_usd "$d_cache" \
+      --argjson compress_usd "$d_compress" \
+      --argjson tokens "$d_tokens" \
+      '{ts: $ts, requests: $requests, cache_usd: $cache_usd, compress_usd: $compress_usd, tokens: $tokens}')
+
+    # shellcheck disable=SC2016
+    history=$(echo "$history" | jaq -c --argjson d "$new_delta" '.deltas += [$d]')
+  fi
+
+  # Update last snapshot
+  # shellcheck disable=SC2016
+  history=$(echo "$history" | jaq -c \
+    --argjson r "$hr_requests" \
+    --argjson c "$hr_cache_usd" \
+    --argjson p "$hr_compress_usd" \
+    --argjson t "$hr_tokens" \
+    '.last = {requests: $r, cache_usd: $c, compress_usd: $p, tokens: $t}')
+
+  # Prune deltas older than 30 days
+  cutoff=$(date -u -d "${PRUNE_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
+  # shellcheck disable=SC2016
+  history=$(echo "$history" | jaq -c --arg cutoff "$cutoff" \
+    '.deltas |= map(select(.ts >= $cutoff))')
+
+  # Write updated history atomically
+  headroom_tmp="${HEADROOM_FILE}.tmp"
+  echo "$history" > "$headroom_tmp"
+  mv "$headroom_tmp" "$HEADROOM_FILE"
+
+  # Sum 30-day totals from all deltas
+  # shellcheck disable=SC2016
+  hr_thirty_day_json=$(echo "$history" | jaq -c '
+    .deltas | {
+      requests: (map(.requests) | add // 0),
+      cache_savings_usd: (map(.cache_usd) | add // 0),
+      compress_savings_usd: (map(.compress_usd) | add // 0),
+      tokens_saved: (map(.tokens) | add // 0)
+    }')
+
+  info "Headroom: session=${hr_requests} req, 30d delta entries=$(echo "$history" | jaq '.deltas | length')"
+else
+  hr_error="headroom proxy unreachable"
+  warn "$hr_error"
+fi
+
+# Build headroom error field
+if [[ -n "$hr_error" ]]; then
+  # shellcheck disable=SC2016
+  hr_error_json=$(jaq -cn --arg e "$hr_error" '$e')
+else
+  hr_error_json="null"
+fi
+
+# shellcheck disable=SC2016
+headroom_json=$(jaq -cn \
+  --argjson session "$hr_session_json" \
+  --argjson thirty_day "$hr_thirty_day_json" \
+  --argjson err "$hr_error_json" \
+  '{session: $session, thirty_day: $thirty_day, error: $err}')
+
+# ------------------------------------------------------------------------------
 # Build output JSON
 # ------------------------------------------------------------------------------
 
@@ -181,6 +352,7 @@ jaq -cn \
   --argjson exaKeyCount "${exa_key_count}" \
   --argjson exaPeriod "${exa_period_json}" \
   --argjson exaError "${exa_error_json}" \
+  --argjson headroom "${headroom_json}" \
   --arg timestamp "${timestamp}" \
   '{
     exa: {
@@ -190,6 +362,7 @@ jaq -cn \
       period: $exaPeriod,
       error: $exaError
     },
+    headroom: $headroom,
     total_cost_usd: $exaTotalCost,
     timestamp: $timestamp
   }' > "${OUTPUT_TMP}"

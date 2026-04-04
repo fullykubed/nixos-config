@@ -219,6 +219,7 @@ in
         Type = "oneshot";
         RuntimeDirectory = "ai-spend-status";
         RuntimeDirectoryPreserve = "yes";
+        StateDirectory = "ai-spend-status";
       };
       path = [ aiSpendStatusScript ];
       script = ''
