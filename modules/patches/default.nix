@@ -53,6 +53,7 @@ _: {
     ./openexr
     ./p11-kit
     ./perl
+    ./plocate
     ./python
     ./sway
     ./taglib
