@@ -121,6 +121,7 @@ in
         description = "Sync R2 ccache bucket to local directory via s5cmd";
         after = cfg.afterServices ++ [ "network-online.target" ];
         wants = [ "network-online.target" ];
+        wantedBy = [ ]; # timer-driven only; prevents nixos-rebuild switch from blocking on this long-running oneshot
         restartIfChanged = false;
         serviceConfig = {
           Type = "oneshot";
