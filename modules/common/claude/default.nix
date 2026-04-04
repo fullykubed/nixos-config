@@ -487,26 +487,6 @@
               };
             };
           };
-          systemd.user.services.headroom-proxy = {
-            Unit = {
-              Description = "Headroom context compression proxy for Claude Code";
-              After = [ "network-online.target" ];
-            };
-            Service = {
-              Type = "simple";
-              ExecStart = "${claudeHeadroom.package}/bin/headroom proxy --port 8787 --no-telemetry";
-              Restart = "on-failure";
-              RestartSec = 5;
-              Environment = [
-                "HEADROOM_TELEMETRY=off"
-                "HEADROOM_HOST=127.0.0.1"
-                "HEADROOM_PORT=8787"
-              ];
-            };
-            Install = {
-              WantedBy = [ "default.target" ];
-            };
-          };
         }
         // claudeSkill.homeFiles
         // claudePRD.homeFiles
@@ -520,6 +500,7 @@
         // claudeSystemd.homeFiles
         // claudeRTK.homeFiles;
 
+        systemd.user.services = claudeHeadroom.systemdServices;
       };
 
       environment.systemPackages = [
