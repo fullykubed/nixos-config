@@ -85,7 +85,7 @@
         extraPreBwrapCmds = ''
           ignored+=(/run)
           _run_uid=$(id -u)
-          _rtk_path="/opt/rtk/bin:$PATH"
+          _rtk_path="/opt/rtk/bin:/opt/find-grep/bin:$PATH"
         '';
 
         extraBwrapArgs = [
@@ -120,6 +120,9 @@
           "--ro-bind"
           "${claudeRTK.wrappers}/bin"
           "/opt/rtk/bin"
+          "--ro-bind"
+          "${findGrepAliases}/bin"
+          "/opt/find-grep/bin"
           "--setenv"
           "PATH"
           "$_rtk_path"
@@ -376,6 +379,8 @@
       claudeTempScript = import ./skills/TempScript { };
       claudeSystemd = import ./skills/Systemd { };
       claudeRTK = pkgs.callPackage ./rtk { inherit versions; };
+
+      findGrepAliases = pkgs.callPackage ./find-grep { };
       claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
     in
     {
