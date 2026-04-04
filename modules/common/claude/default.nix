@@ -384,6 +384,15 @@
 
       findGrepAliases = pkgs.callPackage ./find-grep { };
       claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
+
+      locateHook = pkgs.writeShellApplication {
+        name = "claude-locate-hook";
+        runtimeInputs = [
+          pkgs.jaq
+          pkgs.gnugrep
+        ];
+        text = builtins.readFile ./claude-locate-hook.sh;
+      };
     in
     {
       home-manager.users.${config.username} = {
@@ -485,6 +494,18 @@
                       {
                         type = "command";
                         command = "workmux set-window-status working";
+                      }
+                    ];
+                  }
+                ];
+
+                PreToolUse = [
+                  {
+                    matcher = "Bash|Grep|Glob";
+                    hooks = [
+                      {
+                        type = "command";
+                        command = "${locateHook}/bin/claude-locate-hook";
                       }
                     ];
                   }

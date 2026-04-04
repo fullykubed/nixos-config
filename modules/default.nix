@@ -22,6 +22,7 @@
     ./common/keyboards
     ./common/audio
     ./common/pdf
+    ./common/plocate
     ./common/scanner
     ./common/packages
     ./common/direnv
