@@ -73,6 +73,8 @@ in
           "HEADROOM_TELEMETRY=off"
           "HEADROOM_HOST=127.0.0.1"
           "HEADROOM_PORT=8787"
+          "HEADROOM_MODE=cost_savings"
+          "ORT_LOG_LEVEL=3" # suppress onnxruntime provider bridge warnings (no CUDA on AMD GPU)
         ];
       };
       Install = {
