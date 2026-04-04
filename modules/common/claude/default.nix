@@ -82,10 +82,13 @@
 
         # Exclude /run from auto-mounts so agenix secrets aren't exposed.
         # We mount a clean tmpfs and selectively bind only what's needed.
+        profile = ''
+          export PATH="/opt/rtk/bin:/opt/find-grep/bin:$PATH"
+        '';
+
         extraPreBwrapCmds = ''
           ignored+=(/run)
           _run_uid=$(id -u)
-          _rtk_path="/opt/rtk/bin:/opt/find-grep/bin:$PATH"
         '';
 
         extraBwrapArgs = [
@@ -123,9 +126,8 @@
           "--ro-bind"
           "${findGrepAliases}/bin"
           "/opt/find-grep/bin"
-          "--setenv"
-          "PATH"
-          "$_rtk_path"
+          # PATH is set via `profile` so it prepends after FHS init.
+          # Do not use --setenv PATH here; FHS init would shadow our entries.
           "--setenv"
           "ANTHROPIC_BASE_URL"
           "http://127.0.0.1:8787"
