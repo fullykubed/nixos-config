@@ -40,8 +40,8 @@ fi
 
 # Check if task exists (either as top-level or subtask)
 TASK_EXISTS=$($JAQ --from yaml "
-    [.[] | select(.name == \"$TASK_NAME\" and .status),
-     .[] | select(.subtasks) | .subtasks[] | select(.name == \"$TASK_NAME\")] | length
+    [(.[] | select(.name == \"$TASK_NAME\" and .status)),
+     (.[] | select(.subtasks) | .subtasks[] | select(.name == \"$TASK_NAME\"))] | length
 " "$TASKS_FILE")
 
 if [[ "$TASK_EXISTS" -eq 0 ]]; then

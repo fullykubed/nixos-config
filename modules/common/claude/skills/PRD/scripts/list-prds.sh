@@ -31,8 +31,8 @@ for prd_dir in "$PRDS_DIR"/*/; do
     # Count completed and total tasks (both top-level leaf tasks and subtasks)
     counts=$($JAQ --from yaml '
         {
-            "completed": [.[] | select(.status == "completed"), .[] | select(.subtasks) | .subtasks[] | select(.status == "completed")] | length,
-            "total": [.[] | select(.status), .[] | select(.subtasks) | .subtasks[] | select(.status)] | length
+            "completed": [(.[] | select(.status == "completed")), (.[] | select(.subtasks) | .subtasks[] | select(.status == "completed"))] | length,
+            "total": [(.[] | select(.status)), (.[] | select(.subtasks) | .subtasks[] | select(.status))] | length
         }
     ' "$tasks_file" 2>/dev/null || echo '{"completed":0,"total":0}')
 
