@@ -34,6 +34,14 @@
       type = lib.types.str;
       description = "Cargo dependencies hash for rtk";
     };
+    headroom = lib.mkOption {
+      type = lib.types.str;
+      description = "Version of headroom context compression proxy";
+    };
+    headroomSrcHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Source hash for headroom PyPI package";
+    };
   };
 
   # ===========================================================================
@@ -115,6 +123,15 @@
           "--setenv"
           "PATH"
           "$_rtk_path"
+          "--setenv"
+          "ANTHROPIC_BASE_URL"
+          "http://127.0.0.1:8787"
+          "--setenv"
+          "NO_PROXY"
+          "127.0.0.1"
+          "--setenv"
+          "no_proxy"
+          "127.0.0.1"
 
         ]
         ++ roBind [
@@ -359,6 +376,7 @@
       claudeTempScript = import ./skills/TempScript { };
       claudeSystemd = import ./skills/Systemd { };
       claudeRTK = pkgs.callPackage ./rtk { inherit versions; };
+      claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
     in
     {
       home-manager.users.${config.username} = {
@@ -386,6 +404,8 @@
             source = ./specs;
             recursive = true;
           };
+
+          ".headroom/.keep".text = "";
 
           ".claude/settings.json" = {
             force = true;
@@ -467,6 +487,26 @@
               };
             };
           };
+          systemd.user.services.headroom-proxy = {
+            Unit = {
+              Description = "Headroom context compression proxy for Claude Code";
+              After = [ "network-online.target" ];
+            };
+            Service = {
+              Type = "simple";
+              ExecStart = "${claudeHeadroom.package}/bin/headroom proxy --port 8787 --no-telemetry";
+              Restart = "on-failure";
+              RestartSec = 5;
+              Environment = [
+                "HEADROOM_TELEMETRY=off"
+                "HEADROOM_HOST=127.0.0.1"
+                "HEADROOM_PORT=8787"
+              ];
+            };
+            Install = {
+              WantedBy = [ "default.target" ];
+            };
+          };
         }
         // claudeSkill.homeFiles
         // claudePRD.homeFiles
@@ -503,6 +543,7 @@
         claude-wrapper
         ccusage
         claudeRTK.package
+        claudeHeadroom.package
       ];
 
       age.secrets = {

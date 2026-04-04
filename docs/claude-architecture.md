@@ -3,50 +3,55 @@
 Claude Code runs in a sandboxed environment with credentials injected at the network layer, skills and hooks managed as Nix derivations, and configuration generated declaratively by home-manager. This document explains the motivations behind each layer and how they fit together.
 
 ```
-                           Shell Aliases
-                      cc | q | qq | qqq | una
-                               |
-                               v
-                        claude-wrapper
-                  (--dangerously-skip-permissions)
-                               |
-                               v
-              +------------------------------------+
-              |  buildFHSEnvBubblewrap Sandbox     |
-              |                                    |
-              |  Namespaces: PID, IPC, UTS         |
-              |  Private /tmp (64 MB tmpfs)        |
-              |  Hostname: claude-sandbox          |
-              |                                    |
-              |  RO mounts: .ssh .gitconfig .gnupg |
-              |             .config .bashrc        |
-              |  RW mounts: repos/ .cache/ .npm/   |
-              |             .cargo/ .claude/ .aws/  |
-              |             .kube/ .local/          |
-              |                                    |
-              |  HTTP_PROXY=127.0.0.1:8080         |
-              |  HTTPS_PROXY=127.0.0.1:8080        |
-              +---------------+--------------------+
-                              |
-              +---------------+--------------------+
-              |               |                    |
-              v               v                    v
-        Anthropic API   Credential Proxy     MCP Servers
-                        (127.0.0.1:8080)       (Exa)
-                              |
-                  +-----------+-----------+
-                  |                       |
-                  v                       v
-           MITM intercept           TCP tunnel
-         (configured domains)     (all other hosts)
-                  |
-                  v
-          Inject auth header
-          from agenix secret
+                        Shell Aliases
+                   cc | q | qq | qqq | una
+                            |
+                            v
+                     claude-wrapper
+               (--dangerously-skip-permissions)
+                            |
+                            v
+           +------------------------------------+
+           |  buildFHSEnvBubblewrap Sandbox     |
+           |                                    |
+           |  Namespaces: PID, IPC, UTS         |
+           |  Private /tmp (64 MB tmpfs)        |
+           |  Hostname: claude-sandbox          |
+           |                                    |
+           |  RO mounts: .ssh .gitconfig .gnupg |
+           |             .config .bashrc        |
+           |  RW mounts: repos/ .cache/ .npm/   |
+           |             .cargo/ .claude/ .aws/  |
+           |             .kube/ .local/          |
+           |                                    |
+           |  ANTHROPIC_BASE_URL=               |
+           |    http://127.0.0.1:8787           |
+           |  HTTP_PROXY=127.0.0.1:8080         |
+           |  NO_PROXY=127.0.0.1                |
+           +---------------+--------------------+
+                           |
+           +---------------+--------------------+
+           |               |                    |
+           v               v                    v
+     Headroom Proxy  Credential Proxy     MCP Servers
+   (127.0.0.1:8787) (127.0.0.1:8080)       (Exa)
+           |               |
+           |   +-----------+-----------+
+           |   |                       |
+           |   v                       v
+           |  MITM intercept      TCP tunnel
+           |  (configured domains) (all other hosts)
+           |   |
+           |   v
+           |  Inject auth header
+           |  from agenix secret
+           v               v
+    api.anthropic.com  api.github.com
 ```
 
 **Entry point:** `modules/common/claude/default.nix`
 **Credential proxy:** `modules/common/mitmproxy-credential-proxy/`
+**Headroom proxy:** `modules/common/claude/headroom/default.nix`
 
 ## Why a Sandbox?
 
@@ -69,6 +74,18 @@ The proxy (`modules/common/mitmproxy-credential-proxy/`) is a TypeScript service
 - **Unmapped domains**: the proxy creates a direct TCP tunnel with no interception.
 
 Credential mappings are a simple list in the Nix module — each entry specifies a domain, a header name, a value prefix, and a secret path. Currently GitHub (`api.github.com` -> `Authorization: token <secret>`) is the only mapping, but adding a new service means adding one more entry to the list. The real tokens never enter the sandbox.
+
+## Why a Headroom Proxy?
+
+Headroom is an HTTP proxy that sits between Claude Code and the Anthropic API, compressing context before it reaches the model. It listens on `127.0.0.1:8787` as a systemd user service (via home-manager) and receives Anthropic API calls because `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` is set in the bwrap sandbox environment.
+
+**What it does:** Headroom intercepts the outbound API request, runs its compression pipeline (SmartCrusher for JSON arrays, AST-aware code compression, semantic context scoring), strips redundant content, and forwards the reduced payload to `api.anthropic.com`. This produces 47–92% reduction in input tokens per session — lower cost, less context pressure, and faster API responses.
+
+**Coexistence with the credential proxy:** Without special handling, requests to `http://127.0.0.1:8787` would be routed through `HTTP_PROXY=127.0.0.1:8080` (the credential proxy), which would break the Headroom connection. Adding `NO_PROXY=127.0.0.1` (and `no_proxy=127.0.0.1` for lowercase-respecting clients) to the sandbox environment prevents this — Headroom gets a direct connection, and all other outbound traffic continues through the credential proxy as before.
+
+**Coexistence with RTK:** RTK operates as a `PreToolUse` hook at the Bash tool-call level — it compresses shell command outputs before they are added to the context window. Headroom operates at the HTTP transport level — it compresses the full request payload as it leaves the sandbox. They are complementary layers; Headroom includes built-in deduplication so tokens compressed by RTK are not double-counted.
+
+**Telemetry:** Headroom is started with `--no-telemetry` and `HEADROOM_TELEMETRY=off`. No usage data leaves the machine.
 
 ## Skills
 
@@ -137,4 +154,5 @@ The Exa token flows through home-manager activation (decrypt -> read -> jq -> `~
 | `modules/common/claude/default.nix` | Main module — sandbox, wrapper, settings, skills, secrets |
 | `modules/common/claude/scripts/` | Shell scripts (q, qq, qqq, una, notify-hook) |
 | `modules/common/claude/skills/` | System-level skill packages (Skill, PRD, NixOSBuild, DevBrowser, Surprises) |
+| `modules/common/claude/headroom/default.nix` | Headroom package derivation and systemd user service definition |
 | `modules/common/mitmproxy-credential-proxy/` | Credential proxy module and TypeScript source |

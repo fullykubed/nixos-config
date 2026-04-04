@@ -33,6 +33,10 @@
   rtkSrcHash = "sha256-SQJhPit7efAjBezCNHtn5iZEEly6eApxsO9jGHLrKlg=";
   rtkCargoHash = "sha256-WpSwEx/pkGTIlDv1cTFtTcTC3YgddMYVbOLlqKYeDK0=";
 
+  # headroom (modules/common/claude)
+  headroom = "0.5.18";
+  headroomSrcHash = "sha256-yEVfZJuKMTrmv3v1N3VkARs6QSOGDDxIlUzxINz5t0Q=";
+
   # ccusage (modules/common/claude)
   ccusage = "16.2.5";
   ccusageSrcHash = "sha256-GXleBpZ3XF4DWrXG31Kh15SoOLRm6kXuuvIEEEmQ8eA=";
