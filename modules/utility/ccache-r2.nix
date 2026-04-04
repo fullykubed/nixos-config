@@ -114,7 +114,7 @@ in
         "d ${ccacheDir} 0775 root nixbld -"
         "d ${r2DownloadDir} 0775 root nixbld -"
         "d ${r2UploadDir} 0775 root nixbld -"
-        "C ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
+        "L+ ${ccacheDir}/ccache.conf - - - - ${ccacheConfig}"
       ];
 
       services.ccache-r2-download = {
