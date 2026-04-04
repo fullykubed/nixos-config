@@ -21,6 +21,8 @@ let
       hatchling
     ];
 
+    pythonRelaxDeps = [ "litellm" ];
+
     dependencies = with python3.pkgs; [
       # Core
       tiktoken

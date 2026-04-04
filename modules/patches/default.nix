@@ -3,6 +3,7 @@
 # Each subdirectory is a NixOS module that adds its own overlay.
 _: {
   imports = [
+    ./arrow-cpp
     ./assimp
     ./avahi
     ./binutils
@@ -56,6 +57,8 @@ _: {
     ./sway
     ./taglib
     ./texinfo
+    ./torch
+    ./triton
     ./waybar
     ./xvidcore
     ./zlib
