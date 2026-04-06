@@ -3,6 +3,7 @@
 NixOS module integrating Claude Code with skills, shell scripts, and shared specifications.
 
 - `default.nix` — Main NixOS/home-manager module that packages scripts, integrates skills, and deploys Claude Code configuration.
+- `agent-browser/` — Standalone Nix package that builds the agent-browser browser automation CLI from source (daemon + Rust CLI wrapped together).
 - `CLAUDE.md` — Project-level instructions for Claude Code covering workspace setup, vulnerability management, and CVE patching.
 - `commands/` — Slash-command definitions for Claude Code (e.g., `/rebase`).
 - `scripts/` — Shell scripts for terminal productivity and Claude Code integration hooks.

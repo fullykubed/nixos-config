@@ -26,6 +26,22 @@
       type = lib.types.str;
       description = "Source hash for headroom PyPI package";
     };
+    agentBrowser = lib.mkOption {
+      type = lib.types.str;
+      description = "Version of agent-browser browser automation CLI";
+    };
+    agentBrowserSrcHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Source hash for agent-browser GitHub source";
+    };
+    agentBrowserPnpmDepsHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Hash for agent-browser pnpm dependency store (pnpm_9.fetchDeps)";
+    };
+    agentBrowserCargoHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Cargo vendor hash for agent-browser Rust CLI";
+    };
   };
 
   # ===========================================================================
@@ -351,7 +367,15 @@
 
       claudePRD = pkgs.callPackage ./skills/PRD { };
 
-      claudeDevBrowser = pkgs.callPackage ./skills/DevBrowser { };
+      claudeAgentBrowser = pkgs.callPackage ./skills/AgentBrowser { };
+
+      claudeDogfood = pkgs.callPackage ./skills/Dogfood { };
+
+      claudeElectron = pkgs.callPackage ./skills/Electron { };
+
+      claudeSlack = pkgs.callPackage ./skills/Slack { };
+
+      agentBrowser = (pkgs.callPackage ./agent-browser { inherit versions; }).package;
 
       claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
 
@@ -498,7 +522,10 @@
         }
         // claudeSkill.homeFiles
         // claudePRD.homeFiles
-        // claudeDevBrowser.homeFiles
+        // claudeAgentBrowser.homeFiles
+        // claudeDogfood.homeFiles
+        // claudeElectron.homeFiles
+        // claudeSlack.homeFiles
         // claudeNixOSBuild.homeFiles
         // claudeSurprises.homeFiles
         // claudeKeePassXC.homeFiles
@@ -516,7 +543,7 @@
         claudeShellScripts
         claudePRD.package
         claudeSkill.package
-        claudeDevBrowser.package
+        agentBrowser
         claudeNixOSBuild.package
         claudeSurprises.package
         claudeKeePassXC.package

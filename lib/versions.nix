@@ -38,4 +38,10 @@
   # brscan5 Brother scanner driver (modules/utility/brother-scanner)
   brscan5 = "1.3.1-0";
   brscan5Hash = "sha256-0UMbXMBlyiZI90WG5FWEP2mIZEBsxXd11dtgtyuSDnY=";
+
+  # agent-browser (modules/common/agent-browser)
+  agentBrowser = "0.17.1";
+  agentBrowserSrcHash = "sha256-hTtBm2iSDcPkiEwvJ5nBYXIjThi6JdYFrajkYZcsOkg=";
+  agentBrowserPnpmDepsHash = "sha256-Ndt5KND4zIbKbnR5a+qXsoqsocFH3Mz9fvYohXGhQBE=";
+  agentBrowserCargoHash = "sha256-kEvU+YIyiAwFCWzz3QvM/8ncqaCUDKCDGxzNBrvMhN4=";
 }
