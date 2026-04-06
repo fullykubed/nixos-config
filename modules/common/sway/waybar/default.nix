@@ -169,9 +169,35 @@ let
     ];
     text = builtins.readFile ./waybar-ai-spend.sh;
   };
+  ccusage = pkgs.stdenv.mkDerivation {
+    pname = "ccusage";
+    version = config.versions.ccusage;
+
+    src = pkgs.fetchurl {
+      url = "https://registry.npmjs.org/ccusage/-/ccusage-${config.versions.ccusage}.tgz";
+      hash = config.versions.ccusageSrcHash;
+    };
+
+    nativeBuildInputs = [ pkgs.makeWrapper ];
+
+    installPhase = ''
+      runHook preInstall
+
+      mkdir -p $out/lib/node_modules/ccusage
+      cp -r ./* $out/lib/node_modules/ccusage/
+
+      mkdir -p $out/bin
+      makeWrapper ${pkgs.nodejs_20}/bin/node $out/bin/ccusage \
+        --add-flags "$out/lib/node_modules/ccusage/dist/index.js"
+
+      runHook postInstall
+    '';
+  };
+
   ccusageCacheScript = pkgs.writeShellApplication {
     name = "ccusage-cache";
     runtimeInputs = [
+      ccusage
       pkgs.jaq
       pkgs.coreutils
     ];
