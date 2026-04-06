@@ -92,8 +92,11 @@ Working directory: ${cwd}
 Files read during the conversation:
 ${file_list}"
 
-# Run the surprise-reviewer agent (hook is async, so this doesn't block the session)
-CLAUDE_HOOK_RECURSIVE=1 @claude@ \
+# Run the surprise-reviewer agent (hook is async, so this doesn't block the session).
+# Unset CLAUDECODE so the recursive call bypasses Claude Code's nested-session
+# guard. The sandboxed wrapper itself nests fine because claude-wrapper preserves
+# ~/.claude.json's inode (no mv), so the parent's bwrap bind mount stays valid.
+env -u CLAUDECODE CLAUDE_HOOK_RECURSIVE=1 @claude@ \
     --agent surprise-reviewer \
     --print \
     --no-session-persistence \

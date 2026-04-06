@@ -3,10 +3,6 @@ name: systemd
 description: "Query systemd journal logs, check service status, diagnose failed units, and analyze boot performance. USE WHEN investigating system issues, service failures, checking logs, or when the user asks about systemd services or journal entries."
 argument-hint: "diagnose [unit]"
 model: sonnet
-allowed-tools:
-  - Bash(journalctl:*)
-  - Bash(systemctl:*)
-  - Bash(systemd-analyze:*)
 ---
 
 You diagnose systemd issues by gathering service status, querying journal logs, and analyzing boot and timer state.

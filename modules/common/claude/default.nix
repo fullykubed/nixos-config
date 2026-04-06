@@ -332,6 +332,7 @@
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
         CLAUDE_JSON="$HOME/.claude.json"
+        CLAUDE_LOCK="$HOME/.claude.json.lock"
         EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
         EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
 
@@ -339,26 +340,39 @@
           echo '{}' > "$CLAUDE_JSON"
         fi
 
-        # Re-apply Nix-managed settings that Claude Code may have clobbered
-        ${pkgs.jaq}/bin/jaq '
-          .theme = "dark" |
-          .projects["/home/${config.username}"].hasTrustDialogAccepted = true |
-          .autoCompactEnabled = true |
-          .fileCheckpointingEnabled = true |
-          .respectGitignore = true |
-          .preferTmuxOverIterm2 = true |
-          .autoConnectIde = false |
-          .autoInstallIdeExtension = false
-        ' "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
-        mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
+        # Re-apply Nix-managed settings that Claude Code may have clobbered.
+        # Hold an exclusive flock and rewrite the file in place (`cat tmp >
+        # file`) instead of `mv tmp file`, so the inode is preserved. A rename
+        # would unlink the inode that any concurrent claude session has bound
+        # into its bwrap mount (visible in /proc/self/mountinfo as
+        # `//deleted`), which then breaks nested bwrap calls inside that
+        # session (e.g. the recursive claude --print used by notify-hook).
+        (
+          ${pkgs.util-linux}/bin/flock -x 200
 
-        if [[ -f "$EXA_TOKEN_PATH" ]]; then
-          EXA_API_KEY="$(cat "$EXA_TOKEN_PATH")"
-          ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
-            '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
-            "$CLAUDE_JSON" > "$CLAUDE_JSON.tmp"
-          mv "$CLAUDE_JSON.tmp" "$CLAUDE_JSON"
-        fi
+          TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
+          trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
+
+          ${pkgs.jaq}/bin/jaq '
+            .theme = "dark" |
+            .projects["/home/${config.username}"].hasTrustDialogAccepted = true |
+            .autoCompactEnabled = true |
+            .fileCheckpointingEnabled = true |
+            .respectGitignore = true |
+            .preferTmuxOverIterm2 = true |
+            .autoConnectIde = false |
+            .autoInstallIdeExtension = false
+          ' "$CLAUDE_JSON" > "$TMP_JSON"
+          ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
+
+          if [[ -f "$EXA_TOKEN_PATH" ]]; then
+            EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
+            ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
+              '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
+              "$CLAUDE_JSON" > "$TMP_JSON"
+            ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
+          fi
+        ) 200>"$CLAUDE_LOCK"
 
         exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
       '';
@@ -379,7 +393,7 @@
 
       claudeNixOSBuild = pkgs.callPackage ./skills/NixOSBuild { homeDir = "/home/${config.username}"; };
 
-      claudeSurprises = pkgs.callPackage ./skills/Surprises { inherit nixpkgs-unstable; };
+      claudeSurprises = pkgs.callPackage ./skills/Surprises { inherit claude-code-sandboxed; };
 
       claudeKeePassXC = pkgs.callPackage ./skills/KeePassXC { };
       claudeGitHub = pkgs.callPackage ./skills/GitHub { };
@@ -488,6 +502,17 @@
                       #   timeout = 900;
                       # }
                     ];
+                  }
+                ];
+
+                # Claude Code auto-converts Stop hooks into SubagentStop events
+                # when SubagentStop is unset, so each Task tool subagent finish
+                # would re-run the workmux + notify hooks. Register an explicit
+                # empty SubagentStop block to suppress that auto-conversion.
+                SubagentStop = [
+                  {
+                    matcher = ".*";
+                    hooks = [ ];
                   }
                 ];
 

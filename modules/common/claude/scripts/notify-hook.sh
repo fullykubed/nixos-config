@@ -27,7 +27,11 @@ case "$HOOK_TYPE" in
         if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
             script_dir="$(dirname "${BASH_SOURCE[0]}")"
             conversation=$(cat "$transcript_path" | "$script_dir/extract-conversation.sh" | tail -c 5000)
-            summary=$(echo "$conversation" | CLAUDE_HOOK_RECURSIVE=1 @claude@ --model haiku --append-system-prompt "Summarize what happened in this conversation in 30 words or less. Be specific about the main task. If user interaction is needed (e.g. approval, error to fix, question to answer), highlight that and what the required action is. Output only the summary, nothing else." --print "summarize:" 2>/dev/null || echo "Session complete")
+            # Unset CLAUDECODE so the recursive call bypasses Claude Code's
+            # nested-session guard. The sandboxed wrapper itself nests fine
+            # because claude-wrapper preserves ~/.claude.json's inode (no mv),
+            # so the parent's bwrap bind mount stays valid for re-binding.
+            summary=$(echo "$conversation" | env -u CLAUDECODE CLAUDE_HOOK_RECURSIVE=1 @claude@ --model haiku --append-system-prompt "Summarize what happened in this conversation in 30 words or less. Be specific about the main task. If user interaction is needed (e.g. approval, error to fix, question to answer), highlight that and what the required action is. Output only the summary, nothing else." --print "summarize:" 2>/dev/null || echo "Session complete")
             notify-if-away --force "Claude Finished" "$summary" || true
         else
             notify-if-away --force "Claude Finished" "Session complete" || true
