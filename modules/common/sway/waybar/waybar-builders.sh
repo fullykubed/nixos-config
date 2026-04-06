@@ -4,10 +4,10 @@
 
 set -euo pipefail
 
-BUILDER_STATUS_FILE="/run/builder-status/status.json"
-CLOUD_STATUS_FILE="/run/cloud-status/status.json"
-QUEUE_PENDING_DIR="/var/lib/cache-upload-queue/pending"
-QUEUE_DONE_DIR="/var/lib/cache-upload-queue/done"
+BUILDER_STATUS_FILE="${BUILDER_STATUS_FILE:-/run/builder-status/status.json}"
+CLOUD_STATUS_FILE="${CLOUD_STATUS_FILE:-/run/cloud-status/status.json}"
+QUEUE_PENDING_DIR="${QUEUE_PENDING_DIR:-/var/lib/cache-upload-queue/pending}"
+QUEUE_DONE_DIR="${QUEUE_DONE_DIR:-/var/lib/cache-upload-queue/done}"
 
 BUILDER_ICON=$'\uf233' # nf-fa-server
 CACHE_ON=$'\uf1c0'     # nf-fa-database
@@ -56,11 +56,13 @@ format_count() {
 builder_text=""
 builder_tooltip=""
 builder_active=false
+IDLE_TIMEOUT=@idle_timeout@   # substituted from images/builder/inactivity-monitor.nix
 
 if [[ -s "$BUILDER_STATUS_FILE" ]]; then
   builders=$(cat "$BUILDER_STATUS_FILE")
-  regular_count=$(echo "$builders" | jaq '[.[] | select(.name | startswith("big-") | not) | select(.name | startswith("builder-"))] | length')
-  big_count=$(echo "$builders" | jaq '[.[] | select(.name | startswith("big-builder-"))] | length')
+
+  regular_count=$(echo "$builders" | jaq '[.[] | select(.name | test("^builder-[0-9]+$"))] | length')
+  big_count=$(echo "$builders" | jaq '[.[] | select(.name | test("^big-builder-[0-9]+$"))] | length')
   total=$((regular_count + big_count))
 
   if [[ "$total" -gt 0 ]]; then
@@ -75,24 +77,50 @@ if [[ -s "$BUILDER_STATUS_FILE" ]]; then
     fi
 
     builder_text="$BUILDER_ICON  $display"
+
+    # Compute name padding
+    max_name_len=$(echo "$builders" | jaq -r \
+      '[.[] | select(.name | test("^(big-)?builder-[0-9]+$")) | .name | length] | max // 0')
+
+    # Build sorted rows in one jaq pass (big-parallel first, then regular, alphabetical)
     # shellcheck disable=SC2016
-    builder_tooltip=$(echo "$builders" | jaq -r '
-      (
-        [.[] | select(.name | startswith("big-") | not) | select(.name | startswith("builder-"))] |
-        if length > 0 then
-          "Regular Builders:\n" + (map("  \(.name): \(.public_net.ipv4.ip // "pending")") | join("\n"))
-        else ""
-        end
-      ) as $regular |
-      (
-        [.[] | select(.name | startswith("big-builder-"))] |
-        if length > 0 then
-          "Big-Parallel Builders:\n" + (map("  \(.name): \(.public_net.ipv4.ip // "pending")") | join("\n"))
-        else ""
-        end
-      ) as $big |
-      [$regular, $big] | map(select(. != "")) | join("\n\n")
+    rows=$(echo "$builders" | jaq -r --argjson timeout "$IDLE_TIMEOUT" --argjson pad "$max_name_len" '
+      def pad_right($n): . + (" " * ($n - length | if . < 0 then 0 else . end));
+      def pad_left($n): ((" " * ($n - length | if . < 0 then 0 else . end)) + .);
+      def escape_pango: gsub("&"; "&amp;") | gsub("<"; "&lt;") | gsub(">"; "&gt;");
+      def status_tags:
+        ([
+          (if .status != "running" then "✗ hcloud" else empty end),
+          (if .reachable and (.ts_status != "up") then "✗ ts" else empty end),
+          (if (.reachable | not) and .status == "running" then "✗ ssh" else empty end),
+          (if .reachable and ((.ccache_mount | not) or (.ccache_sync | not)) then "✗ ccache" else empty end)
+        ]) as $fails
+        | if ($fails | length) == 0 then "✓" else ($fails | join(" ")) end;
+      def ttl: if .reachable then ([0, ($timeout - (.idle_count // 0))] | max | tostring) + "m" else "-m" end;
+      def builds_cell:
+        if (.reachable | not) then "- builds"
+        elif .builds == 1 then "1 build "
+        else (.builds | tostring) + " builds"
+        end;
+      [.[] | select(.name | test("^(big-)?builder-[0-9]+$"))]
+      | sort_by([(.name | startswith("big-") | not), .name])
+      | map(
+          "<b>" + (.name | escape_pango | pad_right($pad)) + "</b>  "
+          + (if .reachable then ((.cpu_pct // 0) | tostring) else "-" end | pad_left(3))
+          + "% "
+          + (if .reachable then ((.mem_pct // 0) | tostring) else "-" end | pad_left(3))
+          + "%  "
+          + builds_cell
+          + "  "
+          + ttl
+          + " "
+          + status_tags
+        )
+      | join("\n")
     ')
+
+    builder_tooltip="Builders:
+${rows}"
   fi
 fi
 

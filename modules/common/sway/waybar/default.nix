@@ -5,9 +5,23 @@
   ...
 }:
 let
-  waybarBuildersScript = pkgs.writeShellScriptBin "waybar-builders" (
-    builtins.readFile ./waybar-builders.sh
-  );
+  # Read the idle-timeout constant from the shared builder config so it stays
+  # in sync with images/builder/inactivity-monitor.nix without hard-coding.
+  builderConfig = import ../../../../lib/builder-config.nix;
+  waybarBuildersSrc =
+    builtins.replaceStrings [ "@idle_timeout@" ] [ (toString builderConfig.inactivityTimeoutMinutes) ]
+      (builtins.readFile ./waybar-builders.sh);
+  waybarBuildersScript = pkgs.writeShellApplication {
+    name = "waybar-builders";
+    runtimeInputs = [
+      pkgs.jaq
+      pkgs.coreutils
+      pkgs.bfs
+      pkgs.curl
+      pkgs.systemd
+    ];
+    text = waybarBuildersSrc;
+  };
   cloudStatusScript = pkgs.writeShellApplication {
     name = "cloud-status";
     runtimeInputs = [

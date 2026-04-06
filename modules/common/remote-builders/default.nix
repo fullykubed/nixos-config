@@ -24,7 +24,15 @@ let
     lib.concatStringsSep "\n" (regularEntries ++ bigEntries) + "\n"
   );
 
-  # CLI tool for managing builders (defined first so proxy can use it)
+  # CLI tool for managing builders (defined first so proxy can use it).
+  # builders-cli.sh contains a @remote_stats@ placeholder that is replaced at
+  # eval time with the contents of remote-stats.sh via builtins.replaceStrings,
+  # so both builders-cli and the builder-status service share the same
+  # metrics-collection snippet without runtime path dependencies and without
+  # requiring allow-import-from-derivation.
+  buildersCliText =
+    builtins.replaceStrings [ "@remote_stats@" ] [ (builtins.readFile ./remote-stats.sh) ]
+      (builtins.readFile ./builders-cli.sh);
   buildersCli = pkgs.writeShellApplication {
     name = "builders";
     runtimeInputs = [
@@ -43,7 +51,26 @@ let
       pkgs.util-linux
       pkgs.gnugrep
     ];
-    text = builtins.readFile ./builders-cli.sh;
+    text = buildersCliText;
+  };
+
+  # builder-status script: hcloud poll + SSH fanout + JSON merge.
+  # builder-status.sh contains a @remote_stats@ placeholder substituted at
+  # eval time with the contents of remote-stats.sh (same pattern as buildersCli).
+  builderStatusScript = pkgs.writeShellApplication {
+    name = "builder-status";
+    runtimeInputs = [
+      pkgs.hcloud
+      pkgs.jaq
+      pkgs.openssh
+      pkgs.tailscale
+      pkgs.coreutils
+      pkgs.util-linux
+      pkgs.gnugrep
+    ];
+    text = builtins.replaceStrings [ "@remote_stats@" ] [ (builtins.readFile ./remote-stats.sh) ] (
+      builtins.readFile ./builder-status.sh
+    );
   };
 
   # Ensure script for SSH Match exec — provisions builders on-demand before SSH connects
@@ -175,8 +202,9 @@ in
     };
   };
 
-  # Systemd service that polls hcloud for builder status and writes to a
-  # world-readable file so unprivileged processes (waybar) can read it.
+  # Systemd service that polls hcloud for builder status, SSHs to each running
+  # builder to collect runtime metrics, and writes a merged JSON file to a
+  # world-readable location so unprivileged processes (waybar) can read it.
   systemd.services.builder-status = {
     description = "Poll Hetzner Cloud for builder server status";
     after = [ "network-online.target" ];
@@ -187,16 +215,11 @@ in
       RuntimeDirectoryPreserve = "yes";
       EnvironmentFile = ""; # clear any inherited env
     };
-    path = [
-      pkgs.hcloud
-      pkgs.jaq
-    ];
-    script = ''
-      export HCLOUD_TOKEN
-      HCLOUD_TOKEN=$(cat ${config.age.secrets.hetzner-api-token.path})
-      hcloud server list -o json -l builder=true > /run/builder-status/status.json
-      chmod 0644 /run/builder-status/status.json
-    '';
+    environment = {
+      HCLOUD_TOKEN_FILE = config.age.secrets.hetzner-api-token.path;
+    };
+    path = [ builderStatusScript ];
+    script = "builder-status";
   };
 
   systemd.timers.builder-status = {

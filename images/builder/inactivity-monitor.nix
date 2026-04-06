@@ -1,6 +1,6 @@
 { pkgs, ... }:
 let
-  inactivityTimeoutMinutes = 15;
+  inherit (import ../../lib/builder-config.nix) inactivityTimeoutMinutes;
 
   inactivityScript = pkgs.writeShellScript "inactivity-monitor" ''
     set -euo pipefail
