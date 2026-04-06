@@ -121,6 +121,7 @@ in
         gs = "git status"; # [G]it [S]tatus
         gc = "git-clone-for-worktree";
         gca = "ai-commit"; # [G]it [C]ommit [A]I
+        glc = "git rev-parse HEAD"; # [G]it [L]ast [C]ommit SHA
         gls = "eza -l --git --no-user --follow-symlinks -o --no-permissions --time-style relative -F"; # [G]it [L]i[S]t
         grb = "ai-rebase"; # [G]it [R]e[B]ase via Claude Code
         gwls = "git worktree list"; # [G]it [W]orktree [L]i[S]t
