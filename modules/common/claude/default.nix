@@ -488,12 +488,12 @@
                         type = "command";
                         command = "workmux set-window-status done";
                       }
-                      {
-                        type = "command";
-                        command = "${claudeNotifyHook}/bin/claude-notify-hook";
-                        async = true;
-                        timeout = 120;
-                      }
+                      # {
+                      #   type = "command";
+                      #   command = "${claudeNotifyHook}/bin/claude-notify-hook";
+                      #   async = true;
+                      #   timeout = 120;
+                      # }
                       # TODO: re-enable surprise hook once stabilized
                       # {
                       #   type = "command";
