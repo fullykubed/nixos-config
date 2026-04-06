@@ -193,30 +193,6 @@ Headroom – session
 fi
 
 # ------------------------------------------------------------------------------
-# RTK shell compression stats (queried live — runs as user, reads local DB)
-# ------------------------------------------------------------------------------
-
-if command -v rtk &>/dev/null; then
-  rtk_raw=""
-  if rtk_raw=$(rtk gain --monthly --format json 2>/dev/null); then
-    rtk_saved=$(echo "$rtk_raw" | jaq -r '.monthly[-1].saved_tokens // 0' 2>/dev/null || echo "0")
-    rtk_commands=$(echo "$rtk_raw" | jaq -r '.monthly[-1].commands // 0' 2>/dev/null || echo "0")
-    rtk_pct=$(echo "$rtk_raw" | jaq -r '.monthly[-1].savings_pct // 0' 2>/dev/null || echo "0")
-    rtk_avg_ms=$(echo "$rtk_raw" | jaq -r '.monthly[-1].avg_time_ms // 0' 2>/dev/null || echo "0")
-
-    if (( rtk_saved > 0 )); then
-      rtk_pct_fmt=$(printf '%.1f' "$rtk_pct")
-
-      tooltip="${tooltip}
-
-RTK – shell compression
-  $(fmt_tokens "$rtk_saved") tokens saved (${rtk_pct_fmt}% reduction)
-  ${rtk_commands} commands, avg ${rtk_avg_ms}ms"
-    fi
-  fi
-fi
-
-# ------------------------------------------------------------------------------
 # Claude Code token stats (from ccusage-cache systemd timer)
 # ------------------------------------------------------------------------------
 

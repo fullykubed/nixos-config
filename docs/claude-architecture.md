@@ -83,8 +83,6 @@ Headroom is an HTTP proxy that sits between Claude Code and the Anthropic API, c
 
 **Coexistence with the credential proxy:** Without special handling, requests to `http://127.0.0.1:8787` would be routed through `HTTP_PROXY=127.0.0.1:8080` (the credential proxy), which would break the Headroom connection. Adding `NO_PROXY=127.0.0.1` (and `no_proxy=127.0.0.1` for lowercase-respecting clients) to the sandbox environment prevents this — Headroom gets a direct connection, and all other outbound traffic continues through the credential proxy as before.
 
-**Coexistence with RTK:** RTK operates as a `PreToolUse` hook at the Bash tool-call level — it compresses shell command outputs before they are added to the context window. Headroom operates at the HTTP transport level — it compresses the full request payload as it leaves the sandbox. They are complementary layers; Headroom includes built-in deduplication so tokens compressed by RTK are not double-counted.
-
 **Telemetry:** Headroom is started with `--no-telemetry` and `HEADROOM_TELEMETRY=off`. No usage data leaves the machine.
 
 ## Skills
@@ -156,3 +154,7 @@ The Exa token flows through home-manager activation (decrypt -> read -> jq -> `~
 | `modules/common/claude/skills/` | System-level skill packages (Skill, PRD, NixOSBuild, DevBrowser, Surprises) |
 | `modules/common/claude/headroom/default.nix` | Headroom package derivation and systemd user service definition |
 | `modules/common/mitmproxy-credential-proxy/` | Credential proxy module and TypeScript source |
+
+## Tried and Abandoned
+
+**RTK** — Shell-level token compression proxy that wrapped ~34 CLI commands (git, grep, curl, etc.) and filtered their output before it entered the context window. In practice it was far too disruptive: mangled output, spurious errors from the wrappers, and sandbox PATH ordering headaches. The actual token savings were nowhere near what RTK advertised on their site. Removed entirely in favour of Headroom, which operates at the HTTP transport layer and delivers real, measurable compression without interfering with tool output.

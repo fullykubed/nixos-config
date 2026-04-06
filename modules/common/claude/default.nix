@@ -18,22 +18,6 @@
       type = lib.types.str;
       description = "Source hash for ccusage NPM package";
     };
-    rtk = lib.mkOption {
-      type = lib.types.str;
-      description = "Version of rtk token optimizer";
-    };
-    rtkRev = lib.mkOption {
-      type = lib.types.str;
-      description = "Git revision tag for rtk";
-    };
-    rtkSrcHash = lib.mkOption {
-      type = lib.types.str;
-      description = "Source hash for rtk fetchFromGitHub";
-    };
-    rtkCargoHash = lib.mkOption {
-      type = lib.types.str;
-      description = "Cargo dependencies hash for rtk";
-    };
     headroom = lib.mkOption {
       type = lib.types.str;
       description = "Version of headroom context compression proxy";
@@ -72,7 +56,6 @@
       claude-code-sandboxed = pkgs.buildFHSEnvBubblewrap {
         name = "claude";
         runScript = pkgs.writeShellScript "claude-sandboxed-run" ''
-          unset NO_RTK
           exec ${nixpkgs-unstable.claude-code}/bin/claude "$@"
         '';
         targetPkgs = _pkgs: [ nixpkgs-unstable.claude-code ];
@@ -86,12 +69,7 @@
         # Exclude /run from auto-mounts so agenix secrets aren't exposed.
         # We mount a clean tmpfs and selectively bind only what's needed.
         profile = ''
-          # Suppress RTK during login-shell init so Claude Code's snapshot
-          # capture isn't corrupted by compressed output from starship, direnv,
-          # etc.  The runScript wrapper unsets NO_RTK before starting Claude,
-          # and non-login Bash-tool shells never re-source this profile.
-          export NO_RTK=1
-          export PATH="/opt/rtk/bin:/opt/find-grep/bin:$PATH"
+          export PATH="/opt/find-grep/bin:$PATH"
         '';
 
         extraPreBwrapCmds = ''
@@ -129,13 +107,9 @@
           "SHELL"
           "${pkgs.bashInteractive}/bin/bash"
           "--ro-bind"
-          "${claudeRTK.wrappers}/bin"
-          "/opt/rtk/bin"
-          "--ro-bind"
           "${findGrepAliases}/bin"
           "/opt/find-grep/bin"
           # PATH is set via `profile` (not --setenv) so it prepends after FHS init.
-          # NO_RTK=1 is also set there to protect snapshot capture; see profile comment.
           "--setenv"
           "ANTHROPIC_BASE_URL"
           "http://127.0.0.1:8787"
@@ -388,8 +362,6 @@
       claudeGit = pkgs.callPackage ./skills/Git { };
       claudeTempScript = import ./skills/TempScript { };
       claudeSystemd = import ./skills/Systemd { };
-      claudeRTK = pkgs.callPackage ./rtk { inherit versions; };
-
       findGrepAliases = pkgs.callPackage ./find-grep { };
       claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
 
@@ -533,8 +505,7 @@
         // claudeGitHub.homeFiles
         // claudeGit.homeFiles
         // claudeTempScript.homeFiles
-        // claudeSystemd.homeFiles
-        // claudeRTK.homeFiles;
+        // claudeSystemd.homeFiles;
 
         systemd.user.services = claudeHeadroom.systemdServices;
       };
@@ -559,7 +530,6 @@
         claude-code-sandboxed
         claude-wrapper
         ccusage
-        claudeRTK.package
         claudeHeadroom.package
       ];
 

@@ -27,12 +27,6 @@
   voxtypeSrcHash = "sha256-rMTfLvllr2zn+799+YTgE53Ve0khdE9FPaLtxF2pk58=";
   voxtypeCargoHash = "sha256-VbqHyOA0BA8PpFrOvdaHi3Bv3IuTXhnlsOfrmNH6FHU=";
 
-  # rtk (modules/common/claude)
-  rtk = "0.34.3";
-  rtkRev = "v0.34.3";
-  rtkSrcHash = "sha256-SQJhPit7efAjBezCNHtn5iZEEly6eApxsO9jGHLrKlg=";
-  rtkCargoHash = "sha256-WpSwEx/pkGTIlDv1cTFtTcTC3YgddMYVbOLlqKYeDK0=";
-
   # headroom (modules/common/claude)
   headroom = "0.5.18";
   headroomSrcHash = "sha256-yEVfZJuKMTrmv3v1N3VkARs6QSOGDDxIlUzxINz5t0Q=";
