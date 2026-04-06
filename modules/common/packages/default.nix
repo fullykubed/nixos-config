@@ -103,7 +103,6 @@
     ################################
     ##  System Debugging + Monitoring
     ################################
-    sysz # TUI for systemd
     lnav # Structured log file navigator
     dmidecode # Reads info about connected devices from MOBO through SMBIOS/DMI
     lshw # Alternative way to query hardware

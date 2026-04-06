@@ -45,6 +45,7 @@
     ./common/vulnix-scanner
     ./common/graphics
     ./common/systemd
+    ./common/sysz
     ./common/home
     ./common/home-manager
     ./common/messaging
