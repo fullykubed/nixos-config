@@ -118,7 +118,12 @@
         systemd.user.services.tmux-start-server = {
           Unit = {
             Description = "Starts the tmux server";
-            After = [ "default.target" ];
+            # Wait until sway has imported WAYLAND_DISPLAY/SWAYSOCK/XDG_* into
+            # the systemd user environment (done by sway-session-start before
+            # it activates sway-session.target). Otherwise the tmux server is
+            # spawned by default.target with no Wayland env, and tools like
+            # swayimg, wl-copy, etc. fail inside tmux panes.
+            After = [ "sway-session.target" ];
           };
           Service = {
             Type = "oneshot";
@@ -127,7 +132,7 @@
             ExecStart = "/run/current-system/sw/bin/zsh -lc 'tmux start-server'";
           };
           Install = {
-            WantedBy = [ "default.target" ];
+            WantedBy = [ "sway-session.target" ];
           };
         };
 
@@ -241,6 +246,13 @@
             ];
 
             extraConfig = ''
+                # Propagate Wayland/Sway session variables from the attaching
+                # client into the session environment so that new windows and
+                # panes inherit a working Wayland session (swayimg, wl-copy,
+                # swaymsg, xdg-desktop-portal, etc.). The defaults only cover
+                # X11/SSH; we append Wayland-specific vars here.
+                set -ag update-environment "WAYLAND_DISPLAY SWAYSOCK I3SOCK XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION"
+
                 set -g window-style 'bg=${config.lib.stylix.colors.withHashtag.base00}'
                 set -g window-active-style 'bg=${config.lib.stylix.colors.withHashtag.base01}'
 
