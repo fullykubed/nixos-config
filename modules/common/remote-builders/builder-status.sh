@@ -221,5 +221,5 @@ chmod 0644 "$OUTPUT_TMP"
 mv -f "$OUTPUT_TMP" "$OUTPUT_FILE"
 
 total=$(echo "$hcloud_json" | jaq 'length')
-reachable=${#names[@]}
+reachable=$(echo "$merged" | jaq '[.[] | select(.reachable)] | length')
 info "wrote status.json (${reachable} reachable / ${total} total builders)"
