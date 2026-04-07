@@ -1,0 +1,11 @@
+{
+  "name": "llm-summarize",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "llm-summarize": "./src/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

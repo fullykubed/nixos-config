@@ -174,6 +174,7 @@
           self
           inputs
           agenix-rekey
+          bun2nix
           ;
       } system
     );

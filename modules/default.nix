@@ -20,6 +20,7 @@
     ./common/syncthing
     ./common/containers
     ./common/keyboards
+    ./common/llm-tools
     ./common/audio
     ./common/pdf
     ./common/plocate

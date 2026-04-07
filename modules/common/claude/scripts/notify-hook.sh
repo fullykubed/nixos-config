@@ -1,41 +1,46 @@
 #!/usr/bin/env bash
 
 # Claude Code notification hook
-# Sends a Pushover notification with conversation summary when user is away
+# Sends a Pushover notification summarising the last assistant message when
+# user is away.
+#
+# Claude Code 2.x populates `last_assistant_message` directly in the Stop hook
+# payload. We pipe that text through `llm-summarize` (a one-shot Bun tool that
+# talks directly to the Anthropic Messages API — NEVER spawns `claude`, so
+# this hook cannot trigger itself) to produce a phone-notification-quality
+# one-liner. On any failure we fall back to the raw 500-char truncation so
+# the notification ALWAYS fires when the user is away.
 
-# Read JSON input from stdin (always provided by hooks)
 input=$(cat)
 
-# Extract hook event name from the JSON payload
 HOOK_TYPE=$(echo "$input" | @jaq@ -r '.hook_event_name // ""')
 
-# Handle different hook types
 case "$HOOK_TYPE" in
     "Stop")
-        # For stop hook, check if we're being called recursively
-        if [ "$CLAUDE_HOOK_RECURSIVE" = "1" ]; then
-            exit 0
-        fi
-
-        # Only notify when user is away — saves tokens by skipping summary generation
+        # Only notify when user is away — saves spam when actively working.
         if ! is-away; then
             exit 0
         fi
 
-        # User is away — generate summary and notify via Pushover
-        transcript_path=$(echo "$input" | @jaq@ -r '.transcript_path // ""')
-        if [ -n "$transcript_path" ] && [ -f "$transcript_path" ]; then
-            script_dir="$(dirname "${BASH_SOURCE[0]}")"
-            conversation=$(cat "$transcript_path" | "$script_dir/extract-conversation.sh" | tail -c 5000)
-            # Unset CLAUDECODE so the recursive call bypasses Claude Code's
-            # nested-session guard. The sandboxed wrapper itself nests fine
-            # because claude-wrapper preserves ~/.claude.json's inode (no mv),
-            # so the parent's bwrap bind mount stays valid for re-binding.
-            summary=$(echo "$conversation" | env -u CLAUDECODE CLAUDE_HOOK_RECURSIVE=1 @claude@ --model haiku --append-system-prompt "Summarize what happened in this conversation in 30 words or less. Be specific about the main task. If user interaction is needed (e.g. approval, error to fix, question to answer), highlight that and what the required action is. Output only the summary, nothing else." --print "summarize:" 2>/dev/null || echo "Session complete")
-            notify-if-away --force "Claude Finished" "$summary" || true
-        else
-            notify-if-away --force "Claude Finished" "Session complete" || true
+        raw=$(echo "$input" | @jaq@ -r '.last_assistant_message // "Session complete"')
+
+        # Try to generate a concise phone-notification-quality summary.
+        # Fall back to the raw truncated body on any failure — notifications
+        # MUST always fire, even if the LLM call breaks.
+        summary=$(
+            printf '%s' "$raw" | @llm-summarize@ \
+                --instructions "Summarise what Claude just did in a single sentence (max 150 characters) for a phone push notification. Focus on the outcome (e.g. 'build passed', 'applied fix', 'stuck on X'), not the process." \
+                --max-tokens 80 \
+                2>/dev/null
+        ) || summary="${raw:0:500}"
+
+        # Belt-and-suspenders: if the summariser exited 0 but printed nothing,
+        # still fall back to the raw body.
+        if [ -z "$summary" ]; then
+            summary="${raw:0:500}"
         fi
+
+        notify-if-away --force "Claude Finished" "$summary" || true
         ;;
 esac
 

@@ -331,6 +331,14 @@ let
         "libcamera" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
         "babl" # -fno-semantic-interposition breaks dlopen-based extension loading
         "umockdev" # -fno-semantic-interposition triggers GCC bug with glibc fortified always_inline wrappers
+        # NixOSBuild AUTOFIX
+        # Package name: hiredis
+        # Error details: -Werror=stringop-overflow in sds.c — GCC tree-path optimization flags cause
+        #   aggressive inlining of sdsll2str into sdsfromlonglong, triggering a false-positive
+        #   stringop-overflow warning that hiredis's own -Werror promotes to an error.
+        # Fix explanation: Excluding from optimization flags prevents the inlining that exposes the
+        #   false positive; hiredis's -Werror remains but the overflow is no longer triggered.
+        "hiredis" # GCC tree optimization flags trigger -Werror=stringop-overflow in sds.c (false positive from aggressive inlining)
       ];
 
       # Packages excluded from -march/-mtune arch flags by pname.

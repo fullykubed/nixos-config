@@ -207,6 +207,7 @@
         ]
         ++ roBind [
           "/run/agenix/pushover-token"
+          "/run/agenix/anthropic-api-key"
           "/var/lib/mitmproxy-credential-proxy/mitmproxy-ca-cert.pem"
         ]
         # NOTE: Do NOT bind /etc wholesale here. The FHS env creates a
@@ -238,6 +239,8 @@
         ];
       };
 
+      llmSummarize = pkgs.callPackage ../llm-tools/llm-summarize { };
+
       claudeNotifyHook = pkgs.stdenv.mkDerivation {
         pname = "claude-notify-hook";
         version = "1.0.0";
@@ -253,19 +256,10 @@
           mkdir -p $out/bin
 
           substitute $src/notify-hook.sh $out/bin/claude-notify-hook \
-            --replace "@notify-send@" "${pkgs.libnotify}/bin/notify-send" \
             --replace "@jaq@" "${pkgs.jaq}/bin/jaq" \
-            --replace "@claude@" "${claude-code-sandboxed}/bin/claude"
-
-          substitute $src/extract-conversation.sh $out/bin/extract-conversation \
-            --replace "jq" "${pkgs.jaq}/bin/jaq" \
-            --replace "grep" "${pkgs.gnugrep}/bin/grep"
-
-          substituteInPlace $out/bin/claude-notify-hook \
-            --replace '"$script_dir/extract-conversation.sh"' '"${placeholder "out"}/bin/extract-conversation"'
+            --replace "@llm-summarize@" "${llmSummarize}/bin/llm-summarize"
 
           chmod +x $out/bin/claude-notify-hook
-          chmod +x $out/bin/extract-conversation
         '';
       };
 
