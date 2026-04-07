@@ -84,18 +84,29 @@ See [deployment.md](../deployment.md) for options.
 
 ## Pre-commit hooks
 
-The dev shell (`nix develop`) installs pre-commit hooks that run automatically on `git commit`:
+The dev shell (`nix develop`) installs [prek](https://github.com/j178/prek) as the git-hook runner. The hooks defined in `lib/devshell/default.nix` run automatically on `git commit`:
 
+- **gitleaks** — scan staged changes for leaked secrets
 - **nixfmt-rfc-style** — format all `.nix` files
-- **statix** — lint for anti-patterns
-- **deadnix** — detect unused bindings
-- **gitleaks** — scan for leaked secrets
+- **statix** — lint `.nix` for anti-patterns
+- **deadnix** — detect unused bindings in `.nix` files
+- **check-bun-versions** — enforce matching versions across `package.json` files
+- **check-bun-typecheck** — `tsc --noEmit` on changed `.ts` / `.tsx` files
+- **check-bun-eslint** — ESLint on changed `.ts` / `.tsx` files
+
+prek schedules hooks by priority tier; same-tier hooks run in parallel. `gitleaks` is a serial security gate, the nix-tier hooks (`nixfmt-rfc-style`, `statix`, `deadnix`) run concurrently, and the bun-tier hooks are staggered with `require_serial` to avoid races on `bun install`. See `lib/devshell/default.nix` for the exact tiering.
 
 To run the formatter manually:
 
 ```bash
 nix fmt
 ```
+
+### Claude Stop hook
+
+`.claude/hooks/stop-lint.sh` is a repo-scoped Claude Code `Stop` hook that runs `prek run --files …` over every changed file (staged, unstaged, untracked) at the end of every Claude turn, with a sha256 autofix-detection dance: if prek modifies files on the first run, the hook re-runs prek once to confirm the autofix resolved the issue. A turn cannot finish with lint/format failures in the working tree.
+
+The hook depends on the `.pre-commit-config.yaml` symlink that the devshell `shellHook` installs; if Claude is launched outside `nix develop`, the hook exits 2 with a "run nix develop first" message.
 
 ## Tips
 

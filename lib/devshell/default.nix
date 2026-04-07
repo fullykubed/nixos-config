@@ -1,10 +1,20 @@
-# Development shell, formatter, and pre-commit checks
+# Development shell, formatter, and pre-commit checks.
+#
+# prek is pinned to the Nix-provided version built from ./lib/packages/prek.nix
+# rather than coming from the flake-pinned nixpkgs (which only ships prek
+# 0.2.17, pre-dating the `priority` field). We also hand-generate the
+# .pre-commit-config.yaml (as JSON) from Nix via `pkgs.formats.yaml` and
+# install it via the shellHook, mirroring the Panfactum/stack pattern. This
+# deliberately bypasses `cachix/git-hooks.nix`'s own run/checks derivation —
+# we want `nix flake check` to stay fast and sandbox-clean, and the hooks to
+# run at commit time (shellHook) and at Claude Stop time (separate script),
+# not inside the Nix build sandbox where the bun-based hooks can't fetch deps.
 {
   nixpkgs,
-  self,
-  inputs,
+  nixpkgs-unstable,
   agenix-rekey,
   bun2nix,
+  ...
 }:
 system:
 let
@@ -12,9 +22,19 @@ let
     inherit system;
     overlays = [
       agenix-rekey.overlays.default
+      # Expose bun2nix's CLI as `pkgs.bun2nix-cli` so the proxy derivation
+      # and the devshell can both find it. Mirrors the same overlay added
+      # in lib/mk-nixos-system.nix for system builds.
       (_: _: { bun2nix-cli = bun2nix.packages.${system}.default; })
     ];
   };
+  inherit (pkgs) lib;
+  # prek is built from a local 0.3.8 derivation against nixpkgs-unstable
+  # (rustc 1.92 is required and stable nixpkgs is still on 1.91.1). Stable
+  # nixpkgs ships prek 0.2.17 which pre-dates the `priority` field; the
+  # unstable channel ships 0.3.0; neither understands every field we use.
+  # No overlay — nothing else in this module references `pkgs.prek`.
+  prek = (import nixpkgs-unstable { inherit system; }).callPackage ../packages/prek.nix { };
   hcloud-upload-image = pkgs.callPackage ../packages/hcloud-upload-image.nix { };
   nixfmt = pkgs.treefmt.withConfig {
     runtimeInputs = [ pkgs.nixfmt-rfc-style ];
@@ -30,14 +50,15 @@ let
       };
     };
   };
-  checkBunVersions = pkgs.writeShellApplication {
-    name = "check-bun-versions";
-    runtimeInputs = [
-      pkgs.jaq
-      pkgs.findutils
-      pkgs.gawk
-    ];
-    text = builtins.readFile ./check-bun-versions.sh;
+  # check-package-json: walks every package.json in the repo, fails on any
+  # unpinned (^/~/>=/latest) dep and any cross-package version mismatch.
+  # The TypeScript implementation mirrors panfactum/stack/precommit-check-package-json.ts.
+  checkPackageJson = pkgs.writeShellApplication {
+    name = "check-package-json";
+    runtimeInputs = [ pkgs.bun ];
+    text = ''
+      exec bun run ${./check-package-json.ts}
+    '';
   };
   listMachines = pkgs.writeShellApplication {
     name = "list-machines";
@@ -116,99 +137,156 @@ let
         "nt-check"
         "nt-hosts"
       ];
-  # Pre-fetch bun dependencies for every TypeScript project in the repo so the
-  # type-check and lint hooks can run `bun install` without network access
-  # inside the Nix sandbox.  Add a new entry here whenever a new bun.nix is
-  # added (either at the repo root or under modules/).
-  bunDepsProjects = [
-    (pkgs.bun2nix-cli.fetchBunDeps {
-      bunNix = ../../bun.nix;
-    })
-    (pkgs.bun2nix-cli.fetchBunDeps {
-      bunNix = ../../modules/common/mitmproxy-credential-proxy/proxy/bun.nix;
-    })
-    (pkgs.bun2nix-cli.fetchBunDeps {
-      bunNix = ../../modules/common/llm-tools/llm-summarize/bun.nix;
-    })
+  # Per-project bun TypeScript projects. Each entry produces two prek hooks
+  # (typecheck-${name}, lint-${name}) scoped via `files:` regex to that
+  # project's directory. Each project is a self-contained bun package with
+  # its own bun.lock + node_modules; the hooks below `bun install` lazily
+  # in the project directory on first run. Add new projects here as the
+  # repo grows.
+  bunProjects = [
+    {
+      name = "proxy";
+      dir = "modules/common/mitmproxy-credential-proxy/proxy";
+    }
   ];
-  # Merge all project caches into a single directory tree so we can pass one
-  # path to BUN_DEPS_CACHE_DIR instead of a list.
-  mergedBunDepsCache = pkgs.symlinkJoin {
-    name = "merged-bun-cache";
-    paths = map (d: "${d}/share/bun-cache") bunDepsProjects;
-  };
-  checkBunTypecheck = pkgs.writeShellApplication {
-    name = "check-bun-typecheck";
-    runtimeInputs = [
-      pkgs.bun
-      pkgs.typescript
+
+  # Lazily install a directory's bun deps if its node_modules is missing.
+  # Used by both typecheck and lint hooks below.
+  ensureBunInstalled = relDir: ''
+    REPO_ROOT="$(git rev-parse --show-toplevel)"
+    if [[ ! -d "$REPO_ROOT/${relDir}/node_modules" ]]; then
+      (cd "$REPO_ROOT/${relDir}" && bun install --frozen-lockfile) >&2
+    fi
+  '';
+
+  # Per-project typecheck: ensure the project's deps are installed, then
+  # cd into the project and run `tsc --noEmit` against its tsconfig.json.
+  mkBunTypecheck =
+    project:
+    pkgs.writeShellApplication {
+      name = "check-bun-typecheck-${project.name}";
+      runtimeInputs = [
+        pkgs.bun
+        pkgs.typescript
+      ];
+      text = ''
+        ${ensureBunInstalled project.dir}
+        cd "$REPO_ROOT/${project.dir}"
+        tsc --noEmit
+      '';
+    };
+
+  # Per-project lint: ensure both the project's deps (for type info via
+  # typescript-eslint's project service) AND the root deps (for eslint
+  # itself + the shared eslint.config.ts) are installed, then run eslint
+  # from the repo root over the changed files. prek's `files:` regex
+  # restricts inputs to the project's tree.
+  mkBunLint =
+    project:
+    pkgs.writeShellApplication {
+      name = "check-bun-lint-${project.name}";
+      runtimeInputs = [ pkgs.bun ];
+      text = ''
+        ${ensureBunInstalled ""}
+        ${ensureBunInstalled project.dir}
+        cd "$REPO_ROOT"
+        bunx eslint --no-warn-ignored "$@"
+      '';
+    };
+
+  # Hand-generate .pre-commit-config.yaml from Nix. All hooks are declared
+  # as `repo: local` with explicit `entry` paths into /nix/store so they
+  # resolve without needing network or a toolchain fetch. Priority tiers
+  # enable prek's parallel-by-tier scheduler (higher priority runs first,
+  # same-priority hooks run in parallel):
+  #   10 — gitleaks (security gate, runs first)
+  #   20 — nix formatters/linters (parallel)
+  #   30 — check-package-json (pin + consistency, no network)
+  #   40 — per-project typecheck-${name} + lint-${name}
+  # Per-project hooks are emitted by builtins.concatMap below. typecheck
+  # uses the project's own node_modules; lint uses the repo-root
+  # node_modules where eslint.config.ts lives, so they don't race within
+  # a project. Each hook sets require_serial=true so prek doesn't fan out
+  # multiple workers and race on its own bun install.
+  yamlFormat = pkgs.formats.yaml { };
+  prekConfig = yamlFormat.generate "pre-commit-config.yaml" {
+    repos = [
+      {
+        repo = "local";
+        hooks = [
+          {
+            id = "gitleaks";
+            name = "gitleaks";
+            language = "system";
+            entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged -v --config ${../../gitleaks.toml}";
+            pass_filenames = false;
+            priority = 10;
+          }
+          {
+            id = "nixfmt-rfc-style";
+            name = "nixfmt-rfc-style";
+            language = "system";
+            entry = "${pkgs.nixfmt-rfc-style}/bin/nixfmt";
+            files = "\\.nix$";
+            exclude = "(^|/)bun\\.nix$";
+            priority = 20;
+          }
+          {
+            id = "statix";
+            name = "statix";
+            language = "system";
+            entry = "${pkgs.statix}/bin/statix check";
+            files = "\\.nix$";
+            exclude = "(^|/)bun\\.nix$";
+            pass_filenames = false;
+            priority = 20;
+          }
+          {
+            id = "deadnix";
+            name = "deadnix";
+            language = "system";
+            entry = "${pkgs.deadnix}/bin/deadnix --fail";
+            files = "\\.nix$";
+            exclude = "(^|/)bun\\.nix$";
+            priority = 20;
+          }
+          {
+            id = "check-package-json";
+            name = "check-package-json";
+            language = "system";
+            entry = "${checkPackageJson}/bin/check-package-json";
+            files = "(^|/)package\\.json$";
+            pass_filenames = false;
+            priority = 30;
+          }
+        ]
+        ++ builtins.concatMap (project: [
+          {
+            id = "typecheck-${project.name}";
+            name = "typecheck-${project.name}";
+            language = "system";
+            entry = "${mkBunTypecheck project}/bin/check-bun-typecheck-${project.name}";
+            files = "^${project.dir}/.*\\.(ts|tsx)$";
+            pass_filenames = false;
+            require_serial = true;
+            priority = 40;
+          }
+          {
+            id = "lint-${project.name}";
+            name = "lint-${project.name}";
+            language = "system";
+            entry = "${mkBunLint project}/bin/check-bun-lint-${project.name}";
+            files = "^${project.dir}/.*\\.(ts|tsx)$";
+            pass_filenames = true;
+            require_serial = true;
+            priority = 40;
+          }
+        ]) bunProjects;
+      }
     ];
-    text = builtins.readFile ./check-bun-typecheck.sh;
-    # Provide the pre-fetched cache so bun install can run offline in the Nix
-    # sandbox.  The script copies it to a writable temp dir before use.
-    runtimeEnv = {
-      BUN_DEPS_CACHE_DIR = mergedBunDepsCache;
-    };
-  };
-  checkBunEslint = pkgs.writeShellApplication {
-    name = "check-bun-eslint";
-    runtimeInputs = [ pkgs.bun ];
-    text = builtins.readFile ./check-bun-eslint.sh;
-    # Same offline cache as the typecheck hook.
-    runtimeEnv = {
-      BUN_DEPS_CACHE_DIR = mergedBunDepsCache;
-    };
   };
 in
 {
-  checks = {
-    pre-commit-check = inputs.git-hooks.lib.${system}.run {
-      src = self;
-      hooks = {
-        nixfmt-rfc-style.enable = true;
-        statix.enable = true;
-        deadnix = {
-          enable = true;
-          settings = {
-            # bun.nix files are auto-generated by bun2nix and may contain
-            # unused lambda pattern names (copyPathToStore, fetchFromGitHub,
-            # fetchgit) for lockfiles that have no workspace/git dependencies.
-            # Disabling the lambda pattern name check avoids false positives on
-            # generated files without weakening the check on hand-written code.
-            noLambdaPatternNames = true;
-          };
-        };
-        gitleaks = {
-          enable = true;
-          name = "gitleaks";
-          # Use protect mode to only scan staged changes, not full history
-          entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged -v --config ${../../gitleaks.toml}";
-        };
-        check-bun-versions = {
-          enable = true;
-          name = "check-bun-versions";
-          entry = "${checkBunVersions}/bin/check-bun-versions";
-          files = "package\\.json$";
-          pass_filenames = false;
-        };
-        check-bun-typecheck = {
-          enable = true;
-          name = "check-bun-typecheck";
-          entry = "${checkBunTypecheck}/bin/check-bun-typecheck";
-          files = "\\.(ts|tsx)$";
-          pass_filenames = true;
-        };
-        check-bun-eslint = {
-          enable = true;
-          name = "check-bun-eslint";
-          entry = "${checkBunEslint}/bin/check-bun-eslint";
-          files = "\\.(ts|tsx)$";
-          pass_filenames = true;
-        };
-      };
-    };
-  };
-
   formatter = nixfmt;
   devShell = pkgs.mkShell {
     packages = [
@@ -216,6 +294,9 @@ in
       pkgs.agenix-rekey
       pkgs.age
       pkgs.gitleaks
+      pkgs.statix
+      pkgs.deadnix
+      prek
       (pkgs.writeShellScriptBin "headscale" ''
         export HEADSCALE_CLI_ADDRESS="headscale.panfactumcf.com:443"
         export HEADSCALE_CLI_API_KEY
@@ -226,6 +307,8 @@ in
       '')
       pkgs.hcloud
       hcloud-upload-image
+      pkgs.bun
+      pkgs.bun2nix-cli
       listMachines
       flashInstaller
       generateHostKey
@@ -233,9 +316,72 @@ in
       generateSyncthingKey
       createSecret
     ]
-    ++ ntScripts
-    ++ self.checks.${system}.pre-commit-check.enabledPackages;
+    ++ ntScripts;
 
-    inherit (self.checks.${system}.pre-commit-check) shellHook;
+    # Install the generated prek config as a symlink in the worktree,
+    # register prek as the git pre-commit hook, and pre-warm `bun install`
+    # in every bun project (the repo root + each `bunProjects` entry) so
+    # the typecheck/lint hooks don't pay the install cost on first commit.
+    # Each install runs under a per-name lock in the git common dir so
+    # concurrent devshell entries (multiple terminals or worktrees) don't
+    # race on bun's global cache or on the shared git hooks directory.
+    # Defensive `core.hooksPath` unset mirrors the Panfactum pattern
+    # (prevents a stray local override from shadowing the hook).
+    shellHook = ''
+      REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+      ln -sfn ${prekConfig} "$REPO_ROOT/.pre-commit-config.yaml"
+      git config --unset-all --local core.hooksPath 2>/dev/null || true
+
+      LOCK_DIR="$(cd "$(git rev-parse --git-common-dir 2>/dev/null || git rev-parse --show-toplevel)" && pwd)/devshell-locks"
+      mkdir -p "$LOCK_DIR"
+
+      # Each call site invokes this with `&`, so bash runs it in a
+      # subshell; that's what scopes the EXIT/signal trap below to a
+      # single invocation instead of the caller's shell. mkdir is atomic
+      # on POSIX, so we don't need flock.
+      run_install() {
+        local name="$1"
+        shift
+        local lockdir="$LOCK_DIR/$name.lock"
+        local pidfile="$lockdir/pid"
+        local waited=0
+        while ! mkdir "$lockdir" 2>/dev/null; do
+          # Reap a stale lock left behind by a crashed previous devshell.
+          if [ -f "$pidfile" ] && ! kill -0 "$(cat "$pidfile" 2>/dev/null)" 2>/dev/null; then
+            rm -rf "$lockdir"
+            continue
+          fi
+          sleep 0.2
+          waited=$((waited + 1))
+          if [ "$waited" -gt 1500 ]; then # ~5 minutes
+            echo "[$name] lock held for >5min; forcing release and proceeding" >&2
+            rm -rf "$lockdir"
+            waited=0
+          fi
+        done
+        # Release the lock on any exit path - normal return, error,
+        # Ctrl-C, SIGTERM, SIGHUP - so we never leak a stale lock.
+        trap 'rm -rf "$lockdir"' EXIT HUP INT TERM
+        echo $$ >"$pidfile"
+        local output
+        if ! output=$("$@" 2>&1); then
+          echo "[$name] failed:" >&2
+          echo "$output" >&2
+        fi
+        rm -rf "$lockdir"
+        trap - EXIT HUP INT TERM
+      }
+
+      bun_install_in() {
+        cd "$1" && bun install --frozen-lockfile --silent
+      }
+
+      run_install prek prek install --quiet &
+      run_install bun-root bun_install_in "$REPO_ROOT" &
+      ${lib.concatMapStringsSep "\n      " (
+        p: ''run_install bun-${p.name} bun_install_in "$REPO_ROOT/${p.dir}" &''
+      ) bunProjects}
+      wait
+    '';
   };
 }

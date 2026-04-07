@@ -70,7 +70,7 @@
   };
 
   outputs =
-    inputs@{
+    {
       self,
       determinate,
       nixpkgs,
@@ -171,8 +171,7 @@
       import ./lib/devshell {
         inherit
           nixpkgs
-          self
-          inputs
+          nixpkgs-unstable
           agenix-rekey
           bun2nix
           ;

@@ -6,6 +6,9 @@
 # or `pkgs.callPackage` if you wish to handle
 # it manually.
 {
+  copyPathToStore,
+  fetchFromGitHub,
+  fetchgit,
   fetchurl,
   ...
 }:
@@ -18,9 +21,9 @@
     url = "https://registry.npmjs.org/@types/node-forge/-/node-forge-1.3.14.tgz";
     hash = "sha512-mhVF2BnD4BO+jtOp7z1CdzaK4mbuK0LLQYAvdOLqHTavxFNq4zA1EmYkpnFjP8HOUzedfQkRnp0E2ulSAYSzAw==";
   };
-  "@types/node@25.3.2" = fetchurl {
-    url = "https://registry.npmjs.org/@types/node/-/node-25.3.2.tgz";
-    hash = "sha512-RpV6r/ij22zRRdyBPcxDeKAzH43phWVKEjL2iksqo1Vz3CuBUrgmPpPhALKiRfU7OMCmeeO9vECBMsV0hMTG8Q==";
+  "@types/node@25.5.2" = fetchurl {
+    url = "https://registry.npmjs.org/@types/node/-/node-25.5.2.tgz";
+    hash = "sha512-tO4ZIRKNC+MDWV4qKVZe3Ql/woTnmHDr5JD8UI5hn2pwBrHEwOEMZK7WlNb5RKB6EoJ02gwmQS9OrjuFnZYdpg==";
   };
   "bun-types@1.3.9" = fetchurl {
     url = "https://registry.npmjs.org/bun-types/-/bun-types-1.3.9.tgz";
