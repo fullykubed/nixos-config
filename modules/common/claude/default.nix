@@ -136,6 +136,18 @@
           "no_proxy"
           "127.0.0.1"
 
+          # Override global git config log.showSignature=true so `git log`
+          # output inside the sandbox isn't cluttered with "Good git signature"
+          # lines (which pollute Claude's gitStatus context on startup).
+          "--setenv"
+          "GIT_CONFIG_COUNT"
+          "1"
+          "--setenv"
+          "GIT_CONFIG_KEY_0"
+          "log.showSignature"
+          "--setenv"
+          "GIT_CONFIG_VALUE_0"
+          "false"
         ]
         ++ roBind [
           "\${HOME}/.gitconfig"
