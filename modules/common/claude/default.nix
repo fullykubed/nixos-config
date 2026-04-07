@@ -537,15 +537,23 @@
             CLAUDE_JSON="$HOME/.claude.json"
             EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
             EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
+            HOME_PROJECT="/home/${config.username}"
 
             if [[ ! -f "$CLAUDE_JSON" ]]; then
               echo '{}' > "$CLAUDE_JSON"
             fi
 
-            if [[ -f "$EXA_TOKEN_PATH" ]]; then
-              TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
-              trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
+            TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
+            trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
 
+            ${pkgs.jaq}/bin/jaq --arg home "$HOME_PROJECT" \
+              '.projects //= {}
+               | .projects[$home] //= {}
+               | .projects[$home].hasTrustDialogAccepted = true' \
+              "$CLAUDE_JSON" > "$TMP_JSON"
+            ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
+
+            if [[ -f "$EXA_TOKEN_PATH" ]]; then
               EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
               ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
                 '.mcpServers //= {} | .mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
