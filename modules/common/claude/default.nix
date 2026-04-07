@@ -331,49 +331,6 @@
       };
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
-        CLAUDE_JSON="$HOME/.claude.json"
-        CLAUDE_LOCK="$HOME/.claude.json.lock"
-        EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
-        EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
-
-        if [[ ! -f "$CLAUDE_JSON" ]]; then
-          echo '{}' > "$CLAUDE_JSON"
-        fi
-
-        # Re-apply Nix-managed settings that Claude Code may have clobbered.
-        # Hold an exclusive flock and rewrite the file in place (`cat tmp >
-        # file`) instead of `mv tmp file`, so the inode is preserved. A rename
-        # would unlink the inode that any concurrent claude session has bound
-        # into its bwrap mount (visible in /proc/self/mountinfo as
-        # `//deleted`), which then breaks nested bwrap calls inside that
-        # session (e.g. the recursive claude --print used by notify-hook).
-        (
-          ${pkgs.util-linux}/bin/flock -x 200
-
-          TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
-          trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
-
-          ${pkgs.jaq}/bin/jaq '
-            .theme = "dark" |
-            .projects["/home/${config.username}"].hasTrustDialogAccepted = true |
-            .autoCompactEnabled = true |
-            .fileCheckpointingEnabled = true |
-            .respectGitignore = true |
-            .preferTmuxOverIterm2 = true |
-            .autoConnectIde = false |
-            .autoInstallIdeExtension = false
-          ' "$CLAUDE_JSON" > "$TMP_JSON"
-          ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
-
-          if [[ -f "$EXA_TOKEN_PATH" ]]; then
-            EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
-            ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
-              '.mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
-              "$CLAUDE_JSON" > "$TMP_JSON"
-            ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
-          fi
-        ) 200>"$CLAUDE_LOCK"
-
         exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
       '';
 
@@ -560,6 +517,31 @@
         // claudeSystemd.homeFiles;
 
         systemd.user.services = claudeHeadroom.systemdServices;
+
+        home.activation.claudeJson = {
+          after = [ "writeBoundary" ];
+          before = [ ];
+          data = ''
+            CLAUDE_JSON="$HOME/.claude.json"
+            EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
+            EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
+
+            if [[ ! -f "$CLAUDE_JSON" ]]; then
+              echo '{}' > "$CLAUDE_JSON"
+            fi
+
+            if [[ -f "$EXA_TOKEN_PATH" ]]; then
+              TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
+              trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
+
+              EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
+              ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
+                '.mcpServers //= {} | .mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
+                "$CLAUDE_JSON" > "$TMP_JSON"
+              ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
+            fi
+          '';
+        };
       };
 
       environment.systemPackages = [

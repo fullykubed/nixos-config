@@ -5,10 +5,10 @@
 # hcloud JSON, and writes the result atomically to /run/builder-status/status.json
 # for waybar-builders.sh to read.
 #
-# @remote_stats@ is replaced at build time (via builtins.replaceStrings in
-# default.nix) with the contents of remote-stats.sh, so both this script and
-# builders-cli.sh share the same metrics-collection snippet without runtime
-# path dependencies.
+# The remote_stats placeholder below is replaced at build time (via
+# builtins.replaceStrings in default.nix) with the contents of remote-stats.sh,
+# so both this script and builders-cli.sh share the same metrics-collection
+# snippet without runtime path dependencies.
 
 # ------------------------------------------------------------------------------
 # Constants
