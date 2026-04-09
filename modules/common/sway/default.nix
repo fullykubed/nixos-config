@@ -264,6 +264,7 @@ in
           bindsym ${swayModifier}+Shift+space exec swayr switch-to-urgent-or-lru-window --skip-lru
           bindsym ${swayModifier}+Shift+w exec swayr switch-window
           bindsym ${swayModifier}+Shift+z exec swayr switch-workspace
+          bindsym ${swayModifier}+Shift+x exec swayr steal-window
 
           # Workspace navigation
           bindsym ${swayModifier}+1 workspace number 1
