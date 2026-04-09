@@ -17,6 +17,8 @@ let
       hash = versions.headroomSrcHash;
     };
 
+    patches = [ ./patches/anthropic-target-url.patch ];
+
     build-system = with python3.pkgs; [
       hatchling
     ];

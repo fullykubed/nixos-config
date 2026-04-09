@@ -35,6 +35,10 @@
   ccusage = "16.2.5";
   ccusageSrcHash = "sha256-GXleBpZ3XF4DWrXG31Kh15SoOLRm6kXuuvIEEEmQ8eA=";
 
+  # better-ccflare (modules/common/claude)
+  betterCcflare = "3.3.22";
+  betterCcflareSrcHash = "sha256-DsiGQ8EPmsZAf18NWuBAq2EUSpPZl3G1jKPyHpFOPrU=";
+
   # brscan5 Brother scanner driver (modules/utility/brother-scanner)
   brscan5 = "1.3.1-0";
   brscan5Hash = "sha256-0UMbXMBlyiZI90WG5FWEP2mIZEBsxXd11dtgtyuSDnY=";

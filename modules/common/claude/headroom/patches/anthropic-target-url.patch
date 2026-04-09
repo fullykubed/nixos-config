@@ -1,0 +1,32 @@
+# Intended to be submitted upstream as a PR to chopratejas/headroom.
+# Mirrors the existing OPENAI_TARGET_API_URL plumbing for the Anthropic
+# upstream URL so that headroom can be chained into another proxy
+# (e.g. better-ccflare) without requiring a fork.
+#
+# NOTE: The headroom.cli.proxy Click-based entry point already supports
+# ANTHROPIC_TARGET_API_URL in version 0.5.18 (headroom/cli/proxy.py).
+# This patch closes the symmetry gap in the legacy argparse code path
+# (headroom/proxy/server.py, `if __name__ == "__main__":` block) so that
+# `python -m headroom.proxy.server` also honours the env var.
+--- a/headroom/proxy/server.py
++++ b/headroom/proxy/server.py
+@@ -8542,6 +8542,11 @@ if __name__ == "__main__":
+     parser.add_argument(
+         "--openai-api-url", help=f"Custom OpenAI API URL (default: {HeadroomProxy.OPENAI_API_URL})"
+     )
++    parser.add_argument(
++        "--anthropic-api-url",
++        default=None,
++        help=f"Anthropic upstream API URL override (default: {HeadroomProxy.ANTHROPIC_API_URL})",
++    )
+
+     # Backend (anthropic direct, bedrock, openrouter, anyllm, or litellm-<provider>)
+     parser.add_argument(
+@@ -8680,6 +8685,7 @@ if __name__ == "__main__":
+         host=_get_env_str("HEADROOM_HOST", args.host),
+         port=_get_env_int("HEADROOM_PORT", args.port),
+         openai_api_url=_get_env_str("OPENAI_TARGET_API_URL", args.openai_api_url),
++        anthropic_api_url=_get_env_str("ANTHROPIC_TARGET_API_URL", args.anthropic_api_url),
+         # Backend settings
+         backend=_get_env_str("HEADROOM_BACKEND", args.backend),  # type: ignore[arg-type]
+         bedrock_region=_get_env_str("HEADROOM_BEDROCK_REGION", args.bedrock_region),

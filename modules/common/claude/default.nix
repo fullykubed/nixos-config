@@ -18,6 +18,14 @@
       type = lib.types.str;
       description = "Source hash for ccusage NPM package";
     };
+    betterCcflare = lib.mkOption {
+      type = lib.types.str;
+      description = "Version of better-ccflare Claude API load balancer";
+    };
+    betterCcflareSrcHash = lib.mkOption {
+      type = lib.types.str;
+      description = "Source hash for better-ccflare GitHub source";
+    };
     headroom = lib.mkOption {
       type = lib.types.str;
       description = "Version of headroom context compression proxy";
@@ -365,6 +373,7 @@
       claudeSystemd = import ./skills/Systemd { };
       findGrepAliases = pkgs.callPackage ./find-grep { };
       claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
+      claudeBetterCcflare = pkgs.callPackage ./better-ccflare { inherit versions; };
 
       locateHook = pkgs.writeShellApplication {
         name = "claude-locate-hook";
@@ -387,175 +396,184 @@
           };
         };
 
-        home.file = {
-          ".claude/CLAUDE.md" = {
-            source = ./CLAUDE.md;
-          };
+        home = {
+          file = {
+            ".claude/CLAUDE.md" = {
+              source = ./CLAUDE.md;
+            };
 
-          ".claude/commands" = {
-            source = ./commands;
-            recursive = true;
-          };
+            ".claude/commands" = {
+              source = ./commands;
+              recursive = true;
+            };
 
-          ".claude/specs" = {
-            source = ./specs;
-            recursive = true;
-          };
+            ".claude/specs" = {
+              source = ./specs;
+              recursive = true;
+            };
 
-          ".headroom/.keep".text = "";
+            ".headroom/.keep".text = "";
+            ".local/share/better-ccflare/.keep".text = "";
 
-          ".claude/settings.json" = {
-            force = true;
-            text = builtins.toJSON {
-              skipDangerousModePermissionPrompt = true;
-              sandbox = {
-                enabled = false; # We provide our own bwrap sandbox via claude-code-sandboxed
-              };
-              statusLine = {
-                type = "command";
-                command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
-                padding = 0;
-              };
-              spinnerTipsEnabled = false;
-              attribution = {
-                commit = "";
-                pr = "";
-              };
-              env = {
-                DISABLE_AUTOUPDATER = "1";
-                DISABLE_TELEMETRY = "1";
-                CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
-                CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
-                CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
-                DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
-                DISABLE_ERROR_REPORTING = "1";
-              };
-              hooks = {
-                Notification = [
-                  {
-                    matcher = "permission_prompt|elicitation_dialog";
-                    hooks = [
-                      {
-                        type = "command";
-                        command = "workmux set-window-status waiting";
-                      }
-                    ];
-                  }
-                ];
+            ".claude/settings.json" = {
+              force = true;
+              text = builtins.toJSON {
+                skipDangerousModePermissionPrompt = true;
+                sandbox = {
+                  enabled = false; # We provide our own bwrap sandbox via claude-code-sandboxed
+                };
+                statusLine = {
+                  type = "command";
+                  command = "${ccusage}/bin/ccusage statusline --visual-burn-rate emoji";
+                  padding = 0;
+                };
+                spinnerTipsEnabled = false;
+                attribution = {
+                  commit = "";
+                  pr = "";
+                };
+                env = {
+                  DISABLE_AUTOUPDATER = "1";
+                  DISABLE_TELEMETRY = "1";
+                  CLAUDE_CODE_HIDE_ACCOUNT_INFO = "1";
+                  CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL = "1";
+                  CLAUDE_CODE_DISABLE_FEEDBACK_SURVEY = "1";
+                  DISABLE_NON_ESSENTIAL_MODEL_CALLS = "1";
+                  DISABLE_ERROR_REPORTING = "1";
+                };
+                hooks = {
+                  Notification = [
+                    {
+                      matcher = "permission_prompt|elicitation_dialog";
+                      hooks = [
+                        {
+                          type = "command";
+                          command = "workmux set-window-status waiting";
+                        }
+                      ];
+                    }
+                  ];
 
-                Stop = [
-                  {
-                    matcher = ".*";
-                    hooks = [
-                      {
-                        type = "command";
-                        command = "workmux set-window-status done";
-                      }
-                      # {
-                      #   type = "command";
-                      #   command = "${claudeNotifyHook}/bin/claude-notify-hook";
-                      #   async = true;
-                      #   timeout = 120;
-                      # }
-                      # TODO: re-enable surprise hook once stabilized
-                      # {
-                      #   type = "command";
-                      #   command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
-                      #   async = true;
-                      #   timeout = 900;
-                      # }
-                    ];
-                  }
-                ];
+                  Stop = [
+                    {
+                      matcher = ".*";
+                      hooks = [
+                        {
+                          type = "command";
+                          command = "workmux set-window-status done";
+                        }
+                        # {
+                        #   type = "command";
+                        #   command = "${claudeNotifyHook}/bin/claude-notify-hook";
+                        #   async = true;
+                        #   timeout = 120;
+                        # }
+                        # TODO: re-enable surprise hook once stabilized
+                        # {
+                        #   type = "command";
+                        #   command = "${claudeSurprises.hookPackage}/bin/claude-surprise-hook";
+                        #   async = true;
+                        #   timeout = 900;
+                        # }
+                      ];
+                    }
+                  ];
 
-                # Claude Code auto-converts Stop hooks into SubagentStop events
-                # when SubagentStop is unset, so each Task tool subagent finish
-                # would re-run the workmux + notify hooks. Register an explicit
-                # empty SubagentStop block to suppress that auto-conversion.
-                SubagentStop = [
-                  {
-                    matcher = ".*";
-                    hooks = [ ];
-                  }
-                ];
+                  # Claude Code auto-converts Stop hooks into SubagentStop events
+                  # when SubagentStop is unset, so each Task tool subagent finish
+                  # would re-run the workmux + notify hooks. Register an explicit
+                  # empty SubagentStop block to suppress that auto-conversion.
+                  SubagentStop = [
+                    {
+                      matcher = ".*";
+                      hooks = [ ];
+                    }
+                  ];
 
-                UserPromptSubmit = [
-                  {
-                    matcher = ".*";
-                    hooks = [
-                      {
-                        type = "command";
-                        command = "workmux set-window-status working";
-                      }
-                    ];
-                  }
-                ];
+                  UserPromptSubmit = [
+                    {
+                      matcher = ".*";
+                      hooks = [
+                        {
+                          type = "command";
+                          command = "workmux set-window-status working";
+                        }
+                      ];
+                    }
+                  ];
 
-                PreToolUse = [
-                  {
-                    matcher = "Bash|Grep|Glob";
-                    hooks = [
-                      {
-                        type = "command";
-                        command = "${locateHook}/bin/claude-locate-hook";
-                      }
-                    ];
-                  }
-                ];
+                  PreToolUse = [
+                    {
+                      matcher = "Bash|Grep|Glob";
+                      hooks = [
+                        {
+                          type = "command";
+                          command = "${locateHook}/bin/claude-locate-hook";
+                        }
+                      ];
+                    }
+                  ];
 
-                PostToolUse = claudePRD.hooks.PostToolUse ++ claudeSkill.hooks.PostToolUse;
+                  PostToolUse = claudePRD.hooks.PostToolUse ++ claudeSkill.hooks.PostToolUse;
+                };
               };
             };
+          }
+          // claudeSkill.homeFiles
+          // claudePRD.homeFiles
+          // claudeAgentBrowser.homeFiles
+          // claudeDogfood.homeFiles
+          // claudeElectron.homeFiles
+          // claudeSlack.homeFiles
+          // claudeNixOSBuild.homeFiles
+          // claudeSurprises.homeFiles
+          // claudeKeePassXC.homeFiles
+          // claudeGitHub.homeFiles
+          // claudeGit.homeFiles
+          // claudeTempScript.homeFiles
+          // claudeSystemd.homeFiles;
+
+          sessionVariables = {
+            BETTER_CCFLARE_DB_PATH = "/home/${config.username}/.local/share/better-ccflare/better-ccflare.db";
+            BETTER_CCFLARE_CONFIG_PATH = "/home/${config.username}/.local/share/better-ccflare/config.json";
           };
-        }
-        // claudeSkill.homeFiles
-        // claudePRD.homeFiles
-        // claudeAgentBrowser.homeFiles
-        // claudeDogfood.homeFiles
-        // claudeElectron.homeFiles
-        // claudeSlack.homeFiles
-        // claudeNixOSBuild.homeFiles
-        // claudeSurprises.homeFiles
-        // claudeKeePassXC.homeFiles
-        // claudeGitHub.homeFiles
-        // claudeGit.homeFiles
-        // claudeTempScript.homeFiles
-        // claudeSystemd.homeFiles;
 
-        systemd.user.services = claudeHeadroom.systemdServices;
+          activation.claudeJson = {
+            after = [ "writeBoundary" ];
+            before = [ ];
+            data = ''
+              CLAUDE_JSON="$HOME/.claude.json"
+              EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
+              EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
+              HOME_PROJECT="/home/${config.username}"
 
-        home.activation.claudeJson = {
-          after = [ "writeBoundary" ];
-          before = [ ];
-          data = ''
-            CLAUDE_JSON="$HOME/.claude.json"
-            EXA_TOKEN_PATH="${config.age.secrets.exa-token.path}"
-            EXA_TOOLS="web_search_exa,get_code_context_exa,deep_researcher_start,deep_researcher_check"
-            HOME_PROJECT="/home/${config.username}"
+              if [[ ! -f "$CLAUDE_JSON" ]]; then
+                echo '{}' > "$CLAUDE_JSON"
+              fi
 
-            if [[ ! -f "$CLAUDE_JSON" ]]; then
-              echo '{}' > "$CLAUDE_JSON"
-            fi
+              TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
+              trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
 
-            TMP_JSON=$(${pkgs.coreutils}/bin/mktemp)
-            trap '${pkgs.coreutils}/bin/rm -f "$TMP_JSON"' EXIT
-
-            ${pkgs.jaq}/bin/jaq --arg home "$HOME_PROJECT" \
-              '.projects //= {}
-               | .projects[$home] //= {}
-               | .projects[$home].hasTrustDialogAccepted = true' \
-              "$CLAUDE_JSON" > "$TMP_JSON"
-            ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
-
-            if [[ -f "$EXA_TOKEN_PATH" ]]; then
-              EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
-              ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
-                '.mcpServers //= {} | .mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
+              ${pkgs.jaq}/bin/jaq --arg home "$HOME_PROJECT" \
+                '.projects //= {}
+                 | .projects[$home] //= {}
+                 | .projects[$home].hasTrustDialogAccepted = true' \
                 "$CLAUDE_JSON" > "$TMP_JSON"
               ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
-            fi
-          '';
+
+              if [[ -f "$EXA_TOKEN_PATH" ]]; then
+                EXA_API_KEY="$(${pkgs.coreutils}/bin/cat "$EXA_TOKEN_PATH")"
+                ${pkgs.jaq}/bin/jaq --arg key "$EXA_API_KEY" --arg tools "$EXA_TOOLS" \
+                  '.mcpServers //= {} | .mcpServers.exa = {type: "http", url: "https://mcp.exa.ai/mcp?exaApiKey=\($key)&tools=\($tools)"}' \
+                  "$CLAUDE_JSON" > "$TMP_JSON"
+                ${pkgs.coreutils}/bin/cat "$TMP_JSON" > "$CLAUDE_JSON"
+              fi
+            '';
+          };
         };
+
+        systemd.user.services = claudeHeadroom.systemdServices // claudeBetterCcflare.systemdServices;
+
       };
 
       environment.systemPackages = [
@@ -579,6 +597,7 @@
         claude-wrapper
         ccusage
         claudeHeadroom.package
+        claudeBetterCcflare.package
       ];
 
       age.secrets = {
