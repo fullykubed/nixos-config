@@ -82,6 +82,15 @@ let
     buildPhase = ''
       runHook preBuild
 
+      # Build the dashboard SPA workspace so apps/cli/build can embed its
+      # dist/embedded.ts into the compiled binary. This mirrors the upstream
+      # root-level `bun run build` which chains build:dashboard && build:cli
+      # (see root package.json in the pinned source tarball). Without this
+      # step apps/server/src/server.ts:54 catches an ImportError at startup
+      # and serves "/dashboard" as a transparent passthrough to
+      # api.anthropic.com.
+      bun run --cwd packages/dashboard-web build
+
       cd apps/cli
       bun run build
       cd ../..

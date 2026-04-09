@@ -77,6 +77,10 @@ in
           "HEADROOM_PORT=8787"
           "HEADROOM_MODE=cost_savings"
           "ORT_LOG_LEVEL=3" # suppress onnxruntime provider bridge warnings (no CUDA on AMD GPU)
+          # Chain: Claude → headroom (8787) → better-ccflare (8788) → api.anthropic.com.
+          # headroom's click CLI reads this via os.environ.get("ANTHROPIC_TARGET_API_URL")
+          # in headroom/cli/proxy.py and passes it into ProxyConfig.anthropic_api_url.
+          "ANTHROPIC_TARGET_API_URL=http://127.0.0.1:8788"
         ];
       };
       Install = {
