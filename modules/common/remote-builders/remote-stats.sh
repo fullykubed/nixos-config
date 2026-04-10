@@ -1,9 +1,10 @@
+# shellcheck shell=bash
 # Remote metrics-collection snippet — no shebang, sourced via SSH heredoc.
 # Outputs pipe-delimited:
 #   builds|cpu%|mem_used_kb|mem_total_kb|disk_read_sectors|disk_write_sectors|
 #   disk_total_kb|disk_used_kb|disk_pct|ssh_sessions|ts_status|queue_pending|
 #   queue_done|idle_count|ccache_hits|ccache_misses|ccache_size_kb|
-#   ccache_mount|ccache_sync
+#   ccache_mount|ccache_sync|serve_count
 #
 # ccache_mount: 1 if /var/cache/ccache is a mountpoint, else 0.
 # ccache_sync:  1 if ccache-r2-upload.timer is active, else 0.
@@ -17,6 +18,7 @@
 # Sync timer unit on the builder image: ccache-r2-upload.timer
 # (defined in modules/utility/ccache-r2.nix, imported via images/builder/ccache.nix)
 b=$(ps -eo user= 2>/dev/null | sort -u | grep -c '^nixbld' || true); b=${b:-0}
+sv=$(pgrep -fc 'nix-store.*--serve' 2>/dev/null || true); sv=${sv:-0}
 sc=$(command ss -Htn state established '( sport = :3098 )' 2>/dev/null | wc -l)
 ss=$((sc > 1 ? sc - 1 : 0))
 read _ u1 n1 s1 i1 w1 _ < /proc/stat
@@ -64,6 +66,6 @@ ccs=1
 if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files ccache-r2-upload.timer >/dev/null 2>&1; then
   systemctl is-active --quiet ccache-r2-upload.timer || ccs=0
 fi
-printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
+printf '%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\n' \
   "$b" "$cpu" "$mu" "$mt" "$dr" "$dw" "$dst" "$dsu" "$dsp" "$ss" "$ts" "$pq" "$dq" "$ic" \
-  "$ch" "$cm_cc" "$csz" "$ccm" "$ccs"
+  "$ch" "$cm_cc" "$csz" "$ccm" "$ccs" "$sv"

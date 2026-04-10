@@ -1399,8 +1399,8 @@ cmd_dashboard() {
       wait "${pids[@]}" 2>/dev/null || true
 
       # Table header
-      printf ' %-16s %-16s %6s  %4s  %4s   %4s  %-22s  %5s %-8s %-6s %s' \
-        "BUILDER" "TAILSCALE IP" "BUILDS" "SSH" "CPU" "MEM" "DISK R/W" "DISK" "CACHE Q" "CCACHE" "SHUTDOWN"
+      printf ' %-16s %-16s %6s %5s  %4s  %4s   %4s  %-22s  %5s %-8s %-6s %s' \
+        "BUILDER" "TAILSCALE IP" "BUILDS" "XFERS" "SSH" "CPU" "MEM" "DISK R/W" "DISK" "CACHE Q" "CCACHE" "SHUTDOWN"
       tput el; echo
 
       local sep
@@ -1408,7 +1408,7 @@ cmd_dashboard() {
       printf ' %s' "$sep"
       tput el; echo
 
-      local total_builds=0 regular_count=0 big_count=0
+      local total_builds=0 total_transfers=0 regular_count=0 big_count=0
 
       for i in "${!names[@]}"; do
         local data
@@ -1425,19 +1425,21 @@ cmd_dashboard() {
         if [[ -z "$data" || "$data" == "ERROR" || "$data" != *"|"* ]]; then
           # Clear stale disk counters so next successful refresh doesn't produce negative rates
           unset "prev_dr[${names[$i]}]" "prev_dw[${names[$i]}]" "prev_ts[${names[$i]}]" 2>/dev/null || true
-          printf ' %-16s %-16s  %b%s%b' "${names[$i]}" "${ips[$i]}" "$RED" "connection failed" "$NC"
+          printf ' %-16s %-16s %6s %5s  %b%s%b' "${names[$i]}" "${ips[$i]}" "--" "--" "$RED" "connection failed" "$NC"
           tput el; echo
           continue
         fi
 
         local builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess ts_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb
-        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess ts_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb <<< "$data"
+        IFS='|' read -r builds cpu mu mt dr_sec dw_sec dst dsu dsp ssh_sess ts_stat q_pending q_done idle_count cc_hits cc_misses cc_size_kb _ccm _ccs transfers <<< "$data"
         builds=${builds:-0}; cpu=${cpu:-0}; mu=${mu:-0}; mt=${mt:-0}
         dr_sec=${dr_sec:-0}; dw_sec=${dw_sec:-0}; dst=${dst:-0}; dsu=${dsu:-0}; dsp=${dsp:-0}; ssh_sess=${ssh_sess:-0}; ts_stat=${ts_stat:-unknown}
         q_pending=${q_pending:-0}; q_done=${q_done:-0}; idle_count=${idle_count:-0}
         cc_hits=${cc_hits:-0}; cc_misses=${cc_misses:-0}; cc_size_kb=${cc_size_kb:-0}
+        transfers=${transfers:-0}
 
         total_builds=$((total_builds + builds))
+        total_transfers=$((total_transfers + transfers))
 
         # Compute disk I/O rates from cumulative sector deltas between refreshes
         local bname="${names[$i]}"
@@ -1464,7 +1466,7 @@ cmd_dashboard() {
         dr_fmt=$(format_rate "$drk")
         dw_fmt=$(format_rate "$dwk")
 
-        printf ' %-16s %-16s %6s  %4s  ' "${names[$i]}" "${ips[$i]}" "$builds" "$ssh_sess"
+        printf ' %-16s %-16s %6s %5s  %4s  ' "${names[$i]}" "${ips[$i]}" "$builds" "$transfers" "$ssh_sess"
         color_pct "$cpu"
         printf '   '
         color_pct "$mem_pct"
@@ -1491,7 +1493,7 @@ cmd_dashboard() {
         printf ' '
         # Auto-shutdown countdown
         local remaining=$(( 15 - idle_count ))
-        if [[ $builds -gt 0 ]]; then
+        if [[ $builds -gt 0 ]] || [[ $transfers -gt 0 ]]; then
           printf ' %bactive%b' "$GREEN" "$NC"
         elif [[ $remaining -le 2 ]]; then
           printf ' %b%sm left%b' "$RED" "$remaining" "$NC"
@@ -1516,7 +1518,7 @@ cmd_dashboard() {
       [[ -d /var/lib/cache-upload-queue/pending ]] && local_pending=$(bfs /var/lib/cache-upload-queue/pending -maxdepth 1 -type f 2>/dev/null | wc -l)
       [[ -d /var/lib/cache-upload-queue/done ]] && local_done=$(bfs /var/lib/cache-upload-queue/done -maxdepth 1 -type f 2>/dev/null | wc -l)
       local footer
-      footer=$(printf '%d regular + %d big | %d builds | est %s/hr | local queue: %d pending, %d uploaded' "$regular_count" "$big_count" "$total_builds" "$total_cost" "$local_pending" "$local_done")
+      footer=$(printf '%d regular + %d big | %d builds, %d xfers | est %s/hr | local queue: %d pending, %d uploaded' "$regular_count" "$big_count" "$total_builds" "$total_transfers" "$total_cost" "$local_pending" "$local_done")
       local controls="[q] quit  [r] refresh"
       local pad=$((cols - ${#footer} - ${#controls} - 4))
       [[ $pad -lt 2 ]] && pad=2

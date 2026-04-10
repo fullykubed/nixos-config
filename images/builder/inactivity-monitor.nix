@@ -19,6 +19,12 @@ let
         return 0
       fi
 
+      # Check for nix-store --serve processes (active store transfers)
+      if ${pkgs.procps}/bin/pgrep -f 'nix-store.*--serve' >/dev/null 2>&1; then
+        echo "Activity detected: nix-store --serve processes running"
+        return 0
+      fi
+
       return 1
     }
 

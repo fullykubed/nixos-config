@@ -102,6 +102,11 @@ if [[ -s "$BUILDER_STATUS_FILE" ]]; then
         elif .builds == 1 then "1 build "
         else (.builds | tostring) + " builds"
         end;
+      def transfers_cell:
+        if (.reachable | not) then "- xfers"
+        elif .transfers == 1 then "1 xfer "
+        else ((.transfers // 0) | tostring) + " xfers"
+        end;
       [.[] | select(.name | test("^(big-)?builder-[0-9]+$"))]
       | sort_by([(.name | startswith("big-") | not), .name])
       | map(
@@ -111,6 +116,8 @@ if [[ -s "$BUILDER_STATUS_FILE" ]]; then
           + (if .reachable then ((.mem_pct // 0) | tostring) else "-" end | pad_left(3))
           + "%  "
           + builds_cell
+          + "  "
+          + transfers_cell
           + "  "
           + ttl
           + " "

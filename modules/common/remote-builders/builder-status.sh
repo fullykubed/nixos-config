@@ -144,7 +144,8 @@ for bname in "${names[@]}"; do
     #  1:builds  2:cpu  3:mu  4:mt  5:dr  6:dw  7:dst  8:dsu  9:dsp
     # 10:ssh_sessions  11:ts_status  12:q_pending  13:q_done  14:idle_count
     # 15:cc_hits  16:cc_misses  17:cc_size_kb  18:ccache_mount  19:ccache_sync
-    IFS='|' read -r builds cpu mu mt _ _ _ _ _ _ ts_stat _ _ idle_count _ _ _ ccm ccs <<< "$data"
+    # 20:serve_count
+    IFS='|' read -r builds cpu mu mt _ _ _ _ _ _ ts_stat _ _ idle_count _ _ _ ccm ccs sv <<< "$data"
     builds=${builds:-0}
     cpu=${cpu:-0}
     mu=${mu:-0}
@@ -153,6 +154,7 @@ for bname in "${names[@]}"; do
     ts_stat=${ts_stat:-unknown}
     ccm=${ccm:-1}
     ccs=${ccs:-1}
+    sv=${sv:-0}
 
     mem_pct=0
     if [[ "${mt}" -gt 0 ]]; then
@@ -178,6 +180,7 @@ for bname in "${names[@]}"; do
       --arg  ts    "${ts_stat}" \
       --argjson ccm    "${ccache_mount_bool}" \
       --argjson ccs    "${ccache_sync_bool}" \
+      --argjson transfers "${sv}" \
       '{
         name:         $name,
         reachable:    true,
@@ -187,7 +190,8 @@ for bname in "${names[@]}"; do
         idle_count:   $idle,
         ts_status:    $ts,
         ccache_mount: $ccm,
-        ccache_sync:  $ccs
+        ccache_sync:  $ccs,
+        transfers:    $transfers
       }')
   fi
 

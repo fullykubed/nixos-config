@@ -1,0 +1,29 @@
+{
+  "changes": [
+    {
+      "motivation": "Remote builders were self-destructing during active `nix-store --serve --write` transfers because the inactivity monitor only tracked `nixbld` build processes, not nix-store serve sessions.",
+      "summary": "Added `pgrep -fc 'nix-store.*--serve'` as field 20 (`sv`) to `remote-stats.sh`, extending the wire format from 19 to 20 pipe-delimited fields."
+    },
+    {
+      "motivation": "Prevent the inactivity monitor from shutting down a builder while it is actively serving store paths to the local machine.",
+      "summary": "Added a second `pgrep -f 'nix-store.*--serve'` check in `is_active()` inside `inactivity-monitor.nix`; a match resets the idle counter to 0 identical to the existing `nixbld` check."
+    },
+    {
+      "motivation": "Expose the new transfer count to status consumers (CLI, waybar, any future tooling) via the structured JSON status file.",
+      "summary": "Updated `builder-status.sh` to parse field 20 from the stats stream into a `transfers` key in the per-builder status JSON."
+    },
+    {
+      "motivation": "Allow operators to see at a glance whether a builder is actively receiving data and prevent the shutdown command from running while transfers are in flight.",
+      "summary": "Added an XFERS column to `builders-cli.sh`'s dashboard view and updated the shutdown eligibility check to block when `transfers > 0` (alongside the existing `builds > 0` guard), displaying 'active' in the shutdown column for either condition."
+    },
+    {
+      "motivation": "Surface transfer activity alongside build activity in the Waybar status bar tooltip so users have full visibility without opening the dashboard.",
+      "summary": "Added a `transfers_cell` to the jaq-generated tooltip in `waybar-builders.sh`, rendering 'N xfers' per builder row next to the existing builds cell."
+    }
+  ],
+  "problems": [
+    "The PRD `task-spec.md` template was not found in the repository — the agent tried four different glob patterns before giving up and writing self-contained specs inline. If a canonical task-spec template path is expected, it should be documented or the file should exist."
+  ],
+  "session_id": "cea7d055-f591-41df-9859-d5b4d60c56e6",
+  "timestamp": "2026-04-10T23:00:26.976Z"
+}
