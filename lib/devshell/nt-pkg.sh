@@ -17,5 +17,9 @@ HOST=${3:-$(hostname)}
 
 [[ -z "$PKG" ]] && error "Usage: nt-pkg <package> [stable|unstable] [hostname]"
 
+LOG=$(mktemp --suffix=.nt-pkg.log)
+
 info "Building $HOST.$CHANNEL.$PKG"
-nix build ".#$HOST.$CHANNEL.$PKG" --no-link 2>&1
+info "Build log: $LOG"
+
+nix build ".#$HOST.$CHANNEL.$PKG" --no-link > "$LOG" 2>&1

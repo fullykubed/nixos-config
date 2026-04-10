@@ -18,10 +18,13 @@ HOST=${2:-$(hostname)}
 [[ -z "$OPTION" ]] && error "Usage: nt-option <option-path> [hostname]"
 
 ATTR=".#nixosConfigurations.$HOST.$OPTION"
-info "Testing $ATTR"
+LOG=$(mktemp --suffix=.nt-option.log)
 
-if nix build "$ATTR" --no-link 2>&1; then
-  info "Build succeeded"
+info "Testing $ATTR"
+info "Build log: $LOG"
+
+if nix build "$ATTR" --no-link > "$LOG" 2>&1; then
+  info "Build succeeded — log: $LOG"
 else
   info "Not a buildable derivation, trying eval..."
   nix eval --impure "$ATTR" 2>&1 | head -40

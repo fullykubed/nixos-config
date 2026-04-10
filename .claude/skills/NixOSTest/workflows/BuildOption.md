@@ -25,6 +25,8 @@ nt-option <option-path> [hostname]
 
 Hostname defaults to the current machine. The script tries `nix build` first; if the option isn't a derivation, it falls back to `nix eval`.
 
+Build output is written to a temp log file whose path is printed to stderr. Record this path for stall detection and error analysis.
+
 ### 3. Report Results
 
 - **Build succeeded**: Report success and the store path.

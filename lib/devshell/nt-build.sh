@@ -11,6 +11,9 @@ REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || error "not in a git re
 cd "$REPO_ROOT" || exit
 
 HOST=${1:-$(hostname)}
-info "Building full system for nixosConfigurations.$HOST"
+LOG=$(mktemp --suffix=.nt-build.log)
 
-nix build --no-link --impure ".#nixosConfigurations.$HOST.config.system.build.toplevel" 2>&1
+info "Building full system for nixosConfigurations.$HOST"
+info "Build log: $LOG"
+
+nix build --no-link --impure ".#nixosConfigurations.$HOST.config.system.build.toplevel" > "$LOG" 2>&1

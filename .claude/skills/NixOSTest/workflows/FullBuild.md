@@ -14,10 +14,20 @@ nt-build [hostname]
 
 Hostname defaults to the current machine. Remote builders will be used automatically if configured.
 
+The script writes all build output to a temp log file and prints the path to stderr. Record this path. If the build appears stalled, inspect recent log lines:
+
+```bash
+tail -n 50 <log-path>
+```
+
 ### 2. Report Results
 
 - **Build succeeded**: Report success. The system is ready to deploy with `un`.
-- **Build failed**: Show the error. Classify the failure:
+- **Build failed**: Read the log to show the error:
+  ```bash
+  tail -n 150 <log-path>
+  ```
+  Classify the failure:
 
   | Error type | Suggestion |
   |------------|-----------|

@@ -1,0 +1,22 @@
+{
+  "changes": [
+    {
+      "motivation": "Ensure build progress is trackable and stalls can be diagnosed; prevent output from flooding the context window during long builds.",
+      "summary": "Updated lib/devshell/nt-build.sh, nt-pkg.sh, and nt-option.sh to redirect nix build output to a mktemp log file (> \"$LOG\" 2>&1) and print the log path to stderr, instead of streaming directly to stdout."
+    },
+    {
+      "motivation": "Keep NixOSTest skill workflow instructions aligned with the new logging pattern so agents know how to monitor progress and read errors.",
+      "summary": "Updated FullBuild.md, BuildPackage.md, and BuildOption.md in .claude/skills/NixOSTest/workflows/ to reference the log path printed by the build scripts and to use tail on that path for stall detection and error reading."
+    },
+    {
+      "motivation": "Establish a project-level rule so all agents working in this repo follow the same build logging convention without having to discover it by reading scripts.",
+      "summary": "Added a '## Build Output Logging' section to CLAUDE.md (repo-level) mandating the > \"$LOG\" 2>&1 redirect pattern and explicitly prohibiting | tail / | head truncation of build output."
+    }
+  ],
+  "problems": [
+    "The agent initially implemented build logging using `tee` (dual output to terminal + log file) before the user corrected it to redirect-only. The tee approach was over-engineered for the stated goal; redirect-only was the correct simple solution. The initial requirement ('keep context window clean') should have been sufficient signal to use redirect-only from the start.",
+    "The global ~/.claude/CLAUDE.md is a symlink into the Nix store (managed by home-manager) and cannot be edited directly. The agent attempted to edit it before discovering this. The correct editable source is the repo's own CLAUDE.md. This relationship was not documented anywhere discoverable before attempting the edit."
+  ],
+  "session_id": "83f3dc58-da44-434b-b7f1-7ebde9e3055c",
+  "timestamp": "2026-04-10T23:51:31.735Z"
+}

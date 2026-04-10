@@ -23,6 +23,8 @@ nt-pkg <package> [stable|unstable] [hostname]
 
 Hostname defaults to the current machine. Channel defaults to `stable`.
 
+The script writes all build output to a temp log file and prints the path to stderr. Record this path for stall detection and error analysis.
+
 ### 3. Compare Versions (optional)
 
 If the user is verifying a version change or comparing channels, evaluate the version:
