@@ -139,8 +139,10 @@ in
 
           ${lib.optionalString cfg.waitForCredentials credentialWaitSnippet}
 
-          export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
-          export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
+          [[ -f "${cfg.accessKeyFile}" && -s "${cfg.accessKeyFile}" ]] || { echo "ERROR: R2 access key missing or empty: ${cfg.accessKeyFile}" >&2; exit 1; }
+          [[ -f "${cfg.secretKeyFile}" && -s "${cfg.secretKeyFile}" ]] || { echo "ERROR: R2 secret key missing or empty: ${cfg.secretKeyFile}" >&2; exit 1; }
+          export AWS_ACCESS_KEY_ID=$(< "${cfg.accessKeyFile}")
+          export AWS_SECRET_ACCESS_KEY=$(< "${cfg.secretKeyFile}")
 
           s5cmd --endpoint-url "${r2Endpoint}" sync "s3://${r2Bucket}/*" "${r2DownloadDir}/"
 
@@ -195,8 +197,10 @@ in
 
           ${lib.optionalString cfg.waitForCredentials credentialWaitSnippet}
 
-          export AWS_ACCESS_KEY_ID=$(cat ${cfg.accessKeyFile})
-          export AWS_SECRET_ACCESS_KEY=$(cat ${cfg.secretKeyFile})
+          [[ -f "${cfg.accessKeyFile}" && -s "${cfg.accessKeyFile}" ]] || { echo "ERROR: R2 access key missing or empty: ${cfg.accessKeyFile}" >&2; exit 1; }
+          [[ -f "${cfg.secretKeyFile}" && -s "${cfg.secretKeyFile}" ]] || { echo "ERROR: R2 secret key missing or empty: ${cfg.secretKeyFile}" >&2; exit 1; }
+          export AWS_ACCESS_KEY_ID=$(< "${cfg.accessKeyFile}")
+          export AWS_SECRET_ACCESS_KEY=$(< "${cfg.secretKeyFile}")
 
           LOCAL="${r2UploadDir}"
 
