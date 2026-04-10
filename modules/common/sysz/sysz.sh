@@ -199,9 +199,8 @@ _sysz_sort() {
     local mgr unit_colored unit _sk _type _unit_undashed
     mgr="${str%% *}"
     unit_colored="${str##* }"
-    # Strip ANSI colour codes via sed to avoid shellcheck confusing the
-    # character-class [@-~] with a variable reference.
-    unit="$(printf '%s' "$unit_colored" | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g')"
+    # Strip ANSI colour codes inline (no subshell). Same pattern as _strip_ansi.
+    unit="${unit_colored//$'\e'[\[(]*([0-9;])[@-n]/}"
 
     if [[ $unit =~ \.service$ ]]; then
       _sk=0

@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "motivation": "The custom sysz script was significantly slower to start than the original because `_sysz_sort` spawned a subshell + `printf | sed` pipeline for every unit to strip ANSI escape codes. With 300–500+ units on a typical NixOS system, this caused 600–1000+ fork/exec calls on every startup and on every ctrl-r/ctrl-s reload.",
+      "summary": "Replaced the `printf '%s' \"$unit_colored\" | sed ...` subprocess call in `_sysz_sort` with inline bash parameter expansion (`${unit_colored//$'\\e'[\\[(]*([0-9;])[@-n]/}`), matching the pattern already used by the existing `_strip_ansi` helper. This eliminates all subprocess spawning in the sort path."
+    }
+  ],
+  "problems": [
+    "The script already had a `_strip_ansi` bash-native helper function but `_sysz_sort` duplicated the same logic using an external `sed` subprocess instead of calling or reusing the pattern. This inconsistency was the direct cause of the performance regression and was not documented anywhere — a future developer customizing the sort function would not know to avoid subprocess calls here."
+  ],
+  "session_id": "abe6c35a-8cf0-45d8-a419-147fae6484c3",
+  "timestamp": "2026-04-10T23:33:32.652Z"
+}
