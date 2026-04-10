@@ -67,11 +67,12 @@ while read -r tool; do
       ERRORS+="$(cat "$TMPDIR/check-package-json")"$'\n'
       ;;
     git-untracked)
-      ERRORS+="File is not tracked by git: $FILE_PATH"$'\n'
-      ERRORS+="Nix flake builds only see git-tracked files. Run: git add \"$FILE_PATH\""$'\n'
+      git add "$FILE_PATH"
       ;;
   esac
 done <"$TMPDIR/failed"
 
-echo "$ERRORS" >&2
-exit 2
+if [[ -n "$ERRORS" ]]; then
+  echo "$ERRORS" >&2
+  exit 2
+fi
