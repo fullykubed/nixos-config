@@ -1,0 +1,14 @@
+{
+  "name": "claude-session-summary",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun build --compile --outfile=dist/claude-session-summary src/main.ts"
+  },
+  "bin": {
+    "claude-session-summary": "./src/main.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "1.3.9"
+  }
+}

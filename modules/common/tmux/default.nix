@@ -110,6 +110,9 @@
           post_create:
             - direnv allow
 
+          pre_merge:
+            - check-background-work
+
           files:
             copy:
               - .env
@@ -161,7 +164,7 @@
             shellAliases = {
               wm = "workmux";
               wmm = "workmux merge";
-              wmab = "noglob _wmab";
+              wmab = "noglob _wmab &>/dev/null &!";
             };
           };
 

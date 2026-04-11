@@ -119,7 +119,7 @@ Rebased N commits onto $target
 
 Nothing else."
 
-    if claude-wrapper --system-prompt "$system_prompt" \
+    if CLAUDE_NO_SUMMARY=1 claude-wrapper --system-prompt "$system_prompt" \
         --no-session-persistence \
         --model sonnet \
         --fallback-model haiku \

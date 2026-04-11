@@ -6,6 +6,6 @@
     "llm-summarize": "./src/main.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "1.3.9"
   }
 }

@@ -1,0 +1,29 @@
+{
+  "changes": [
+    {
+      "summary": "Created `modules/common/claude/headroom/patches/anthropic-target-url.patch` patching headroom's legacy argparse entry point in `headroom/proxy/server.py` to accept a `--anthropic-api-url` CLI arg and read the `ANTHROPIC_TARGET_API_URL` env var, wiring it into `ProxyConfig`.",
+      "motivation": "The headroom → better-ccflare proxy chain requires headroom to forward requests to better-ccflare (127.0.0.1:8788) instead of hardcoding api.anthropic.com. The ProxyConfig dataclass already had an `anthropic_api_url` override field; only the env-var wiring was missing from the argparse main() path."
+    },
+    {
+      "summary": "Added `betterCcflare = \"3.3.22\"` and `betterCcflareSrcHash` to `lib/versions.nix`, pinning better-ccflare to the v3.3.22 GitHub release with a stable SRI hash.",
+      "motivation": "Reproducible Nix builds require all external sources to be pinned. The repo's existing convention centralises all version pins and source hashes in `lib/versions.nix`."
+    },
+    {
+      "summary": "Created `modules/common/claude/better-ccflare/{default.nix,bun.nix,TOC.md}`. The derivation uses `fetchFromGitHub`, bun2nix's `fetchBunDeps`, `bunInstallFlags = \"--linker=hoisted\"`, and a `preBuild` hook that symlinks the system bun binary over `node_modules/bun/bin/bun`. The build phase runs `bun run build` from `apps/cli/`, producing a single self-contained compiled binary. A telemetry grep is enforced in `postBuild`. The derivation exports `package` and `systemdServices` (port 8788 on 127.0.0.1, `BETTER_CCFLARE_DB_PATH` / `BETTER_CCFLARE_CONFIG_PATH` in the service environment).",
+      "motivation": "better-ccflare is a monorepo bun project that must be packaged hermetically for NixOS. The bun2nix pattern already used by the credential-proxy was adopted, with two extra fixes needed for this monorepo's structure (hoisted linker for subpath workspace imports, bun postinstall workaround for the offline sandbox)."
+    },
+    {
+      "summary": "Extended `modules/common/claude/default.nix` to integrate better-ccflare: added `options.versions.betterCcflare` and `betterCcflareSrcHash` declarations; added a `callPackage ./better-ccflare` let-binding; added `home.file.\".local/share/better-ccflare/.keep\"` to pre-create the data dir; added `home.sessionVariables` for `BETTER_CCFLARE_DB_PATH` and `BETTER_CCFLARE_CONFIG_PATH`; merged `claudeBetterCcflare.systemdServices` into the existing systemd services attrset; and added `claudeBetterCcflare.package` to `environment.systemPackages`.",
+      "motivation": "The better-ccflare systemd service and the interactive `better-ccflare --add-account` command (run outside the sandbox) must both see the same SQLite database and config file paths. Exposing these as session variables ensures the host shell uses the same XDG locations the service is configured with."
+    }
+  ],
+  "problems": [
+    "bun2nix defaults to `--linker=isolated`, which puts workspace packages into per-workspace `node_modules/` subdirectories. better-ccflare's monorepo uses subpath exports (e.g. `@better-ccflare/providers/bedrock`) that require a hoisted `node_modules/` layout. This was discovered only by hitting a build-time resolution error. The bun-tools.md docs don't mention this caveat or how to override the linker.",
+    "The `bun` npm package ships a placeholder binary that requires its postinstall script to download the real platform binary. In bun2nix's offline sandbox this postinstall cannot run, causing any downstream `bun run build` to fail with 'Bun's postinstall script was not run'. The workaround (symlinking the system bun over the placeholder in preBuild) was discovered by reading the npm package source. Neither bun-tools.md nor bun2nix docs document this failure mode.",
+    "bun2nix-cli is not available via standard nixpkgs; it is exposed only through the flake's bun2nix input overlay. Attempting `<nixpkgs>` or `.#nixosConfigurations` builds before the module option is declared fails with 'attribute bun2nix-cli missing'. The docs/modules/bun-tools.md does not explain how to build a bun package in isolation for testing without going through the full flake NixOS configuration."
+  ],
+  "schema_version": 1,
+  "session_id": "cli-1775843748283",
+  "timestamp": "2026-04-10T17:56:49.699Z",
+  "project_dir": "/home/jack/repos/nixos-config/claude-session-summary-hook"
+}

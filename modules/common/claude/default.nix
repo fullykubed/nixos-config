@@ -274,6 +274,10 @@
         '';
       };
 
+      claudeSessionSummary = pkgs.callPackage ./session-summary {
+        inherit claude-code-sandboxed;
+      };
+
       ccusage = pkgs.stdenv.mkDerivation {
         pname = "ccusage";
         version = versions.ccusage;
@@ -344,11 +348,55 @@
 
           cp $src/qqq.sh $out/bin/claude-qqq
           chmod +x $out/bin/claude-qqq
+
+          cp $src/check-background-work.sh $out/bin/check-background-work
+          chmod +x $out/bin/check-background-work
+
+          substitute $src/wmab.sh $out/bin/wmab \
+            --replace "@jaq@" "${pkgs.jaq}/bin/jaq"
+          chmod +x $out/bin/wmab
         '';
       };
 
       claude-wrapper = pkgs.writeShellScriptBin "claude-wrapper" ''
-        exec ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
+        ${claude-code-sandboxed}/bin/claude --dangerously-skip-permissions "$@"
+        exit_code=$?
+
+        # Opt-out for automated/scripted invocations
+        [[ -n "''${CLAUDE_NO_SUMMARY:-}" ]] && exit "$exit_code"
+
+        git_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit "$exit_code"
+
+        # .jack.yaml opt-out
+        if [[ -f "$git_root/.jack.yaml" ]] \
+           && grep -qE '^\s*session_summary\s*:\s*false' "$git_root/.jack.yaml"; then
+          exit "$exit_code"
+        fi
+
+        # Find newest transcript
+        claude_project_dir="$HOME/.claude/projects/$(echo "$git_root" | tr '/' '-')"
+        [[ -d "$claude_project_dir" ]] || exit "$exit_code"
+        transcript=$(ls -t "$claude_project_dir"/*.jsonl 2>/dev/null | head -1)
+        [[ -n "$transcript" && -s "$transcript" ]] || exit "$exit_code"
+        session_id=$(basename "$transcript" .jsonl)
+
+        # Skip if in-progress (marker file)
+        [[ -f "$git_root/.claude/background/$session_id" ]] && exit "$exit_code"
+
+        # Skip if already summarized (session_id exists in a log file)
+        if grep -rlF "\"$session_id\"" "$git_root/.claude/log/"*.json &>/dev/null; then
+          exit "$exit_code"
+        fi
+
+        # Run summary detached
+        ${claudeSessionSummary}/bin/claude-session-summary \
+          --mode summarize \
+          --transcript "$transcript" \
+          --session-id "$session_id" \
+          --project-dir "$git_root" &
+        disown
+
+        exit "$exit_code"
       '';
 
       claudeSkill = pkgs.callPackage ./skills/Skill { extract-frontmatter = extractFrontmatter; };
@@ -493,6 +541,19 @@
                     }
                   ];
 
+                  SessionEnd = [
+                    {
+                      hooks = [
+                        {
+                          type = "command";
+                          command = "${claudeSessionSummary}/bin/claude-session-summary --mode hook";
+                          async = true;
+                          timeout = 300;
+                        }
+                      ];
+                    }
+                  ];
+
                   UserPromptSubmit = [
                     {
                       matcher = ".*";
@@ -601,6 +662,7 @@
         ccusage
         claudeHeadroom.package
         claudeBetterCcflare.package
+        claudeSessionSummary
       ];
 
       age.secrets = {
