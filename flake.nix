@@ -137,7 +137,12 @@
         nixpkgs.lib.nixosSystem {
           system = "x86_64-linux";
           specialArgs = { inherit self targetMachine; };
-          modules = [ ./lib/installer ];
+          modules = [
+            # Reuse the target machine's pkgs (with custom stdenv, overlays, etc.)
+            # so installer packages share hashes already present in niks3.
+            { nixpkgs.pkgs = self.nixosConfigurations.${targetMachine}.pkgs; }
+            ./lib/installer
+          ];
         };
 
     in
