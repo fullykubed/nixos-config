@@ -3,6 +3,13 @@
 # Usage: wmab <prompt text>
 set -euo pipefail
 
+# Self-background: re-exec in background on first invocation
+if [[ -z "${WMAB_BACKGROUND:-}" ]]; then
+  WMAB_BACKGROUND=1 "$0" "$@" &>/dev/null &
+  disown
+  exit 0
+fi
+
 prompt="$*"
 
 repo_branches=$(git branch -a --sort=-committerdate 2>/dev/null \

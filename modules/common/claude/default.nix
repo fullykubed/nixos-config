@@ -444,6 +444,7 @@
             q = "noglob claude-q";
             qq = "noglob claude-qq";
             qqq = "noglob claude-qqq";
+            wmab = "noglob command wmab";
           };
         };
 
