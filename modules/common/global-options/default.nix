@@ -129,6 +129,11 @@ in
               type = types.int;
               description = "Monitor number (1=left, 2=middle, 3=right)";
             };
+            scale = mkOption {
+              type = types.number;
+              default = 1;
+              description = "Output scale factor (e.g., 1, 1.5, 2)";
+            };
             notifications = mkOption {
               type = types.bool;
               default = false;

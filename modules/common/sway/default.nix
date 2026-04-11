@@ -196,7 +196,7 @@ in
 
           # Configure outputs from the monitors option
           output = lib.mapAttrs (_: value: {
-            inherit (value) mode pos;
+            inherit (value) mode pos scale;
           }) config.monitors;
 
           # Handle the keybinds below for more flexibilitiy

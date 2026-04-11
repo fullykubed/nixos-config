@@ -34,6 +34,7 @@ in
     "eDP-1" = {
       mode = "3840x2400";
       pos = "0 0";
+      scale = 1.25;
       num = 1;
       notifications = true;
     };
