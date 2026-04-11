@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "motivation": "On fresh installs, the syncthing systemd-tmpfiles rule declares `d /home/jack/.config/syncthing`, causing systemd-tmpfiles to auto-create the missing parent `~/.config` as `root:root 0755`. This blocks home-manager-jack.service (which runs as user jack) from creating `~/.config/systemd/user/`, causing activation to fail silently while sway still launches with default empty config.",
+      "summary": "Added `systemd.tmpfiles.rules = [ \"d '/home/${config.username}/.config' 0700 '${config.username}' '${config.username}' - -\" ]` to `modules/common/home-manager/default.nix`. The `d` rule type resets ownership on existing directories as well as creating them fresh, so it correctly handles both orderings (whether our rule or syncthing's tmpfiles rule runs first)."
+    }
+  ],
+  "problems": [
+    "systemd-tmpfiles silently auto-creates missing parent directories with default permissions (root:root 0755) when processing a `d` rule for a subdirectory. This behavior is not documented anywhere in the codebase, and any service that declares a tmpfiles rule for a path inside the user home (e.g. ~/.config/syncthing) can silently corrupt parent directory ownership on a fresh install. The bug is invisible until first boot post-install because subsequent boots find .config already existing.",
+    "The syncthing module (`modules/utility/syncthing.nix`) configures `dataDir` to a path inside the user home without ensuring the parent directories are owned by the correct user. There is no comment or note warning that adding tmpfiles rules for subdirectories of the home directory requires the parent to be pre-created with correct ownership."
+  ],
+  "session_id": "0de50c30-00dc-45cd-b7bf-69cb1185c901",
+  "timestamp": "2026-04-11T01:33:01.119Z"
+}

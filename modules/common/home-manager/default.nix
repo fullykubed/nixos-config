@@ -6,6 +6,15 @@
   ...
 }:
 {
+  # Pre-create ~/.config owned by the user before any systemd services run.
+  # Without this, systemd-tmpfiles silently creates it as root:root when a
+  # service (e.g. syncthing) requests a subdirectory inside it — which blocks
+  # home-manager activation with "mkdir: cannot create directory ~/.config/systemd".
+  # The 'd' type resets ownership even if the directory already exists.
+  systemd.tmpfiles.rules = [
+    "d '/home/${config.username}/.config' 0700 '${config.username}' '${config.username}' - -"
+  ];
+
   home-manager = {
     backupFileExtension = "hm-backup";
     useGlobalPkgs = true;
