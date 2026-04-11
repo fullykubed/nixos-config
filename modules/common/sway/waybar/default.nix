@@ -217,6 +217,245 @@ let
     ];
     text = builtins.readFile ./ccusage-cache.sh;
   };
+
+  isLaptop = config.deviceType == "laptop";
+
+  waybarConfigAttrs = {
+    height = 30;
+    spacing = 4;
+    "modules-left" = [
+      "sway/workspaces"
+      "sway/mode"
+      "sway/scratchpad"
+    ];
+    "modules-center" = [ "sway/window" ];
+    "modules-right" = [
+      "custom/secureboot"
+      "custom/systemd-failed"
+      "custom/builders"
+      "custom/controller"
+      "custom/ai-spend"
+      "custom/tailscale"
+      "custom/voxtype"
+      "idle_inhibitor"
+      "pulseaudio"
+      "network"
+      "cpu"
+      "memory"
+      "temperature"
+    ]
+    ++ lib.optionals isLaptop [ "battery" ]
+    ++ [
+      "clock"
+      "custom/notification"
+      "tray"
+    ];
+    "keyboard-state" = {
+      numlock = true;
+      capslock = true;
+      format = "{name} {icon}";
+      "format-icons" = {
+        locked = "";
+        unlocked = "";
+      };
+    };
+    "sway/mode" = {
+      format = ''<span style="italic">{}</span>'';
+    };
+    "sway/scratchpad" = {
+      format = "{icon} {count}";
+      "show-empty" = false;
+      "format-icons" = [
+        ""
+        ""
+      ];
+      tooltip = true;
+      "tooltip-format" = "{app}: {title}";
+    };
+    idle_inhibitor = {
+      format = "{icon}";
+      "format-icons" = {
+        activated = "";
+        deactivated = "";
+      };
+    };
+    tray = {
+      spacing = 10;
+    };
+    clock = {
+      timezone = "America/Indiana/Indianapolis";
+      format = "{:%I:%M %p}";
+      "format-alt" = "{:%Y-%m-%d %I:%M %p}";
+      "tooltip-format" = "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>";
+      locale = "C";
+    };
+    cpu = {
+      format = "{usage}% ";
+      tooltip = false;
+    };
+    memory = {
+      format = "{}% ";
+    };
+    temperature = {
+      "critical-threshold" = 80;
+      format = "{temperatureC}°C {icon}";
+      "format-icons" = [
+        ""
+        ""
+        ""
+      ];
+    };
+    backlight = {
+      format = "{percent}% {icon}";
+      "format-icons" = [
+        ""
+        ""
+        ""
+        ""
+        ""
+        ""
+        ""
+        ""
+        ""
+      ];
+    };
+    network = {
+      "format-wifi" = "{essid} ({signalStrength}%) ";
+      "format-ethernet" = "{ipaddr}/{cidr} ";
+      "tooltip-format" = "{ifname} via {gwaddr} ";
+      "format-linked" = "{ifname} (No IP) ";
+      "format-disconnected" = "Disconnected ⚠";
+      "format-alt" = "{ifname}: {ipaddr}/{cidr}";
+    };
+    pulseaudio = {
+      format = "{volume}% {icon} {format_source}";
+      "format-bluetooth" = "{volume}% {icon} {format_source}";
+      "format-bluetooth-muted" = " {icon} {format_source}";
+      "format-muted" = " {format_source}";
+      "format-source" = "{volume}% ";
+      "format-source-muted" = "";
+      "format-icons" = {
+        headphone = "";
+        "hands-free" = "";
+        headset = "";
+        phone = "";
+        portable = "";
+        car = "";
+        default = [
+          ""
+          ""
+          ""
+        ];
+      };
+      "on-click" = "pavucontrol";
+    };
+    "custom/notification" = {
+      tooltip = false;
+      format = "{icon}";
+      "format-icons" = {
+        notification = "<span foreground='red'><sup></sup></span>";
+        none = "";
+        "dnd-notification" = "<span foreground='red'><sup></sup></span>";
+        "dnd-none" = "";
+        "inhibited-notification" = "<span foreground='red'><sup></sup></span>";
+        "inhibited-none" = "";
+        "dnd-inhibited-notification" = "<span foreground='red'><sup></sup></span>";
+        "dnd-inhibited-none" = "";
+      };
+      "return-type" = "json";
+      "exec-if" = "which swaync-client";
+      exec = "swaync-client -swb";
+      "on-click" = "swaync-client -t -sw";
+      "on-click-right" = "swaync-client -d -sw";
+      escape = true;
+    };
+    "custom/voxtype" = {
+      exec = "voxtype status --follow --format json";
+      "return-type" = "json";
+      format = "{}";
+      tooltip = true;
+    };
+    "custom/secureboot" = {
+      exec = "waybar-secureboot-status";
+      "exec-if" = "which waybar-secureboot-status";
+      "return-type" = "json";
+      format = "{}";
+      interval = 300;
+      tooltip = true;
+    };
+    "custom/systemd-failed" = {
+      exec = "waybar-systemd-failed";
+      "exec-if" = "which waybar-systemd-failed";
+      "return-type" = "json";
+      format = "{}";
+      escape = true;
+      interval = 30;
+      "on-click" =
+        "swaymsg exec 'wezterm start --always-new-process --class systemd-manager -- doas systemd-manager-tui'";
+    };
+    "custom/builders" = {
+      exec = "waybar-builders";
+      "return-type" = "json";
+      format = "{}";
+      interval = 60;
+      tooltip = true;
+    };
+    "custom/controller" = {
+      exec = "waybar-controller";
+      "return-type" = "json";
+      format = "{}";
+      interval = 60;
+      tooltip = true;
+      "on-click" = "swaymsg exec 'wezterm start --always-new-process -- doas controller check'";
+    };
+    "custom/ai-spend" = {
+      exec = "waybar-ai-spend";
+      "exec-if" = "which waybar-ai-spend";
+      "return-type" = "json";
+      format = "{}";
+      interval = 60;
+      tooltip = true;
+    };
+    "custom/tailscale" = {
+      exec = "waybar-tailscale";
+      "return-type" = "json";
+      format = "{}";
+      interval = 30;
+      tooltip = true;
+    };
+  }
+  // lib.optionalAttrs isLaptop {
+    battery = {
+      interval = 30;
+      states = {
+        good = 80;
+        warning = 20;
+        critical = 10;
+      };
+      format = "{capacity}% {icon}";
+      "format-charging" = "{capacity}% 󰂄";
+      "format-plugged" = "{capacity}% 󰚥";
+      "format-full" = "Full 󰁹";
+      "format-time" = "{H}h {M}min";
+      "format-icons" = [
+        "󰂎"
+        "󰁺"
+        "󰁻"
+        "󰁼"
+        "󰁽"
+        "󰁾"
+        "󰁿"
+        "󰂀"
+        "󰂁"
+        "󰂂"
+        "󰁹"
+      ];
+      tooltip = true;
+      "tooltip-format" = "{capacity}% — {timeTo}\n{power:.1f}W";
+    };
+  };
+
+  waybarConfig = pkgs.writeText "waybar-config" (builtins.toJSON waybarConfigAttrs);
 in
 {
   age.secrets.cloudflare-api-token = {
@@ -349,7 +588,7 @@ in
     };
 
     xdg.configFile."waybar/config" = {
-      source = ./config.json;
+      source = waybarConfig;
       onChange = "${pkgs.systemd}/bin/systemctl --user restart waybar || true";
     };
 

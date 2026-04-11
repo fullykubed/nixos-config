@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "motivation": "The static config.json included the battery module for all machines, but only laptops have batteries. The config needed to be conditional on device type.",
+      "summary": "Deleted modules/common/sway/waybar/config.json and replaced it with a Nix-generated config in default.nix. Added isLaptop = config.deviceType == \"laptop\" and used lib.optionals/lib.optionalAttrs to conditionally include the battery module in modules-right and the battery config block only on laptop machines. The generated JSON is produced via builtins.toJSON and pkgs.writeText, replacing the static source = ./config.json reference."
+    }
+  ],
+  "problems": [
+    "The EvalCheck revealed a pre-existing type error (float scale value passed to a sway option expecting a string) introduced by the feat(monitors) commit on main. This caused confusion — the agent had to stash changes and re-run the eval on main to confirm the error was not introduced by its own changes. The scale option introduced by that commit lacked type annotation or conversion, making it a silent latent breakage that only surfaces at eval time."
+  ],
+  "session_id": "0542b116-e56f-4637-a54a-66dee02f5696",
+  "timestamp": "2026-04-11T12:27:32.020Z"
+}
