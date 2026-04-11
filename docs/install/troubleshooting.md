@@ -97,7 +97,7 @@ The `secureboot-enroll` service only runs when the firmware is in Setup Mode. Ve
 sudo sbctl status
 ```
 
-If Setup Mode is not active, reboot into BIOS and enable it, then boot back into NixOS.
+If Setup Mode is not active, reboot into BIOS and enable it, then boot back into NixOS. See the [Secure Boot setup section](new-machine.md#9-set-up-secure-boot) for firmware-specific instructions.
 
 ### Boot partitions out of sync
 

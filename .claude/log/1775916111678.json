@@ -1,0 +1,20 @@
+{
+  "changes": [
+    {
+      "motivation": "sbctl's Landlock sandbox allowlists only /etc/secureboot/ by directory, but when resolving symlinks from that directory into /run/agenix.d/1/ (where agenix places decrypted secrets), the kernel blocks access because the resolved inode path falls outside the sandbox ruleset. This caused sbctl enroll-keys and all signing operations to fail with permission denied even as root.",
+      "summary": "Added `landlock: false` to `/etc/sbctl/sbctl.conf` via the boot module (`modules/common/boot/default.nix`) so sbctl skips Landlock enforcement when reading agenix-backed keys."
+    },
+    {
+      "motivation": "The install docs had no guidance for entering Setup Mode on Coreboot/Star Labs machines, which have a different firmware UI path than standard UEFI (requires switching to Custom Mode first before Delete All Keys appears). Users also hit a 'security violation' in the UEFI shell when trying dmpstore -d PK while firmware still had keys enrolled.",
+      "summary": "Expanded the Secure Boot step in `docs/install/new-machine.md` with separate instructions for standard UEFI vs Coreboot (Star Labs): Custom Mode → Delete All Secure Boot Keys path, the Linux chattr/rm fallback, and the UEFI shell fallback for the security violation case."
+    }
+  ],
+  "problems": [
+    "The diagnostic script ran file existence checks without sudo, reporting files as missing when they were actually present but root-only accessible. This sent the debugging session down a false 'host key mismatch' path before the real cause (Landlock + symlinks) was found.",
+    "sbctl printed 'old configuration detected' even after a successful migration, which was a red herring — it was not the cause of the permission denied failure and the misleading warning wasted time investigating it as a potential root cause.",
+    "The install docs had no mention that on Coreboot/TianoCore firmware, the 'Delete All Secure Boot Keys' / 'Reset to Setup Mode' option is hidden unless 'Secure Boot Mode' is first switched from Standard to Custom. This is non-obvious and required live trial-and-error to discover.",
+    "sbctl's Landlock sandbox incompatibility with agenix symlinks is not documented anywhere in the codebase — the only way to discover it was external research via Exa. The fix (sbctl.conf landlock option) should have been part of the initial agenix + Lanzaboote integration."
+  ],
+  "session_id": "b5226b2c-e3b0-41fe-b6d9-2d4784f822f4",
+  "timestamp": "2026-04-11T14:02:19.306Z"
+}

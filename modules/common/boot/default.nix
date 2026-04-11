@@ -295,6 +295,17 @@
     '';
   };
 
+  # sbctl uses Linux Landlock to sandbox itself, allowlisting only filepath.Dir(keydir)
+  # (/etc/secureboot). When the kernel resolves the agenix symlinks for the private keys
+  # (/etc/secureboot/keys/*/PK.key → /run/agenix/ → /run/agenix.d/1/), the resolved
+  # inode is outside the Landlock ruleset and access is denied. Disabling Landlock is safe
+  # because the keys are already protected at rest by agenix encryption and mode=0400.
+  environment.etc."sbctl/sbctl.conf".text = ''
+    keydir: /etc/secureboot/keys
+    guid: /etc/secureboot/GUID
+    landlock: false
+  '';
+
   # Auto-enroll Secure Boot keys when UEFI firmware is in Setup Mode.
   # After a fresh install, put the firmware in Setup Mode via BIOS and reboot —
   # this service will enroll the keys automatically.

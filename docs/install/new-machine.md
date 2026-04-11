@@ -117,13 +117,42 @@ Update the `monitors` section in `machines/<machine-name>.nix` with the correct 
 
 ### 9. Set up Secure Boot
 
-Reboot into BIOS, enable Setup Mode under Security settings, then boot back into NixOS. Keys are enrolled automatically by a systemd service.
+#### Standard UEFI firmware
+
+Reboot into BIOS, find **Setup Mode** under Security or Secure Boot settings, enable it, then boot back into NixOS. Keys are enrolled automatically by a systemd service.
+
+#### Coreboot firmware (Star Labs laptops)
+
+The Coreboot UI (press `Esc` at boot) does not show a "Setup Mode" toggle directly. Instead:
+
+1. Enter the firmware: press `Esc` at the Star Labs logo
+2. Navigate to **Device Manager → Secure Boot Configuration**
+3. Change **Secure Boot Mode** from `Standard Mode` to `Custom Mode`
+4. The option **Delete All Secure Boot Keys** (or **Reset to Setup Mode**) will now appear — select it
+5. Save and exit (`F10`), boot back into NixOS
+
+If the firmware UI is unresponsive or the option is missing, you can delete the Platform Key (PK) EFI variable from within Linux:
 
 ```bash
-sudo sbctl status   # verify
+sudo chattr -i /sys/firmware/efi/efivars/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c
+sudo rm /sys/firmware/efi/efivars/PK-8be4df61-93ca-11d2-aa0d-00e098032b8c
 ```
 
-Enable Secure Boot in the BIOS.
+If that returns "invalid argument" (firmware blocks OS-level PK deletion), boot a UEFI shell from USB and run `dmpstore -d PK`. If the UEFI shell also returns "security violation", the only path is the firmware UI Custom Mode approach above.
+
+#### After enabling Setup Mode (all firmware types)
+
+Boot into NixOS. The `secureboot-enroll` service detects Setup Mode and runs `sbctl enroll-keys` automatically. Verify:
+
+```bash
+sudo sbctl status   # Setup Mode: true, keys listed
+```
+
+Then reboot into BIOS and **enable Secure Boot**. Boot back into NixOS and verify Secure Boot is active:
+
+```bash
+sudo sbctl status   # Secure Boot: enabled
+```
 
 ### 10. Rebuild
 
