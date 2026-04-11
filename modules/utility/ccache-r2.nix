@@ -114,7 +114,7 @@ in
         "d ${ccacheDir} 0775 root nixbld -"
         "d ${r2DownloadDir} 0775 root nixbld -"
         "d ${r2UploadDir} 0775 root nixbld -"
-        "L+ ${ccacheDir}/ccache.conf - - - - ${ccacheConfig}"
+        "C+ ${ccacheDir}/ccache.conf 0644 root nixbld - ${ccacheConfig}"
       ];
 
       services.ccache-r2-download = {
@@ -207,13 +207,22 @@ in
           mapfile -t files < <(bfs "$LOCAL" -type f)
           [ ''${#files[@]} -eq 0 ] && exit 0
 
-          # Upload all files to R2 in parallel
+          echo "Uploading ''${#files[@]} files to R2..."
+
+          # Write batch commands to a temp file instead of piping, so s5cmd's
+          # exit code is checked directly by set -e (no pipe error-handling edge cases).
+          batch=$(mktemp)
+          trap 'rm -f "$batch"' EXIT
           for f in "''${files[@]}"; do
             rel="''${f#$LOCAL/}"
             printf 'cp "%s" "s3://${r2Bucket}/%s"\n' "$f" "$rel"
-          done | s5cmd --endpoint-url "${r2Endpoint}" run
+          done > "$batch"
 
-          # Delete uploaded files and clean up empty subdirs
+          # s5cmd exits 1 if any command fails; set -e aborts before the rm below.
+          s5cmd --endpoint-url "${r2Endpoint}" run < "$batch"
+
+          # Only reached if ALL uploads succeeded
+          echo "Uploaded ''${#files[@]} files, cleaning local copies"
           rm -f "''${files[@]}"
           bfs "$LOCAL" -mindepth 1 -type d -empty -delete 2>/dev/null || true
         '';
