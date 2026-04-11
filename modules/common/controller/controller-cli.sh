@@ -931,21 +931,96 @@ cmd_cache() {
       shift
       cmd_cache_enqueue "$@"
       ;;
+    build-closure)
+      shift
+      cmd_cache_build_closure "$@"
+      ;;
     *)
       cat <<EOF
 Usage: $SCRIPT_NAME cache <subcommand>
 
 Subcommands:
-  enqueue all [STORE_PATH]   Enqueue all paths in a store closure for upload
-                             (defaults to /run/current-system)
+  enqueue all [STORE_PATH]        Enqueue all paths in a store closure for upload
+                                  (defaults to /run/current-system)
+  build-closure [PATH]              List the full build closure (runtime + build-time
+                                  deps) by walking the Nix DB deriver chain
+                                  (defaults to /run/current-system)
 
 Examples:
   $SCRIPT_NAME cache enqueue all
   $SCRIPT_NAME cache enqueue all /nix/store/...
+  $SCRIPT_NAME cache build-closure
+  $SCRIPT_NAME cache build-closure /nix/store/...
 EOF
       exit 1
       ;;
   esac
+}
+
+NIX_DB="/nix/var/nix/db/db.sqlite"
+
+# Print the full build closure of a store path: runtime deps + build-time deps
+# (compilers, build tools, sources) discovered by walking the deriver chain in
+# the Nix SQLite database.  CA derivations don't preserve build-dep edges in
+# .drv files, so normal nix-store queries only return the runtime closure.
+# This recursive CTE follows ValidPaths.deriver → Refs up to --depth levels.
+cmd_cache_build_closure() {
+  local store_path="/run/current-system"
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -*) echo -e "${RED}Unknown option: $1${NC}" >&2; exit 1 ;;
+      *) store_path="$1" ;;
+    esac
+    shift
+  done
+
+  if [[ ! -e "$store_path" ]]; then
+    echo -e "${RED}Error: $store_path does not exist${NC}" >&2
+    exit 1
+  fi
+
+  if [[ ! -f "$NIX_DB" ]]; then
+    echo -e "${RED}Error: Nix database not found at $NIX_DB${NC}" >&2
+    exit 1
+  fi
+
+  local drv
+  drv=$(nix-store -qd "$store_path" 2>/dev/null || true)
+  if [[ -z "$drv" || "$drv" == "unknown-deriver" || ! -e "$drv" ]]; then
+    echo -e "${YELLOW}Warning: cannot determine deriver, falling back to runtime closure${NC}" >&2
+    nix-store -qR "$store_path"
+    return
+  fi
+
+  local paths
+  paths=$(sqlite3 "$NIX_DB" "
+    WITH RECURSIVE build_closure(path_id) AS (
+      SELECT id FROM ValidPaths WHERE deriver = '$drv'
+      UNION
+      SELECT ref.reference
+      FROM Refs ref
+      JOIN build_closure bc ON ref.referrer = bc.path_id
+      UNION
+      SELECT ref.reference
+      FROM build_closure bc
+      JOIN ValidPaths vp ON bc.path_id = vp.id
+      JOIN ValidPaths vp_drv ON vp.deriver = vp_drv.path
+      JOIN Refs ref ON ref.referrer = vp_drv.id
+    )
+    SELECT DISTINCT vp.path
+    FROM build_closure bc
+    JOIN ValidPaths vp ON bc.path_id = vp.id
+    WHERE vp.path NOT LIKE '%.drv';
+  ")
+
+  local total runtime_count build_only_count
+  total=$(echo "$paths" | wc -l)
+  runtime_count=$(nix-store -qR "$store_path" | wc -l)
+  build_only_count=$((total - runtime_count))
+
+  echo "$paths"
+  echo -e "${GREEN}Total: $total paths (runtime: $runtime_count, build-time: $build_only_count)${NC}" >&2
 }
 
 cmd_cache_enqueue() {

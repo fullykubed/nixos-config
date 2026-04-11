@@ -26,6 +26,7 @@ let
       pkgs.ncurses
       pkgs.nix
       pkgs.openssh
+      pkgs.sqlite
     ];
     text = builtins.readFile ./controller-cli.sh;
   };
@@ -248,35 +249,24 @@ in
       # Prune uploaded path markers and re-enqueue the current system closure weekly
       cache-upload-prune = {
         description = "Prune cache upload done markers and re-enqueue system closure";
+        unitConfig.OnSuccess = "cache-upload.service";
         serviceConfig = {
           Type = "oneshot";
         };
         path = [
-          pkgs.nix
+          controllerCli
           pkgs.coreutils
         ];
         script = ''
           rm -rf ${queueDir}/done
           mkdir -p ${queueDir}/done ${queueDir}/pending
 
-          enqueue_paths() {
-            while IFS= read -r path; do
-              [ -n "$path" ] || continue
-              hash=$(basename "$path" | cut -d- -f1)
-              echo "$path" > ${queueDir}/pending/"$hash"
-            done
-          }
-
-          echo "Re-enqueuing current system closure..."
-          nix-store -qR /run/current-system | enqueue_paths
-
-          # Also enqueue build-time deps (bison, flex, m4, etc.) so they
-          # survive niks3 GC — the runtime closure alone misses them.
-          drv=$(nix-store -qd /run/current-system 2>/dev/null || true)
-          if [ -n "$drv" ] && [ "$drv" != "unknown-deriver" ] && [ -e "$drv" ]; then
-            echo "Re-enqueuing build-time dependencies..."
-            nix-store -qR --include-outputs "$drv" | grep -v '\.drv$' | enqueue_paths
-          fi
+          echo "Re-enqueuing full build closure..."
+          controller cache build-closure 2>/dev/null | while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            hash=$(basename "$path" | cut -d- -f1)
+            echo "$path" > ${queueDir}/pending/"$hash"
+          done
 
           echo "Done. $(ls ${queueDir}/pending | wc -l) paths queued."
         '';
@@ -311,10 +301,10 @@ in
       };
 
       cache-upload-prune = {
-        description = "Prune cache upload done markers weekly";
+        description = "Prune cache upload done markers daily";
         wantedBy = [ "timers.target" ];
         timerConfig = {
-          OnCalendar = "weekly";
+          OnCalendar = "daily";
           Persistent = true;
         };
       };
