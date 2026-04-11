@@ -11,12 +11,16 @@
       "secrets-ready.target"
       "tailscaled.service"
       "network-online.target"
+      "nss-lookup.target"
     ];
     requires = [
       "secrets-ready.target"
       "tailscaled.service"
     ];
-    wants = [ "network-online.target" ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
+    ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";

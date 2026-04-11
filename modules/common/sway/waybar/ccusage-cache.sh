@@ -6,7 +6,7 @@ set -euo pipefail
 
 CACHE_FILE="${XDG_RUNTIME_DIR}/ccusage-cache.json"
 
-raw=$(ccusage daily --json --since "$(date +%Y%m01)" --offline 2>/dev/null)
+raw=$(ccusage daily --json --since "$(date +%Y%m01)" --offline)
 
 # Add a timestamp and write atomically
 tmp=$(mktemp "${CACHE_FILE}.XXXXXX")

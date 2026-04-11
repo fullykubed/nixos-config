@@ -176,7 +176,15 @@ in
   systemd.services.nix-build-failure-notify = {
     description = "Monitor nix builds and notify on failure when user is away";
     wantedBy = [ "multi-user.target" ];
-    after = [ "nix-daemon.service" ];
+    after = [
+      "nix-daemon.service"
+      "network-online.target"
+      "nss-lookup.target"
+    ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
+    ];
     serviceConfig = {
       Type = "simple";
       ExecStart = "${buildFailureMonitor}";

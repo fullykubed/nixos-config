@@ -14,11 +14,17 @@ _: {
       "secrets-ready.target"
       "controller-volume-mount.service"
       "controller-dns-update.service"
+      "network-online.target"
+      "nss-lookup.target"
     ];
     requires = [
       "secrets-ready.target"
       "controller-volume-mount.service"
       "controller-dns-update.service"
+    ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
     ];
     serviceConfig = {
       # Hardening — binds to 80/443, reads TLS certs from /var/lib/caddy

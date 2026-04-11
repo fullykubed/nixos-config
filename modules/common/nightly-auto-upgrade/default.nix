@@ -77,11 +77,13 @@ in
     restartIfChanged = false;
     requires = [
       "network-online.target"
+      "nss-lookup.target"
       "tailscaled.service"
     ];
     after = [
       "agenix.service"
       "network-online.target"
+      "nss-lookup.target"
       "tailscaled.service"
       "tailscale-autoconnect.service"
     ];

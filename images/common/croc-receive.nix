@@ -30,11 +30,13 @@ in
       after = [
         "cloud-init.service"
         "network-online.target"
+        "nss-lookup.target"
       ]
       ++ lib.optional cfg.localRelay "croc.service";
       wants = [
         "cloud-init.service"
         "network-online.target"
+        "nss-lookup.target"
       ]
       ++ lib.optional cfg.localRelay "croc.service";
       before = [ "secrets-ready.target" ];

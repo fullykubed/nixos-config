@@ -207,13 +207,26 @@ in
   # world-readable location so unprivileged processes (waybar) can read it.
   systemd.services.builder-status = {
     description = "Poll Hetzner Cloud for builder server status";
-    after = [ "network-online.target" ];
-    wants = [ "network-online.target" ];
+    restartIfChanged = false;
+    after = [
+      "network-online.target"
+      "nss-lookup.target"
+      "tailscale-autoconnect.service"
+    ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
+      "tailscale-autoconnect.service"
+    ];
     serviceConfig = {
       Type = "oneshot";
       RuntimeDirectory = "builder-status";
       RuntimeDirectoryPreserve = "yes";
       EnvironmentFile = ""; # clear any inherited env
+      # Skip (not fail) if DNS is not yet working — dnscrypt-proxy may be running
+      # but unable to forward queries until the DHCP lease arrives. The timer
+      # retries every 30s so a skipped run is harmless.
+      ExecCondition = "${pkgs.glibc.bin}/bin/getent ahosts api.hetzner.cloud";
     };
     environment = {
       HCLOUD_TOKEN_FILE = config.age.secrets.hetzner-api-token.path;

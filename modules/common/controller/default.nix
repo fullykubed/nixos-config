@@ -228,8 +228,16 @@ in
       # Triggered by path unit on new items; restart on failure with backoff
       cache-upload = {
         description = "Process cache upload queue";
-        after = [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        after = [
+          "network-online.target"
+          "nss-lookup.target"
+          "tailscale-autoconnect.service"
+        ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+          "tailscale-autoconnect.service"
+        ];
         # Don't let nixos-rebuild switch block waiting for an in-progress upload.
         # The path unit and timer will trigger new runs as needed.
         restartIfChanged = false;
@@ -274,8 +282,15 @@ in
 
       controller-status = {
         description = "Collect controller VM status for waybar";
-        after = [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        restartIfChanged = false;
+        after = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         serviceConfig = {
           Type = "oneshot";
           RuntimeDirectory = "controller-status";

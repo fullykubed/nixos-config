@@ -474,8 +474,15 @@ in
   systemd = {
     services.cloud-status = {
       description = "Collect R2 bucket sizes and ccache health for waybar";
-      after = [ "network-online.target" ];
-      wants = [ "network-online.target" ];
+      restartIfChanged = false;
+      after = [
+        "network-online.target"
+        "nss-lookup.target"
+      ];
+      wants = [
+        "network-online.target"
+        "nss-lookup.target"
+      ];
       serviceConfig = {
         Type = "oneshot";
         RuntimeDirectory = "cloud-status";
@@ -500,8 +507,15 @@ in
 
     services.ai-spend-status = {
       description = "Collect AI service spend data for waybar";
-      after = [ "network-online.target" ];
-      wants = [ "network-online.target" ];
+      restartIfChanged = false;
+      after = [
+        "network-online.target"
+        "nss-lookup.target"
+      ];
+      wants = [
+        "network-online.target"
+        "nss-lookup.target"
+      ];
       serviceConfig = {
         Type = "oneshot";
         RuntimeDirectory = "ai-spend-status";
@@ -569,6 +583,10 @@ in
         };
         Service = {
           Type = "oneshot";
+          # Skip (not fail) if no Claude usage data exists yet.
+          # ccusage exits 1 when ~/.claude/projects or ~/.config/claude/projects
+          # is absent. ExecCondition exit 1-254 → service inactive, not failed.
+          ExecCondition = "${pkgs.bash}/bin/bash -c 'test -d %h/.claude/projects || test -d %h/.config/claude/projects'";
           ExecStart = "${ccusageCacheScript}/bin/ccusage-cache";
         };
       };

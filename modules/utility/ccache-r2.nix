@@ -119,8 +119,14 @@ in
 
       services.ccache-r2-download = {
         description = "Sync R2 ccache bucket to local directory via s5cmd";
-        after = cfg.afterServices ++ [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        after = cfg.afterServices ++ [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         wantedBy = [ ]; # timer-driven only; prevents nixos-rebuild switch from blocking on this long-running oneshot
         restartIfChanged = false;
         serviceConfig = {
@@ -179,8 +185,14 @@ in
 
       services.ccache-r2-upload = {
         description = "Push new ccache entries from local dir to R2";
-        after = cfg.afterServices ++ [ "network-online.target" ];
-        wants = [ "network-online.target" ];
+        after = cfg.afterServices ++ [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
+        wants = [
+          "network-online.target"
+          "nss-lookup.target"
+        ];
         serviceConfig = {
           Type = "oneshot";
           Restart = "on-failure";

@@ -96,8 +96,13 @@ in
   systemd.services.inactivity-monitor = {
     description = "Monitor for build inactivity and self-destruct";
     after = [
-      "network.target"
+      "network-online.target"
+      "nss-lookup.target"
       "builder-tailscale-join.service"
+    ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
     ];
     serviceConfig = {
       Type = "oneshot";

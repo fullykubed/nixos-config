@@ -45,7 +45,14 @@ in
   systemd.services.mitmproxy-credential-proxy = {
     description = "Credential injection MITM proxy";
     wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
+    after = [
+      "network-online.target"
+      "nss-lookup.target"
+    ];
+    wants = [
+      "network-online.target"
+      "nss-lookup.target"
+    ];
 
     serviceConfig = {
       Type = "simple";

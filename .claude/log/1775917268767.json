@@ -1,0 +1,33 @@
+{
+  "changes": [
+    {
+      "motivation": "On boots where dhcpcd times out acquiring a DHCP lease, network-online.target is satisfied by NetworkManager-wait-online before DNS is functional. builder-status was running hcloud CLI before DNS was ready, causing a hard failure.",
+      "summary": "Fixed builder-status service in modules/common/remote-builders/default.nix: added nss-lookup.target to after/wants (ensures dnscrypt-proxy is running), added ExecCondition = getent ahosts api.hetzner.cloud (verifies DNS resolves before running; skips the service rather than failing if not ready), added restartIfChanged = false, added tailscale-autoconnect.service to after/wants (builder-status uses tailscale status to get builder IPs)."
+    },
+    {
+      "motivation": "No documentation existed for systemd service patterns in this codebase. The boot failure investigation revealed multiple systemic gaps: missing DNS ordering, missing restartIfChanged on oneshots, and no guidance on ExecCondition vs ExecStartPre semantics.",
+      "summary": "Created docs/modules/systemd-services.md covering: service type selection table, system vs user service decision guide, network/DNS readiness (network-online.target vs nss-lookup.target, ExecCondition pattern with getent ahosts), restartIfChanged = false requirement for oneshot services, runtime directories, secrets, PATH, non-root users, real codebase examples, and a pre-submission checklist including error-swallowing and Tailscale ordering. Linked from docs/modules/working-with-modules.md."
+    },
+    {
+      "motivation": "Codebase-wide audit found 13+ services with network access missing nss-lookup.target, and 2 services using Tailscale IPs/MagicDNS hostnames without depending on tailscale-autoconnect.service.",
+      "summary": "Added nss-lookup.target to after/wants on: nixos-auto-upgrade (nightly-auto-upgrade/default.nix), mitmproxy-credential-proxy, nix-build-failure-notify (away-notify/default.nix), ccache-r2-download, ccache-r2-upload (utility/ccache-r2.nix), cache-upload, controller-status (common/controller/default.nix), cloud-status, ai-spend-status (waybar/default.nix), caddy (images/controller/caddy.nix), croc-receive (images/common/croc-receive.nix), builder-tailscale-join (images/builder/tailscale.nix), inactivity-monitor (images/builder/inactivity-monitor.nix). Added tailscale-autoconnect.service ordering to cache-upload and builder-status. Upgraded network.target to network-online.target on mitmproxy-credential-proxy and inactivity-monitor."
+    },
+    {
+      "motivation": "Multiple oneshot services were missing restartIfChanged = false, which causes nixos-rebuild switch to attempt restarting them inline, blocking the activation.",
+      "summary": "Added restartIfChanged = false to: builder-status (remote-builders/default.nix), controller-status (controller/default.nix), cloud-status and ai-spend-status (waybar/default.nix)."
+    },
+    {
+      "motivation": "ccusage-cache service exits with code 1 and no logs on fresh boot on machines where Claude Code has never been run (no ~/.claude/projects/ directory). The 2>/dev/null in the script made the failure completely invisible.",
+      "summary": "Removed 2>/dev/null from ccusage invocation in ccusage-cache.sh so errors flow to the journal. Added ExecCondition to ccusage-cache service in waybar/default.nix that checks whether ~/.claude/projects or ~/.config/claude/projects exists; if neither exists the service is skipped (not failed) and the 5-minute timer retries normally."
+    }
+  ],
+  "problems": [
+    "network-online.target does not guarantee DNS works, but its name and description imply network readiness. Many services were using it for services making hostname connections, assuming it was sufficient. The real requirement (nss-lookup.target + ExecCondition) was undocumented and had to be discovered by cross-referencing journal failures with dnscrypt-proxy's Before= declarations.",
+    "nss-lookup.target is a passive synchronization point with no inherent logic — it is only meaningful because dnscrypt-proxy declares Before=nss-lookup.target. This relationship is completely opaque from the target name and required reading systemctl show output to discover. The dependency chain (service → nss-lookup.target → dnscrypt-proxy → actual DNS readiness) is non-obvious.",
+    "ccusage exits with code 1 when ~/.claude/projects/ does not exist, with no documented or help-text indication of this behavior. The failure mode had to be discovered by testing with an empty HOME directory.",
+    "ccusage-cache.sh suppressed all stderr with 2>/dev/null, making the exit code 1 failure completely invisible in the journal. The checklist now covers this, but the original script violated the principle with no indication this was intentional.",
+    "restartIfChanged = false was missing from multiple oneshot services (controller-status, cloud-status, ai-spend-status, builder-status). This is a NixOS-specific footgun with no warning at build or eval time — it only manifests as a hung nixos-rebuild switch in production."
+  ],
+  "session_id": "10964c42-85f1-45b2-b9c4-f4303eb4a03b",
+  "timestamp": "2026-04-11T14:22:00.445Z"
+}
