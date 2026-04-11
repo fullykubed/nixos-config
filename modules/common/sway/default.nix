@@ -149,6 +149,8 @@ in
       };
       serviceConfig = {
         ExecStart = "${nixpkgs-unstable.swayr}/bin/swayrd";
+        Restart = "always";
+        RestartSec = 1;
       };
     };
   };

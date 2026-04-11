@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "motivation": "swayrd was exiting silently without registering as a systemd failure — existing startLimitBurst/startLimitIntervalSec config was dead without a Restart= directive, so the unit would go inactive (dead) rather than failed, making crashes invisible to systemctl --user --failed and hard to diagnose via journalctl.",
+      "summary": "Added Restart=always and RestartSec to the swayrd systemd user service in modules/common/sway/default.nix. Now failed exits trigger restarts, and after hitting the burst limit (3 restarts in 15s) the unit properly enters failed state with full journal logs captured."
+    }
+  ],
+  "problems": [
+    "startLimitBurst and startLimitIntervalSec were already set on the swayrd service, creating a misleading impression that restart limiting was functional, when in fact no Restart= directive was present so systemd never attempted a restart and the limit settings had no effect.",
+    "Branch and issue name used 'sayrd' but the actual service/program is 'swayrd', causing unnecessary search confusion at the start of the session."
+  ],
+  "session_id": "dfd37505-f03a-4afc-aa56-5f050372a606",
+  "timestamp": "2026-04-11T13:03:01.586Z"
+}
