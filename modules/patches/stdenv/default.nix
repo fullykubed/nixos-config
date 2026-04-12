@@ -64,8 +64,23 @@ let
     " -fno-var-tracking" # Skip expensive DWARF var-tracking pass (10-20% faster compilation)
   ];
 
-  # Fallback mtune values for bootstrap stages where the compiler (GCC 14)
+  # Fallback march/mtune values for bootstrap stages where the compiler (GCC 14)
   # may not recognise newer architecture names added in GCC 15+.
+  bootstrapMarchFallback = {
+    arrowlake = "alderlake";
+    arrowlake-s = "alderlake";
+    lunarlake = "alderlake";
+    pantherlake = "alderlake";
+    clearwaterforest = "sierraforest";
+    znver5 = "znver4";
+  };
+  bootstrapMarch =
+    if config.cpuArch != null && bootstrapMarchFallback ? ${config.cpuArch} then
+      bootstrapMarchFallback.${config.cpuArch}
+    else
+      config.cpuArch;
+  bootstrapMarchFragment = lib.optionalString (bootstrapMarch != null) " -march=${bootstrapMarch}";
+
   bootstrapMtuneFallback = {
     arrowlake = "alderlake";
     arrowlake-s = "alderlake";
@@ -80,7 +95,7 @@ let
     else
       config.cpuTune;
   bootstrapMtuneFragment = lib.optionalString (bootstrapMtune != null) " -mtune=${bootstrapMtune}";
-  bootstrapCflagsFragment = marchFragment + bootstrapMtuneFragment;
+  bootstrapCflagsFragment = bootstrapMarchFragment + bootstrapMtuneFragment;
 
   # Compiler wrapper template as a store derivation.
   # See compiler-wrapper.sh for the full script.
@@ -339,6 +354,24 @@ let
         # Fix explanation: Excluding from optimization flags prevents the inlining that exposes the
         #   false positive; hiredis's -Werror remains but the overflow is no longer triggered.
         "hiredis" # GCC tree optimization flags trigger -Werror=stringop-overflow in sds.c (false positive from aggressive inlining)
+        # NixOSBuild AUTOFIX
+        # Package name: libyuv
+        # Error details: GCC optimization flags (-ftree-partial-pre, -fsplit-paths, etc.) cause
+        #   aggressive inlining analysis in unit_test/planar_test.cc, generating hundreds of
+        #   false-positive -Wstringop-overflow= warnings from glibc's __builtin___memset_chk.
+        #   The volume of warnings causes the compilation to hang, and nix kills the stray build.
+        # Fix explanation: Excluding from optimization flags prevents the aggressive inlining
+        #   that triggers the false-positive analysis, allowing planar_test.cc to compile in
+        #   reasonable time.
+        "libyuv" # GCC optimization flags trigger massive false-positive stringop-overflow analysis in planar_test.cc
+        # NixOSBuild AUTOFIX
+        # Package name: uharfbuzz 0.51.1
+        # Error details: GCC optimization flags (-ftree-partial-pre, -fsplit-paths, etc.) cause the
+        #   compiler to hang when processing harfbuzz-subset.cc, a large amalgamated C++ source file.
+        #   The remote builder timed out after 1800 seconds of silence during compilation.
+        # Fix explanation: Excluding from optimization flags prevents the expensive tree-based analysis
+        #   on this large compilation unit, allowing it to complete in reasonable time.
+        "uharfbuzz" # GCC optimization flags cause compiler to hang on harfbuzz-subset.cc (large amalgam)
       ];
 
       # Packages excluded from -march/-mtune arch flags by pname.

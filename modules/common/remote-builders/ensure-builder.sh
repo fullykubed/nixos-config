@@ -2,6 +2,10 @@
 # modules/common/remote-builders/ensure-builder.sh
 # SSH Match exec script: ensures a builder exists and is reachable before SSH
 # connects directly via MagicDNS. Exits 0 when the builder is ready.
+#
+# For bare-metal builders (type = "bare-metal" in /etc/builder-fleet.json),
+# only SSH reachability is checked — no Hetzner API calls are made.
+# For cloud builders, the builder is provisioned on-demand if not found.
 
 set -euo pipefail
 
@@ -10,6 +14,7 @@ set -euo pipefail
 # ------------------------------------------------------------------------------
 
 TOKEN_FILE="/run/agenix/hetzner-api-token"
+FLEET_CONFIG="/etc/builder-fleet.json"
 BUILDER_WAIT_TIMEOUT=900
 
 # ------------------------------------------------------------------------------
@@ -31,7 +36,25 @@ TARGET_HOST="$1"
 TARGET_PORT="$2"
 
 # ------------------------------------------------------------------------------
-# Validation
+# Determine builder type from fleet config
+# ------------------------------------------------------------------------------
+
+BUILDER_TYPE=$(jaq -r ".[\"$TARGET_HOST\"].type // \"cloud\"" "$FLEET_CONFIG" 2>/dev/null || echo "cloud")
+
+# ------------------------------------------------------------------------------
+# Bare-metal path: SSH reachability check only (no Hetzner API)
+# ------------------------------------------------------------------------------
+
+if [[ "$BUILDER_TYPE" == "bare-metal" ]]; then
+  if nc -z -w 5 "$TARGET_HOST" "$TARGET_PORT" 2>/dev/null; then
+    exit 0
+  else
+    error "Bare-metal builder $TARGET_HOST is unreachable on port $TARGET_PORT"
+  fi
+fi
+
+# ------------------------------------------------------------------------------
+# Cloud path: validate Hetzner API token and proceed with provisioning
 # ------------------------------------------------------------------------------
 
 if [[ ! -f "$TOKEN_FILE" ]]; then

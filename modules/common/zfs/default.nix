@@ -125,13 +125,14 @@ in
     trim.enable = true;
   };
 
-  # Disk notifications
-  services.zfs.zed.settings = {
+  # Disk notifications — Pushover alerting only for non-builder machines
+  # (pushover-token secret is defined by away-notify module, which is gated to non-builders)
+  services.zfs.zed.settings = lib.mkIf (config.deviceType != "remote-builder") {
     ZED_PUSHOVER_USER = pushover-user;
   };
 
   # Override the zed-functions.sh to source our secret
-  environment.etc."zfs/zed.d/zed-functions.sh" = {
+  environment.etc."zfs/zed.d/zed-functions.sh" = lib.mkIf (config.deviceType != "remote-builder") {
     source = lib.mkForce (
       pkgs.runCommand "zed-functions-with-secret.sh" { } ''
         # Copy the original zed-functions.sh
@@ -149,7 +150,7 @@ in
   };
 
   # Create a test script for ZED notifications
-  environment.systemPackages = [ zed-test ];
+  environment.systemPackages = lib.mkIf (config.deviceType != "remote-builder") [ zed-test ];
 
   home-manager.users.${config.username} = {
     # Custom scripts for debugging zfs issues

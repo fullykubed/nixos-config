@@ -1,4 +1,9 @@
-{ pkgs, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 let
   shotcut = pkgs.symlinkJoin {
     name = "shotcut";
@@ -11,8 +16,9 @@ let
   };
 in
 {
-  environment.systemPackages = [
-    shotcut
-  ];
-
+  config = lib.mkIf (config.deviceType != "remote-builder") {
+    environment.systemPackages = [
+      shotcut
+    ];
+  };
 }

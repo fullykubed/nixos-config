@@ -5,23 +5,124 @@
   ...
 }:
 let
-  maxRegularBuilders = 2;
-  maxBigBuilders = 3;
+  # ---------------------------------------------------------------------------
+  # Declarative builder inventory
+  # ---------------------------------------------------------------------------
+  # Each entry has a type ("cloud" or "bare-metal") plus per-builder config.
+  # Cloud builders are provisioned on-demand via the Hetzner API.
+  # Bare-metal builders are always-on; ensure-builder.sh only checks SSH
+  # reachability for them (no Hetzner API calls).
+  builderFleet = {
+    builder-1 = {
+      type = "cloud";
+      tier = "regular";
+      maxJobs = 20;
+      speedFactor = 1;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (builtins.readFile ../../../secrets/builder-host-key.pub);
+      serverType = "cpx62";
+      fallbackServerType = "cpx52";
+      mandatoryFeatures = [ ];
+    };
+    builder-2 = {
+      type = "cloud";
+      tier = "regular";
+      maxJobs = 20;
+      speedFactor = 1;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (builtins.readFile ../../../secrets/builder-host-key.pub);
+      serverType = "cpx62";
+      fallbackServerType = "cpx52";
+      mandatoryFeatures = [ ];
+    };
+    big-builder-1 = {
+      type = "cloud";
+      tier = "big-parallel";
+      maxJobs = 1;
+      speedFactor = 1;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (builtins.readFile ../../../secrets/builder-host-key.pub);
+      serverType = "ccx63";
+      fallbackServerType = null;
+      mandatoryFeatures = [ "big-parallel" ];
+    };
+    big-builder-2 = {
+      type = "cloud";
+      tier = "big-parallel";
+      maxJobs = 1;
+      speedFactor = 1;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (builtins.readFile ../../../secrets/builder-host-key.pub);
+      serverType = "ccx63";
+      fallbackServerType = null;
+      mandatoryFeatures = [ "big-parallel" ];
+    };
+    big-builder-3 = {
+      type = "cloud";
+      tier = "big-parallel";
+      maxJobs = 1;
+      speedFactor = 1;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (builtins.readFile ../../../secrets/builder-host-key.pub);
+      serverType = "ccx63";
+      fallbackServerType = null;
+      mandatoryFeatures = [ "big-parallel" ];
+    };
+    # AMD Threadripper 9980X bare-metal builder (always-on, no Hetzner API)
+    # 8 CCDs x 8 cores x 2 threads = 128 threads; CCDs 1-7 isolated for builds
+    fullykubed-threadripper-1 = {
+      type = "bare-metal";
+      tier = "big-parallel";
+      maxJobs = 112; # 7 CCDs x 8 cores x 2 threads
+      speedFactor = 8; # Significantly faster than cloud builders
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (
+        builtins.readFile ../../../secrets/machines/fullykubed-threadripper-1/ssh-host-key.pub
+      );
+      serverType = null;
+      fallbackServerType = null;
+      mandatoryFeatures = [
+        "big-parallel"
+        "benchmark"
+      ];
+    };
+  };
 
-  # Builder host public key for SSH host key verification
-  builderHostPublicKey = builtins.readFile ../../../secrets/builder-host-key.pub;
+  # ---------------------------------------------------------------------------
+  # Derive nix.buildMachines entries from the fleet inventory
+  # ---------------------------------------------------------------------------
+  # NOTE: publicHostKey is intentionally omitted from all entries.
+  # Nix creates known_hosts entries without port qualifiers, which fail
+  # StrictHostKeyChecking on port 3098.  SSH falls back to the system-wide
+  # UserKnownHostsFile (builderKnownHosts) which has correct [hostname]:port
+  # entries.
+  mkBuildMachine = name: cfg: {
+    hostName = name;
+    sshUser = "remotebuild";
+    sshKey = "/root/.ssh/builder-key";
+    system = "x86_64-linux";
+    inherit (cfg) maxJobs speedFactor mandatoryFeatures;
+    supportedFeatures = [
+      "nixos-test"
+      "kvm"
+      "benchmark"
+      "ca-derivations"
+    ]
+    ++ (if cfg.tier == "big-parallel" then [ "big-parallel" ] else [ ]);
+  };
 
-  # Known hosts file for SSH host key verification.
-  # Entries use [hostname]:port format for non-standard port 3098.
+  buildMachines = lib.mapAttrsToList mkBuildMachine builderFleet;
+
+  # ---------------------------------------------------------------------------
+  # Known-hosts file: [hostname]:port entries for all builders
+  # ---------------------------------------------------------------------------
   builderKnownHosts = pkgs.writeText "builder-known-hosts" (
-    let
-      hostKey = lib.removeSuffix "\n" builderHostPublicKey;
-      regularEntries = lib.genList (
-        n: "[builder-${toString (n + 1)}]:3098 ${hostKey}"
-      ) maxRegularBuilders;
-      bigEntries = lib.genList (n: "[big-builder-${toString (n + 1)}]:3098 ${hostKey}") maxBigBuilders;
-    in
-    lib.concatStringsSep "\n" (regularEntries ++ bigEntries) + "\n"
+    lib.concatStringsSep "\n" (
+      lib.mapAttrsToList (
+        name: cfg: "[${name}]:${toString cfg.sshPort} ${cfg.hostPublicKey}"
+      ) builderFleet
+    )
+    + "\n"
   );
 
   # CLI tool for managing builders (defined first so proxy can use it).
@@ -33,6 +134,27 @@ let
   buildersCliText =
     builtins.replaceStrings [ "@remote_stats@" ] [ (builtins.readFile ./remote-stats.sh) ]
       (builtins.readFile ./builders-cli.sh);
+
+  # ---------------------------------------------------------------------------
+  # Builder fleet JSON — written to /etc/builder-fleet.json so that
+  # ensure-builder.sh can determine builder types without a Nix dependency.
+  # ---------------------------------------------------------------------------
+  builderFleetJson = pkgs.writeText "builder-fleet.json" (
+    builtins.toJSON (
+      lib.mapAttrs (_name: cfg: {
+        inherit (cfg) type tier sshPort;
+      }) builderFleet
+    )
+  );
+
+  # ---------------------------------------------------------------------------
+  # SSH Match block pattern: comma-separated list of all builder hostnames
+  # ---------------------------------------------------------------------------
+  allBuilderHostPattern = lib.concatStringsSep "," (lib.attrNames builderFleet);
+
+  # ---------------------------------------------------------------------------
+  # CLI tool for managing builders (defined first so proxy can use it)
+  # ---------------------------------------------------------------------------
   buildersCli = pkgs.writeShellApplication {
     name = "builders";
     runtimeInputs = [
@@ -73,7 +195,9 @@ let
     );
   };
 
-  # Ensure script for SSH Match exec — provisions builders on-demand before SSH connects
+  # ---------------------------------------------------------------------------
+  # ensure-builder: SSH Match exec script that provisions builders on-demand
+  # ---------------------------------------------------------------------------
   ensureBuilderScript = pkgs.writeShellApplication {
     name = "ensure-builder";
     runtimeInputs = [
@@ -85,49 +209,6 @@ let
     ];
     text = builtins.readFile ./ensure-builder.sh;
   };
-
-  # Regular builders: each job can use all cores
-  mkRegularBuilder = n: {
-    hostName = "builder-${toString n}";
-    sshUser = "remotebuild";
-    sshKey = "/root/.ssh/builder-key";
-    system = "x86_64-linux";
-    maxJobs = 20;
-    speedFactor = 1;
-    supportedFeatures = [
-      "nixos-test"
-      "kvm"
-      "benchmark"
-      "ca-derivations"
-    ];
-    mandatoryFeatures = [ ];
-    # publicHostKey is intentionally omitted — Nix creates known_hosts entries
-    # without port qualifiers, which fail StrictHostKeyChecking on port 3098.
-    # SSH falls back to the system-wide UserKnownHostsFile (builderKnownHosts)
-    # which has correct [hostname]:3098 entries.
-  };
-
-  # Big-parallel builders: 1 job using all cores, only for big-parallel derivations
-  mkBigBuilder = n: {
-    hostName = "big-builder-${toString n}";
-    sshUser = "remotebuild";
-    sshKey = "/root/.ssh/builder-key";
-    system = "x86_64-linux";
-    maxJobs = 1;
-    speedFactor = 1;
-    supportedFeatures = [
-      "nixos-test"
-      "big-parallel"
-      "kvm"
-      "benchmark"
-      "ca-derivations"
-    ];
-    mandatoryFeatures = [ "big-parallel" ];
-  };
-
-  regularBuilders = lib.genList (n: mkRegularBuilder (n + 1)) maxRegularBuilders;
-  bigBuilders = lib.genList (n: mkBigBuilder (n + 1)) maxBigBuilders;
-  builders = regularBuilders ++ bigBuilders;
 
   tokenPath = config.age.secrets.hetzner-api-token.path;
 
@@ -142,11 +223,32 @@ let
     HCLOUD_TOKEN=$(cat ${tokenPath})
     exec ${pkgs.hcloud-upload-image}/bin/hcloud-upload-image "$@"
   '';
+
+  # ---------------------------------------------------------------------------
+  # SSH Match block generators
+  # ---------------------------------------------------------------------------
+  # Cloud builders need the exec ensure-builder guard (provisions on demand).
+  # Bare-metal builders still go through ensure-builder but it only checks SSH
+  # reachability (no Hetzner API calls); the same binary handles both types by
+  # reading /etc/builder-fleet.json.
+  mkSshMatchBlock = hostPattern: ''
+    Match host ${hostPattern} exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"
+      User remotebuild
+      Port 3098
+      IdentityFile /root/.ssh/builder-key
+      IdentitiesOnly yes
+      StrictHostKeyChecking yes
+      UserKnownHostsFile ${builderKnownHosts}
+      LogLevel ERROR
+      ConnectTimeout 30
+      Compression yes
+      IPQoS cs1
+  '';
 in
 {
   nix = {
     distributedBuilds = true;
-    buildMachines = builders;
+    inherit buildMachines;
     settings.builders-use-substitutes = true;
   };
 
@@ -169,6 +271,12 @@ in
       "builder-host-key.pub" = {
         source = ../../../secrets/builder-host-key.pub;
         target = "ssh/builder-host-key.pub";
+        mode = "0444";
+      };
+
+      # Builder fleet JSON for ensure-builder.sh type dispatch
+      "builder-fleet.json" = {
+        source = builderFleetJson;
         mode = "0444";
       };
     };
@@ -248,7 +356,7 @@ in
   # SSH configuration for builders (user) — Match exec provisions on-demand
   home-manager.users.${config.username}.programs.ssh.matchBlocks = {
     "builder" = {
-      match = ''host builder-*,big-builder-* exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"'';
+      match = ''host ${allBuilderHostPattern} exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"'';
       user = "remotebuild";
       port = 3098;
       identityFile = "/root/.ssh/builder-key";
@@ -264,17 +372,5 @@ in
   };
 
   # SSH configuration for builders (system-wide for Nix daemon)
-  programs.ssh.extraConfig = ''
-    Match host builder-*,big-builder-* exec "${ensureBuilderScript}/bin/ensure-builder %h 3098"
-      User remotebuild
-      Port 3098
-      IdentityFile /root/.ssh/builder-key
-      IdentitiesOnly yes
-      StrictHostKeyChecking yes
-      UserKnownHostsFile ${builderKnownHosts}
-      LogLevel ERROR
-      ConnectTimeout 30
-      Compression yes
-      IPQoS cs1
-  '';
+  programs.ssh.extraConfig = mkSshMatchBlock allBuilderHostPattern;
 }

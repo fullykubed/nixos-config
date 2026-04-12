@@ -20,7 +20,7 @@
     let
       inherit (config) versions;
     in
-    {
+    lib.mkIf (config.deviceType != "remote-builder") {
       nixpkgs.overlays = [
         (_: prev: {
           brscan5 = prev.brscan5.overrideAttrs (_: {

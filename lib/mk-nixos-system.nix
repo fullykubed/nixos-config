@@ -85,9 +85,9 @@ nixpkgs.lib.nixosSystem {
     # Declarative git repository management (private)
     repo-sync.nixosModules.default
     (
-      { config, ... }:
+      { config, lib, ... }:
       {
-        repo-sync = {
+        repo-sync = lib.mkIf (config.deviceType != "remote-builder") {
           user = config.username;
           inherit (config) homeDir;
           sshKeyPath = config.age.secrets.git-ssh-key.path;

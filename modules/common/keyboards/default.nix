@@ -1,3 +1,6 @@
-_: {
-  hardware.keyboard.zsa.enable = true;
+{ lib, config, ... }:
+{
+  config = lib.mkIf (config.deviceType != "remote-builder") {
+    hardware.keyboard.zsa.enable = true;
+  };
 }

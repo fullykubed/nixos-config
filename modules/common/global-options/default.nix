@@ -87,6 +87,7 @@ in
         "laptop"
         "desktop"
         "server"
+        "remote-builder"
       ];
       description = "The type of device — controls power management and other hardware-class defaults.";
     };
@@ -154,6 +155,18 @@ in
       type = lib.types.bool;
       default = true;
       description = "Whether to enable zswap (compressed swap cache with encrypted disk backing).";
+    };
+
+    builderHousekeepingCpus = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "CPU range for kernel housekeeping (IRQs, RCU, timers). Should align with CCD boundaries to avoid L3 cache contention. Example: '0-15' (one full CCD on Zen 5 Threadripper). Only used when deviceType == 'remote-builder'.";
+    };
+
+    builderIsolatedCpus = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "CPU range to isolate for build work (no housekeeping). Should align with CCD boundaries. Example: '16-127' (CCDs 1-7 on Zen 5 Threadripper). Only used when deviceType == 'remote-builder'.";
     };
   };
 }

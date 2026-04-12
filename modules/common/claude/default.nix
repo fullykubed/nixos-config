@@ -453,7 +453,7 @@
         text = builtins.readFile ./claude-locate-hook.sh;
       };
     in
-    {
+    lib.mkIf (config.deviceType != "remote-builder") {
       home-manager.users.${config.username} = {
         programs.zsh = {
           shellAliases = {

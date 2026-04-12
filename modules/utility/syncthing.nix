@@ -128,23 +128,26 @@ in
 {
   options.syncthing = {
     user = lib.mkOption {
-      type = lib.types.str;
-      description = "User account under which the Syncthing service runs.";
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = "User account under which the Syncthing service runs. Null disables Syncthing.";
     };
 
     group = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.nullOr lib.types.str;
+      default = null;
       description = "Group under which the Syncthing service runs.";
     };
 
     dataDir = lib.mkOption {
-      type = lib.types.str;
+      type = lib.types.nullOr lib.types.str;
+      default = null;
       description = "Base directory for Syncthing data (home directory or equivalent).";
     };
 
   };
 
-  config = {
+  config = lib.mkIf (cfg.user != null) {
     services.syncthing = {
       enable = true;
       inherit (cfg) user group dataDir;

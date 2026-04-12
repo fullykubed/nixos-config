@@ -73,7 +73,7 @@
         };
       };
     in
-    {
+    lib.mkIf (config.deviceType != "remote-builder") {
       environment.systemPackages = [
         voxtype
         pkgs.wtype

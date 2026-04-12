@@ -1,6 +1,7 @@
 {
   config,
   pkgs,
+  lib,
   ...
 }:
 let
@@ -158,85 +159,87 @@ let
   '';
 in
 {
-  age.secrets = {
-    pushover-token = {
-      rekeyFile = ../../../secrets/pushover-token.age;
-      owner = config.username;
-      group = "users";
-      mode = "0400";
+  config = lib.mkIf (config.deviceType != "remote-builder") {
+    age.secrets = {
+      pushover-token = {
+        rekeyFile = ../../../secrets/pushover-token.age;
+        owner = config.username;
+        group = "users";
+        mode = "0400";
+      };
     };
-  };
-
-  environment.systemPackages = [
-    isAway
-    notifyIfAway
-    awayNotifyCmd
-  ];
-
-  systemd.services.nix-build-failure-notify = {
-    description = "Monitor nix builds and notify on failure when user is away";
-    wantedBy = [ "multi-user.target" ];
-    after = [
-      "nix-daemon.service"
-      "network-online.target"
-      "nss-lookup.target"
+  
+    environment.systemPackages = [
+      isAway
+      notifyIfAway
+      awayNotifyCmd
     ];
-    wants = [
-      "network-online.target"
-      "nss-lookup.target"
-    ];
-    serviceConfig = {
-      Type = "simple";
-      ExecStart = "${buildFailureMonitor}";
-      Restart = "always";
-      RestartSec = 5;
+  
+    systemd.services.nix-build-failure-notify = {
+      description = "Monitor nix builds and notify on failure when user is away";
+      wantedBy = [ "multi-user.target" ];
+      after = [
+        "nix-daemon.service"
+        "network-online.target"
+        "nss-lookup.target"
+      ];
+      wants = [
+        "network-online.target"
+        "nss-lookup.target"
+      ];
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${buildFailureMonitor}";
+        Restart = "always";
+        RestartSec = 5;
+      };
     };
-  };
-
-  systemd.services.input-activity-tracker = {
-    description = "Track user input activity for away detection";
-    wantedBy = [ "multi-user.target" ];
-    serviceConfig = {
-      Type = "simple";
-      ExecStart = "${inputTrackerScript}";
-      Restart = "always";
-      RestartSec = 5;
+  
+    systemd.services.input-activity-tracker = {
+      description = "Track user input activity for away detection";
+      wantedBy = [ "multi-user.target" ];
+      serviceConfig = {
+        Type = "simple";
+        ExecStart = "${inputTrackerScript}";
+        Restart = "always";
+        RestartSec = 5;
+      };
     };
-  };
-
-  home-manager.users.${config.username} = {
-    programs.zsh.initContent = ''
-      # Away notification hooks
-      autoload -U add-zsh-hook
-
-      _away_notify_preexec() {
-        _AWAY_NOTIFY_CMD="$1"
-      }
-
-      _away_notify_precmd() {
-        local exit_code=$?
-
-        # Skip if no command was run (bare Enter)
-        [[ -z "''${_AWAY_NOTIFY_CMD:-}" ]] && return
-
-        local cmd="$_AWAY_NOTIFY_CMD"
-        _AWAY_NOTIFY_CMD=""
-
-        # Only notify if user is away
-        ${isAway}/bin/is-away || return
-
-        # Capture output if in tmux
-        local output=""
-        if [[ -n "''${TMUX:-}" ]]; then
-          output=$(tmux capture-pane -p -S -50 2>/dev/null | ${pkgs.gnused}/bin/sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g; s/\x1B\][^\x07]*\x07//g; s/\r//g' || true)
-        fi
-
-        # Send notification in background
-        (${awayNotifyCmd}/bin/away-notify-cmd "$cmd" "$exit_code" "$output" &) 2>/dev/null
-      }
-
-      add-zsh-hook preexec _away_notify_preexec
-      add-zsh-hook precmd _away_notify_precmd
-    '';
+  
+    home-manager.users.${config.username} = {
+      programs.zsh.initContent = ''
+        # Away notification hooks
+        autoload -U add-zsh-hook
+  
+        _away_notify_preexec() {
+          _AWAY_NOTIFY_CMD="$1"
+        }
+  
+        _away_notify_precmd() {
+          local exit_code=$?
+  
+          # Skip if no command was run (bare Enter)
+          [[ -z "''${_AWAY_NOTIFY_CMD:-}" ]] && return
+  
+          local cmd="$_AWAY_NOTIFY_CMD"
+          _AWAY_NOTIFY_CMD=""
+  
+          # Only notify if user is away
+          ${isAway}/bin/is-away || return
+  
+          # Capture output if in tmux
+          local output=""
+          if [[ -n "''${TMUX:-}" ]]; then
+            output=$(tmux capture-pane -p -S -50 2>/dev/null | ${pkgs.gnused}/bin/sed -r 's/\x1B\[[0-9;]*[a-zA-Z]//g; s/\x1B\][^\x07]*\x07//g; s/\r//g' || true)
+          fi
+  
+          # Send notification in background
+          (${awayNotifyCmd}/bin/away-notify-cmd "$cmd" "$exit_code" "$output" &) 2>/dev/null
+        }
+  
+        add-zsh-hook preexec _away_notify_preexec
+        add-zsh-hook precmd _away_notify_precmd
+      '';
+    };
   };
 }

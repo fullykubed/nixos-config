@@ -71,7 +71,7 @@ let
     '';
   };
 in
-{
+lib.mkIf (config.deviceType != "remote-builder") {
   systemd.services.nixos-auto-upgrade = {
     description = "Nightly NixOS auto-upgrade";
     restartIfChanged = false;

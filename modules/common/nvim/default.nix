@@ -1,5 +1,6 @@
 {
   config,
+  lib,
   pkgs,
   nixpkgs-unstable,
   ...
@@ -15,7 +16,7 @@
     neovim
   ];
 
-  home-manager.users.${config.username} =
+  home-manager.users.${config.username} = lib.mkIf (config.deviceType != "remote-builder") (
     {
       config,
       pkgs,
@@ -85,5 +86,6 @@
         marksman # markdown
         mdx-language-server # mdx
       ];
-    };
+    }
+  );
 }

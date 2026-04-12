@@ -7,7 +7,7 @@
 {
   options.disableWakeupTriggers = lib.mkEnableOption "disable ACPI wakeup triggers before suspend";
 
-  config = lib.mkIf config.disableWakeupTriggers {
+  config = lib.mkIf (config.deviceType != "remote-builder" && config.disableWakeupTriggers) {
     systemd.services.disable-wakeup-triggers = {
       description = "Disable wakeup triggers before suspend";
       wantedBy = [ "sleep.target" ];

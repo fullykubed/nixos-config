@@ -457,7 +457,7 @@ let
 
   waybarConfig = pkgs.writeText "waybar-config" (builtins.toJSON waybarConfigAttrs);
 in
-{
+lib.mkIf (config.deviceType != "remote-builder") {
   age.secrets.cloudflare-api-token = {
     rekeyFile = ../../../../secrets/cloudflare-api-token.age;
     path = "/run/agenix/cloudflare-api-token";
