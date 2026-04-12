@@ -71,8 +71,7 @@ for pending_file in "$PENDING_DIR"/*; do
   batch_hashes+=("$hash")
 
   if [ "${#batch_paths[@]}" -ge "$BATCH_SIZE" ]; then
-    push_err=""
-    if push_err=$(niks3 push "${batch_paths[@]}" 2>&1); then
+    if niks3 push "${batch_paths[@]}"; then
       for i in "${!batch_hashes[@]}"; do
         touch "$DONE_DIR/${batch_hashes[$i]}"
         rm -f "${batch_files[$i]}"
@@ -80,7 +79,7 @@ for pending_file in "$PENDING_DIR"/*; do
       count=$((count + ${#batch_paths[@]}))
     else
       failed=$((failed + ${#batch_paths[@]}))
-      log "FAIL batch (${#batch_paths[@]} paths): $push_err"
+      log "FAIL batch (${#batch_paths[@]} paths)"
     fi
 
     batch_paths=()
@@ -91,8 +90,7 @@ done
 
 # Upload remaining paths
 if [ "${#batch_paths[@]}" -gt 0 ]; then
-  push_err=""
-  if push_err=$(niks3 push "${batch_paths[@]}" 2>&1); then
+  if niks3 push "${batch_paths[@]}"; then
     for i in "${!batch_hashes[@]}"; do
       touch "$DONE_DIR/${batch_hashes[$i]}"
       rm -f "${batch_files[$i]}"
@@ -100,7 +98,7 @@ if [ "${#batch_paths[@]}" -gt 0 ]; then
     count=$((count + ${#batch_paths[@]}))
   else
     failed=$((failed + ${#batch_paths[@]}))
-    log "FAIL batch (${#batch_paths[@]} paths): $push_err"
+    log "FAIL batch (${#batch_paths[@]} paths)"
   fi
 fi
 

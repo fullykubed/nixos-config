@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "motivation": "The cache upload service was silently discarding all niks3 output. Using `push_err=$(niks3 push ... 2>&1)` captured stdout+stderr into a variable; on success the variable was never printed (warnings and partial errors lost), and on failure it was emitted as a single mangled line. This made diagnosing upload failures impossible via journalctl.",
+      "summary": "Replaced both `push_err=$(niks3 push ... 2>&1)` command substitutions in `modules/common/controller/upload-daemon.sh` with plain `niks3 push ...` calls. niks3's stdout and stderr now flow directly to the systemd journal, making both progress output and error messages visible in `journalctl -u cache-upload`."
+    }
+  ],
+  "problems": [
+    "upload-daemon.sh used the shell pattern `if push_err=$(cmd 2>&1); then ... else log $push_err` to capture errors for logging, but this silently drops all output on the success path. This is a subtle shell scripting footgun — the intent was error capture, but the effect was suppressing all niks3 diagnostics including warnings, progress, and partial failures. A comment explaining why output is not captured (or should not be captured) would have flagged this earlier."
+  ],
+  "session_id": "01bc37b7-de8e-4341-813c-f707968672c3",
+  "timestamp": "2026-04-12T16:48:24.875Z"
+}
