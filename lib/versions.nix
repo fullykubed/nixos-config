@@ -2,10 +2,10 @@
 # All package versions and hashes are defined here for easy reference
 {
   # workmux (modules/common/tmux)
-  workmux = "0.1.134";
-  workmuxRev = "a8202501ac44f4e9197d6c0c504e82c925585be9";
-  workmuxSrcHash = "sha256-zPd/fpyzgCfYqk1ehYiqC9CMbD7YeqaiNlGyMOSsdxs=";
-  workmuxCargoHash = "sha256-zPTI66zNrq0HdPrqA1whopi2pgykNPU3YzGvOBdTpxE=";
+  workmux = "0.1.181";
+  workmuxRev = "c70caac16cd8354cc484f42be2cbbcda69911128";
+  workmuxSrcHash = "sha256-Hr5NmusrMau6RVgSjBmumhUGC2So/wnPnu4G7BEh1mo=";
+  workmuxCargoHash = "sha256-rQv0oNLIpwdamy0yuYZbZxFjF5p/0F4oUIfCi/UADLM=";
 
   # tmux-autoreload plugin (modules/common/tmux)
   tmuxAutoreload = "unstable-2024-01-01";
