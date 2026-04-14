@@ -109,16 +109,19 @@ serviceConfig = {
 };
 ```
 
-### `restartIfChanged = false`
+### `restartIfChanged = false` and `reloadIfChanged = true`
 
 Oneshot services must always set `restartIfChanged = false`. This is a NixOS module option (not a systemd option) that controls whether `nixos-rebuild switch` restarts the service when its definition changes.
 
 Without it, activating a new system generation will re-run the service inline during the switch. Since a oneshot service runs to completion before systemd considers it done, this **blocks the entire rebuild** until the service finishes — which for a long-running task like a build, upload, or upgrade can mean minutes or indefinitely.
 
+Whenever `restartIfChanged = false` is set, **always pair it with `reloadIfChanged = true`**. This ensures that when the unit file changes (e.g. a script is updated or a dependency store path changes), systemd reloads the unit on the next switch — so the new configuration takes effect on the next timer invocation without waiting for a manual intervention. Without it, a stale unit can persist across rebuilds undetected.
+
 ```nix
 systemd.services.my-task = {
   description = "Do something once";
   restartIfChanged = false;   # never re-run during nixos-rebuild switch
+  reloadIfChanged = true;     # but do pick up unit changes on switch
   serviceConfig = {
     Type = "oneshot";
     ExecStart = "${myScript}/bin/my-task";
@@ -136,6 +139,7 @@ Use a timer to run a oneshot service on a schedule. The timer and service share 
 systemd.services.my-poller = {
   description = "Poll something";
   restartIfChanged = false;
+  reloadIfChanged = true;
   serviceConfig = {
     Type = "oneshot";
     ExecStart = "${myScript}/bin/my-poller";
@@ -306,6 +310,7 @@ When adding a new service, verify each item before deploying:
 - [ ] Service type chosen (`simple`, `oneshot`, `notify`) — see the types table above
 - [ ] System vs user service decided — does it need root / boot-time start, or user session / D-Bus access?
 - [ ] Oneshot services have `restartIfChanged = false` to avoid blocking `nixos-rebuild switch`
+- [ ] Any service with `restartIfChanged = false` also has `reloadIfChanged = true` so unit changes still take effect on switch
 
 **Startup ordering**
 - [ ] `wantedBy` set if the service should start automatically (system: `multi-user.target`; user: `default.target`)

@@ -129,6 +129,7 @@ in
         ];
         wantedBy = [ ]; # timer-driven only; prevents nixos-rebuild switch from blocking on this long-running oneshot
         restartIfChanged = false;
+        reloadIfChanged = true;
         serviceConfig = {
           Type = "oneshot";
           Restart = "on-failure";

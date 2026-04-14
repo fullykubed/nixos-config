@@ -475,6 +475,7 @@ in
     services.cloud-status = {
       description = "Collect R2 bucket sizes and ccache health for waybar";
       restartIfChanged = false;
+      reloadIfChanged = true;
       after = [
         "network-online.target"
         "nss-lookup.target"
@@ -508,6 +509,7 @@ in
     services.ai-spend-status = {
       description = "Collect AI service spend data for waybar";
       restartIfChanged = false;
+      reloadIfChanged = true;
       after = [
         "network-online.target"
         "nss-lookup.target"

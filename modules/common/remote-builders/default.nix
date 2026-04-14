@@ -208,6 +208,7 @@ in
   systemd.services.builder-status = {
     description = "Poll Hetzner Cloud for builder server status";
     restartIfChanged = false;
+    reloadIfChanged = true;
     after = [
       "network-online.target"
       "nss-lookup.target"

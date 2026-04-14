@@ -241,6 +241,7 @@ in
         # Don't let nixos-rebuild switch block waiting for an in-progress upload.
         # The path unit and timer will trigger new runs as needed.
         restartIfChanged = false;
+        reloadIfChanged = true;
         serviceConfig = {
           Type = "oneshot";
           ExecStart = "${uploadScript}/bin/cache-upload";
@@ -283,6 +284,7 @@ in
       controller-status = {
         description = "Collect controller VM status for waybar";
         restartIfChanged = false;
+        reloadIfChanged = true;
         after = [
           "network-online.target"
           "nss-lookup.target"

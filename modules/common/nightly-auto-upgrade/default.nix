@@ -75,6 +75,7 @@ in
   systemd.services.nixos-auto-upgrade = {
     description = "Nightly NixOS auto-upgrade";
     restartIfChanged = false;
+    reloadIfChanged = true;
     requires = [
       "network-online.target"
       "nss-lookup.target"
