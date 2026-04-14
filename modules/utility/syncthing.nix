@@ -73,6 +73,12 @@ let
         "pixel_camera"
       ];
     };
+    "macbook-pro" = {
+      id = "ZXFSFRZ-TV3AZHA-AWMPGNN-GNNPY2P-UABF33O-AE2KH4U-CR6OKF4-2JPY4QU";
+      folders = [
+        "keepass"
+      ];
+    };
   };
 
   # ---------------------------------------------------------------------------

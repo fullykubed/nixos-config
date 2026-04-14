@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "motivation": "The MacBook Pro (device ID ZXFSFRZ-TV3AZHA-AWMPGNN-GNNPY2P-UABF33O-AE2KH4U-CR6OKF4-2JPY4QU) was not declared in the NixOS Syncthing configuration, causing all relay and direct connections from the Mac to be rejected with 'unknown device' errors. The Syncthing override API was actively removing the Mac from the runtime config on every service restart.",
+      "summary": "Added macbook-pro to externalDevices in modules/utility/syncthing.nix with access to the keepass folder, so the NixOS Syncthing override API registers the MacBook Pro as a known device instead of rejecting its connections."
+    }
+  ],
+  "problems": [
+    "The MacBook Pro device was manually added via the Syncthing GUI at some point but never committed to the NixOS declarative config in modules/utility/syncthing.nix. The declarative override API silently removed the GUI-added device on every service restart, creating a persistent broken state that appeared intermittently 'working' only from stale runtime config. There was no comment or documentation in syncthing.nix indicating that GUI-added devices will be purged — a note warning that all devices must be declared here would prevent this category of issue."
+  ],
+  "session_id": "a27a4540-0892-4400-89dd-557424b4cddd",
+  "timestamp": "2026-04-14T22:40:05.354Z"
+}
