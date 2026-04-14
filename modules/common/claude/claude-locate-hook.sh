@@ -11,7 +11,7 @@ block() {
   echo "The plocate database indexes /nix/store and is updated on every store change." >&2
   echo "Example: locate -i libssl.so" >&2
   echo "Example: locate '/nix/store' | grep 'pattern'" >&2
-  exit 1
+  exit 2
 }
 
 case "$TOOL_NAME" in

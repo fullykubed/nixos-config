@@ -643,6 +643,7 @@
       };
 
       environment.systemPackages = [
+        locateHook
         claudeNotifyHook
         claudeSurprises.hookPackage
         claudeShellScripts
