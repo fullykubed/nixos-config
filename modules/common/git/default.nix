@@ -162,6 +162,9 @@ in
               credential = {
                 helper = "${pkgs.git-credential-manager}/bin/git-credential-manager";
                 credentialStore = "secretservice";
+                "https://github.com" = {
+                  username = "fullykubed";
+                };
               };
 
               core = {

@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "motivation": "GCM was prompting on every HTTPS git operation because multiple accounts (jack_hts, uptownhr, fullykubed, havenproject-bot) were stored in KeePassXC for github.com, and GCM couldn't auto-select without a username hint.",
+      "summary": "Added `credential.\"https://github.com\".username = \"fullykubed\"` to the git config in `modules/common/git/default.nix`. This pins the default GitHub account so GCM bypasses the multi-account selection prompt and retrieves the cached credential directly."
+    }
+  ],
+  "problems": [
+    "GCM attribute schema not documented: `secret-tool search application git-credential-manager` returns nothing because GCM uses `xdg:schema=com.microsoft.GitCredentialManager` + `service=git:https://github.com` as its keys, not `application`. This caused significant confusion during diagnosis — it looked like no credentials were cached at all. A comment in the git module or a project doc noting the correct search key would have prevented this.",
+    "The `secret-tool search --all` output format was not grep-friendly, requiring a custom D-Bus introspection loop to discover stored GCM items. There is no docs note anywhere explaining how to inspect or verify GCM's KeePassXC entries, which should be documented in the secrets or build-system docs."
+  ],
+  "session_id": "8453a659-9581-4b4e-bc03-dce9dc6b45c4",
+  "timestamp": "2026-04-16T21:40:23.568Z"
+}
