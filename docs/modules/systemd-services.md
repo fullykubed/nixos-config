@@ -221,7 +221,7 @@ systemd.services.my-poller = {
   serviceConfig = {
     Type = "oneshot";
     # Skip (not fail) if DNS is not yet working. The timer retries shortly.
-    ExecCondition = "${pkgs.glibc.bin}/bin/getent ahosts api.example.com";
+    ExecCondition = "${pkgs.getent}/bin/getent ahosts api.example.com";
     ExecStart = "${myScript}/bin/my-poller";
   };
 };

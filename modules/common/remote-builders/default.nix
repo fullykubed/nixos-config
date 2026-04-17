@@ -227,7 +227,7 @@ in
       # Skip (not fail) if DNS is not yet working — dnscrypt-proxy may be running
       # but unable to forward queries until the DHCP lease arrives. The timer
       # retries every 30s so a skipped run is harmless.
-      ExecCondition = "${pkgs.glibc.bin}/bin/getent ahosts api.hetzner.cloud";
+      ExecCondition = "${pkgs.getent}/bin/getent ahosts api.hetzner.cloud";
     };
     environment = {
       HCLOUD_TOKEN_FILE = config.age.secrets.hetzner-api-token.path;

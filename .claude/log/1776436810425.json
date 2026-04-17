@@ -1,0 +1,17 @@
+{
+  "changes": [
+    {
+      "motivation": "The ExecCondition in the builder-status service referenced `${pkgs.glibc.bin}/bin/getent`, but nixpkgs split `getent` out of `pkgs.glibc.bin` into a standalone `pkgs.getent` derivation. The path `glibc-2.40-218-bin` exists and is not GC'd, but it no longer contains a `getent` binary — causing every timer invocation to fail with systemd exit code 203/EXEC.",
+      "summary": "Replaced `${pkgs.glibc.bin}/bin/getent` with `${pkgs.getent}/bin/getent` in the builder-status service ExecCondition in modules/common/remote-builders/default.nix."
+    },
+    {
+      "motivation": "The docs example for systemd service ExecCondition showed `pkgs.glibc.bin` as the way to reference getent, which would propagate the same broken pattern to future modules.",
+      "summary": "Updated docs/modules/systemd-services.md to use `pkgs.getent` instead of `pkgs.glibc.bin` in the ExecCondition example."
+    }
+  ],
+  "problems": [
+    "docs/modules/systemd-services.md had an example using `pkgs.glibc.bin` for getent — nixpkgs split getent into its own `pkgs.getent` derivation, so `${pkgs.glibc.bin}/bin/getent` resolves to a path that exists but contains no `getent` binary. This caused 203/EXEC failures. The docs (and original module code) should have documented that `pkgs.getent` is the correct package, not `pkgs.glibc.bin`."
+  ],
+  "session_id": "4b41a6f6-c70e-4819-bd37-7386130ed7f4",
+  "timestamp": "2026-04-17T14:40:27.520Z"
+}
