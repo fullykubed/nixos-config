@@ -86,13 +86,13 @@ in
         firefox = {
           name = "Firefox";
           comment = "Firefox";
-          exec = "${firefox-fhs}/bin/firefox";
+          exec = "${firefox-fhs}/bin/firefox %u";
           type = "Application";
         };
         chrome = {
           name = "Chrome";
           comment = "Chrome";
-          exec = "${pkgs.chromium}/bin/chromium";
+          exec = "${pkgs.chromium}/bin/chromium %u";
           type = "Application";
         };
       };

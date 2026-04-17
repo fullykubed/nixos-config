@@ -1,0 +1,19 @@
+{
+  "changes": [
+    {
+      "motivation": "Inside the bubblewrap sandbox, privateTmp=true isolates /tmp, which breaks Firefox's remote-protocol IPC (it stores sockets under /tmp/firefox/). When xdg-open tries to open a URL, Firefox can't find the host's running instance, starts a new full GUI process inside the sandbox, and xdg-open blocks waiting for it to exit — hanging forever. Setting NIXOS_XDG_OPEN_USE_PORTAL=1 activates a NixOS-specific patch in xdg-open (line 1182) that routes the call through org.freedesktop.portal.OpenURI via D-Bus instead of launching Firefox directly. The D-Bus session socket is already bind-mounted into the sandbox, so the portal handles the URL on the host side.",
+      "summary": "Added NIXOS_XDG_OPEN_USE_PORTAL=1 env var to the Claude sandbox bubblewrap args in modules/common/claude/default.nix. This makes xdg-open use the XDG Desktop Portal (handled internally by xdg-desktop-portal 1.18+ with no backend needed) rather than launching Firefox directly inside the sandbox."
+    },
+    {
+      "motivation": "The custom Firefox (and Chrome) .desktop files generated in modules/common/browser/default.nix had exec fields without the %u URL substitution placeholder. When GLib's DesktopAppInfo launches an app for a URI (as the portal does), it substitutes %u with the URL — without it, the URL is silently dropped. Firefox gets activated/focused but the URL is never passed, so the browser opens to whatever tab was last active rather than the requested URL.",
+      "summary": "Added %u to the exec fields of the Firefox and Chrome desktop entries in modules/common/browser/default.nix (e.g. exec = \"${firefox-fhs}/bin/firefox %u\"). This also improves link-click handling from other host applications outside the sandbox."
+    }
+  ],
+  "problems": [
+    "The custom firefox.desktop entry in modules/common/browser/default.nix was generated without %u in the Exec line. The freedesktop Desktop Entry spec requires %u/%U for URL-handling applications; omitting it causes GLib to silently drop the URL when launching via DesktopAppInfo. This was not caught because the file works for direct CLI invocation (where the URL is a CLI argument) but silently fails for portal/MIME-type launches.",
+    "xdg-desktop-portal 1.18+ handles OpenURI internally without requiring a portal backend — neither wlr.portal nor gtk.portal lists org.freedesktop.impl.portal.OpenURI in their Interfaces. This is undocumented in the NixOS config and took significant investigation (D-Bus introspection, journal logs, dbus-monitor traces) to confirm. A comment in the portal configuration or browser module explaining this would have saved the investigation time.",
+    "The portal D-Bus call returns a Request object and exit code 0 even when the URL is silently dropped (due to missing %u). This false-positive success made it hard to distinguish a working call from a silently failing one, requiring full D-Bus tracing to diagnose the real failure."
+  ],
+  "session_id": "5a92dfb3-e313-44c6-af27-59763990f519",
+  "timestamp": "2026-04-17T13:35:21.980Z"
+}

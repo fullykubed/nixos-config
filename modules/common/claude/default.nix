@@ -131,6 +131,18 @@
           "--setenv"
           "SHELL"
           "${pkgs.bashInteractive}/bin/bash"
+          # Force xdg-open to use the XDG Desktop Portal (NixOS patch).
+          # Without this, xdg-open launches Firefox directly inside the
+          # sandbox where privateTmp isolates /tmp, preventing Firefox from
+          # finding the host instance's IPC socket — so it starts a new
+          # blocking GUI process instead of opening a tab. With this set,
+          # xdg-open calls org.freedesktop.portal.OpenURI via D-Bus, which
+          # xdg-desktop-portal handles internally (v1.18+), resolving the
+          # default handler and calling org.mozilla.firefox.OpenURL on the
+          # running host instance.
+          "--setenv"
+          "NIXOS_XDG_OPEN_USE_PORTAL"
+          "1"
           "--ro-bind"
           "${findGrepAliases}/bin"
           "/opt/find-grep/bin"
