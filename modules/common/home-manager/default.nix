@@ -29,6 +29,9 @@
       # Disable manual generation to avoid builtins.toFile warning
       # See: https://github.com/nix-community/home-manager/issues/7935
       manual.manpages.enable = false;
+
+      # Use sd-switch to intelligently restart changed user services on rebuild
+      systemd.user.startServices = "sd-switch";
     };
     users.root = {
       home.stateVersion = "22.11";
