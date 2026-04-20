@@ -1,0 +1,30 @@
+{
+  "changes": [
+    {
+      "motivation": "TypeScript return type annotations on fetchBuilderStats and fetchAllBuilderStats in dashboard.ts were declared as returning R=never, which was incompatible with the actual implementations that use injected services.",
+      "summary": "Removed explicit return type annotations from fetchBuilderStats and fetchAllBuilderStats in dashboard.ts, letting TypeScript infer them correctly."
+    },
+    {
+      "motivation": "Two let bindings (parentPath, parentBase) in default.nix were declared but never used — isInNodeModules computes its regex match directly from the path argument.",
+      "summary": "Removed unused parentPath and parentBase let bindings from modules/common/cli/default.nix."
+    },
+    {
+      "motivation": "There was no script to compile the CLI to a standalone binary for distribution/use outside Nix.",
+      "summary": "Added a build script to package.json: bun build --compile --bytecode src/main.ts --outfile dist/j, outputting a standalone binary to dist/j."
+    },
+    {
+      "motivation": "Build output directory dist/ should not be tracked in version control.",
+      "summary": "Added dist/ to .gitignore."
+    },
+    {
+      "motivation": "--json global flag was being silently ignored: parseCommandArgs copied globalFlags into the flags map, but then the command-level flag defaults loop unconditionally overwrote json back to false because json was also declared as a command-level flag.",
+      "summary": "Fixed parser.ts so command-level flag defaults are only applied when the flag has not already been set (guard: !flags.has(flag.name)), preserving values inherited from global flags."
+    }
+  ],
+  "problems": [
+    "The --json global flag was silently overridden by command-level defaults without any warning or diagnostic. The parser's design allowed globalFlags to be copied into the flags map and then immediately clobbered by command defaults, making this category of bug invisible without careful tracing. The parser logic or flag-merging strategy needed better documentation or a clear precedence contract.",
+    "Several commands redeclare --json as a command-level flag even though it is already a global flag. This redundancy was the direct cause of the overwrite bug and is not documented anywhere as a known pitfall to avoid."
+  ],
+  "session_id": "083a1b15-eca7-41c6-b4af-2df9bda9aca7",
+  "timestamp": "2026-04-17T16:12:57.477Z"
+}

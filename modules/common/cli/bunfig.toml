@@ -1,0 +1,8 @@
+preload = ["@opentui/solid/preload"]
+
+[install]
+cache = ".bun/cache"
+exact = true
+auto = "auto"
+frozenLockfile = true
+

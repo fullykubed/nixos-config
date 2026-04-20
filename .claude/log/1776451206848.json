@@ -1,0 +1,23 @@
+{
+  "changes": [
+    {
+      "motivation": "The builders/ directory had 10 monolithic command files making it hard to navigate and locate specific logic. Each command was split into a per-command subdirectory with command.ts (Command const), handler.ts (main handler), and one file per helper function.",
+      "summary": "Refactored 10 flat builder command files into per-command subdirectories (check/13 files, dashboard/10, destroy/7, ensure/7, poll-status/5, ssh/4, status/5, cleanup/2, create/2, list/2). Updated index.ts to import from ./check/command.js etc. Deleted the old flat files."
+    },
+    {
+      "motivation": "The service files (Hcloud, Shell, Ssh, Tailscale) had no documentation, making it hard to understand design decisions such as SSH port 3098, -F /dev/null flag, token loading strategy, and execution modes.",
+      "summary": "Added module-level JSDoc and inline comments to all four service files. Shell: documented three execution modes and error types. Ssh: documented default settings (port 3098, remotebuild user, builder key), -F /dev/null rationale, and error classification. Tailscale: documented builder hostname resolution via Headscale VPN. Hcloud: documented domain types, token loading strategy (agenix file → env var fallback with in-process caching), and all method signatures."
+    },
+    {
+      "motivation": "Passing -h or --help to a subcommand (e.g. `builders check -h`) failed with 'Missing required argument: name' because required arg validation ran before the help flag was checked.",
+      "summary": "Fixed parser.ts to skip required positional arg and required flag validation when the help flag is set. Fixed main.ts to detect the help flag after command resolution and print commandHelp(group, command) instead of invoking the handler."
+    }
+  ],
+  "problems": [
+    "The rm command to delete old flat files was run without first changing to the correct directory. The agent immediately ran a corrective check, but the files turned out to already be absent — the git status had 'AD' (added then deleted) markers indicating they were deleted as part of staging, which was not obvious from the plan description.",
+    "The help flag design had a subtle ordering bug: extractGlobalFlags consumed -h/--help from the arg list, but parseCommandArgs still enforced required positional args before returning, so help could never work for commands with required args. This was undocumented behavior — the help flag appeared to be handled globally but was silently ineffective at the command level.",
+    "Hcloud.ts required 12 separate Edit calls to add comments, suggesting the file was large enough that incremental edits were fragile. A single Write rewrite would have been more reliable, but the agent used Edit repeatedly, risking conflicts with unchanged surrounding code."
+  ],
+  "session_id": "7b37b939-3b70-414a-a457-391851b70b20",
+  "timestamp": "2026-04-17T18:40:41.983Z"
+}

@@ -137,8 +137,8 @@ let
         "nt-check"
         "nt-hosts"
       ];
-  # Per-project bun TypeScript projects. Each entry produces two prek hooks
-  # (typecheck-${name}, lint-${name}) scoped via `files:` regex to that
+  # Per-project bun TypeScript projects. Each entry produces three prek hooks
+  # (typecheck-${name}, lint-${name}, test-${name}) scoped via `files:` regex to that
   # project's directory. Each project is a self-contained bun package with
   # its own bun.lock + node_modules; the hooks below `bun install` lazily
   # in the project directory on first run. Add new projects here as the
@@ -147,6 +147,10 @@ let
     {
       name = "proxy";
       dir = "modules/common/mitmproxy-credential-proxy/proxy";
+    }
+    {
+      name = "cli";
+      dir = "modules/common/cli";
     }
   ];
 
@@ -176,6 +180,20 @@ let
       '';
     };
 
+  # Per-project test: ensure the project's deps are installed, then
+  # cd into the project and run `bun test`.
+  mkBunTest =
+    project:
+    pkgs.writeShellApplication {
+      name = "check-bun-test-${project.name}";
+      runtimeInputs = [ pkgs.bun ];
+      text = ''
+        ${ensureBunInstalled project.dir}
+        cd "$REPO_ROOT/${project.dir}"
+        bun test
+      '';
+    };
+
   # Per-project lint: ensure both the project's deps (for type info via
   # typescript-eslint's project service) AND the root deps (for eslint
   # itself + the shared eslint.config.ts) are installed, then run eslint
@@ -202,7 +220,7 @@ let
   #   10 — gitleaks (security gate, runs first)
   #   20 — nix formatters/linters (parallel)
   #   30 — check-package-json (pin + consistency, no network)
-  #   40 — per-project typecheck-${name} + lint-${name}
+  #   40 — per-project typecheck-${name} + lint-${name} + test-${name}
   # Per-project hooks are emitted by builtins.concatMap below. typecheck
   # uses the project's own node_modules; lint uses the repo-root
   # node_modules where eslint.config.ts lives, so they don't race within
@@ -278,6 +296,16 @@ let
             entry = "${mkBunLint project}/bin/check-bun-lint-${project.name}";
             files = "^${project.dir}/.*\\.(ts|tsx)$";
             pass_filenames = true;
+            require_serial = true;
+            priority = 40;
+          }
+          {
+            id = "test-${project.name}";
+            name = "test-${project.name}";
+            language = "system";
+            entry = "${mkBunTest project}/bin/check-bun-test-${project.name}";
+            files = "^${project.dir}/.*\\.(ts|tsx)$";
+            pass_filenames = false;
             require_serial = true;
             priority = 40;
           }

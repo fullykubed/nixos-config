@@ -76,6 +76,7 @@
     ./common/ccache
     ./common/tailscale
     ./common/nightly-auto-upgrade
+    ./common/cli
     ./patches
   ];
 
