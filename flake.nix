@@ -67,6 +67,16 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Private declarative git repository management
+    repo-sync = {
+      url = "git+ssh://git@github.com/fullykubed/repo-sync.git";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        agenix.follows = "agenix";
+        agenix-rekey.follows = "agenix-rekey";
+      };
+    };
+
   };
 
   outputs =
@@ -85,6 +95,7 @@
       niks3,
       bun2nix,
       nix-index-database,
+      repo-sync,
       ...
     }:
     let
@@ -104,6 +115,7 @@
           stylix
           home-manager
           nix-index-database
+          repo-sync
           agenix
           agenix-rekey
           niks3

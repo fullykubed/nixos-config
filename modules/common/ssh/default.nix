@@ -1,5 +1,9 @@
 { config, ... }:
 {
+  # The systemd-ssh-proxy config is owned by `nobody` in the Nix store, which
+  # causes SSH to reject it with "Bad owner or permissions". Disable the Include.
+  programs.ssh.systemd-ssh-proxy.enable = false;
+
   home-manager.users.${config.username} = {
     services.ssh-agent.enable = true;
 

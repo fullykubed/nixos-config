@@ -9,6 +9,7 @@
   stylix,
   home-manager,
   nix-index-database,
+  repo-sync,
   agenix,
   agenix-rekey,
   niks3,
@@ -80,6 +81,19 @@ nixpkgs.lib.nixosSystem {
     # Secrets integrations
     agenix.nixosModules.default
     agenix-rekey.nixosModules.default
+
+    # Declarative git repository management (private)
+    repo-sync.nixosModules.default
+    (
+      { config, ... }:
+      {
+        repo-sync = {
+          user = config.username;
+          inherit (config) homeDir;
+          sshKeyPath = config.age.secrets.git-ssh-key.path;
+        };
+      }
+    )
 
     # Options
     {

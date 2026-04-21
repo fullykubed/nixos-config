@@ -74,7 +74,6 @@
     ./common/controller
     ./common/ccache
     ./common/tailscale
-    ./common/repos
     ./common/nightly-auto-upgrade
     ./patches
   ];
