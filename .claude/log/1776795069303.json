@@ -1,0 +1,13 @@
+{
+  "changes": [
+    {
+      "motivation": "When `RemainAfterExit = mkDefault true` was applied globally to all services, timer-activated services would stay in `active (exited)` state after their first run. Systemd timers use `start` semantics, so subsequent timer fires were no-ops on already-active services.",
+      "summary": "Modified `modules/common/systemd/default.nix` to automatically set `RemainAfterExit = mkOverride 999 false` for any service that has a corresponding timer entry. Priority 999 overrides the global `mkDefault` (priority 1000) but yields to explicit user assignments (priority 100), so timer-paired services return to `inactive` after each run while non-timer services retain the default behavior."
+    }
+  ],
+  "problems": [
+    "The interaction between `RemainAfterExit=yes` and systemd timer semantics is a subtle footgun: timers call `start` (not `restart`), which is a no-op when the service is already `active (exited)`. This behavior was not documented anywhere in the codebase, so the bug was only discoverable by tracing the systemd state machine. A comment in `modules/common/systemd/default.nix` explaining why timer-paired services must not use `RemainAfterExit` would have made this self-evident."
+  ],
+  "session_id": "777e1b60-a1b9-4841-b286-aed307872bd1",
+  "timestamp": "2026-04-21T18:11:24.826Z"
+}
