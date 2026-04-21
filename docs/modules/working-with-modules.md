@@ -48,5 +48,5 @@ These must be followed when writing modules:
 - [Theming](theming.md) -- use Stylix base16 colors, don't hardcode colors or fonts
 - [Secrets](../secrets.md) -- use agenix for any credentials, tokens, or keys
 - [Scripts](scripts.md) -- creating shell scripts and CLI utilities
-- [Systemd services](systemd-services.md) -- service types, timers, ordering targets, DNS readiness
+- [Systemd services](systemd-services/README.md) -- choose between system and user services; links to detailed guides for each
 - [Testing](testing.md) -- verify changes quickly before deploying

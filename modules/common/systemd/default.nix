@@ -3,6 +3,7 @@
   options.systemd.services = lib.mkOption {
     type = lib.types.attrsOf (
       lib.types.submodule {
+        config.serviceConfig.RemainAfterExit = lib.mkDefault true;
         config.serviceConfig.LogFilterPatterns = lib.mkDefault [
           # High confidence — known vendor prefixes
           "~(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}"

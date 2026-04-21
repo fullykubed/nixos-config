@@ -1,77 +1,16 @@
-# Systemd Services
+# System Systemd Services
 
-This guide covers patterns for defining systemd services and timers inside NixOS modules.
+This guide covers patterns for defining systemd **system** services and timers in NixOS modules. System services are managed by the system service manager (PID 1) and run as root or a dedicated system user.
 
-## System services vs user services
+For services that need a user session (desktop notifications, Wayland/X11, `$HOME` access), see [User services](user.md) instead.
 
-Systemd runs two separate service manager instances: a system instance (PID 1, runs as root) and a per-user instance (started on first login, runs as the user). Choose based on what the service needs access to:
+## Codebase defaults
 
-| | System service | User service |
-|---|---|---|
-| **NixOS option** | `systemd.services.*` | `home-manager.users.${user}.systemd.user.services.*` |
-| **Runs as** | root or a dedicated system user | the logged-in user |
-| **Starts** | at boot, before any login | when the user logs in |
-| **Has access to** | `/etc`, `/var`, system sockets, secrets at `/run/agenix/` | `$HOME`, `$XDG_*`, D-Bus session bus, Wayland/X11 display |
-| **Managed with** | `systemctl` | `systemctl --user` |
-| **Logs** | `journalctl -u <unit>` | `journalctl --user -u <unit>` |
+`modules/common/systemd/` applies these defaults to every system service via `lib.mkDefault`, overridable per-service:
 
-Use a **system service** when the service:
-- Needs to run before or without a user session (boot-time setup, daemons, network services)
-- Requires root or a dedicated system account (e.g. writing to `/var/lib/`, binding privileged ports)
-- Reads secrets from `/run/agenix/`
+**`RemainAfterExit = true`** — Oneshot services stay in the "active" state after their command exits rather than transitioning to "inactive". This makes `systemctl status` reflect the outcome of the last run and lets other units use `After=<unit>.service` as a dependency gate. Set `RemainAfterExit = false` explicitly for maintenance tasks that should show as inactive after running (e.g. a USB device reset).
 
-Use a **user service** when the service:
-- Needs to send desktop notifications (D-Bus session bus)
-- Interacts with the Wayland compositor or X11 display (`$WAYLAND_DISPLAY`, `$DISPLAY`)
-- Should only run while the user is logged in (battery monitor, auto-fetch, screen idle)
-- Accesses user-owned files under `$HOME` or `$XDG_*` paths
-
-### Syntax differences
-
-System services and user services use different attribute naming conventions in NixOS:
-
-**System service** — top-level NixOS option, Nix-style lowercase attributes:
-
-```nix
-systemd.services.my-daemon = {
-  description = "My daemon";
-  wantedBy = [ "multi-user.target" ];
-  after = [ "network-online.target" ];
-  serviceConfig = {
-    Type = "simple";
-    ExecStart = "${myPackage}/bin/my-daemon";
-  };
-};
-```
-
-**User service** — defined inside `home-manager.users.${config.username}`, uses capitalised section names matching raw unit file syntax:
-
-```nix
-home-manager.users.${config.username} = {
-  systemd.user.services.my-daemon = {
-    Unit = {
-      Description = "My daemon";
-      After = [ "graphical-session.target" ];
-    };
-    Service = {
-      Type = "simple";
-      ExecStart = "${myPackage}/bin/my-daemon";
-    };
-    Install = {
-      WantedBy = [ "default.target" ];
-    };
-  };
-};
-```
-
-### User service targets
-
-| Target | When to use |
-|---|---|
-| `default.target` | Service should start on login (equivalent of `multi-user.target` for user sessions) |
-| `graphical-session.target` | Service needs a graphical session to be running |
-| `sway-session.target` | Service needs Sway specifically (Wayland env vars exported) |
-| `timers.target` | User timers |
+**`LogFilterPatterns`** — A set of patterns that redact common secret shapes from the journal before they are stored: AWS key prefixes, GitHub tokens, private key headers, JWTs, Google API keys, Slack tokens, age secret keys, and Vault tokens. No per-service configuration is needed.
 
 ## Service types
 
@@ -80,14 +19,12 @@ home-manager.users.${config.username} = {
 | `simple` | Long-running daemon — process stays alive indefinitely | Default if `Type` is omitted. Systemd considers the service ready as soon as the process starts. |
 | `oneshot` | Task that runs to completion and exits — scripts, polls, uploads, setup steps | Systemd waits for the process to exit before marking the service active. Set `restartIfChanged = false` (see below) or it will block `nixos-rebuild switch`. |
 | `notify` | Long-running daemon that signals readiness via `sd_notify` | Systemd waits for the daemon to send a ready notification before marking it active. More precise than `simple` for services with a slow startup phase. |
-| `dbus` | Daemon that registers a D-Bus name to signal readiness | Systemd waits for the D-Bus name to appear. Rarely needed for custom services. |
-| `forking` | Legacy daemon that daemonises by double-forking | Avoid for new services. Use `simple` or `notify` instead. |
 
 When in doubt, use `oneshot` for scripts and tasks, `simple` for daemons.
 
 ## Oneshot service
 
-A task that runs once and exits (e.g. a setup step, a poll, an upload) uses `Type = "oneshot"`. Systemd considers the service active only while the command is running; it transitions to inactive on exit.
+A task that runs once and exits (e.g. a setup step, a poll, an upload) uses `Type = "oneshot"`.
 
 ```nix
 systemd.services.my-task = {
@@ -96,16 +33,6 @@ systemd.services.my-task = {
     Type = "oneshot";
     ExecStart = "${myScript}/bin/my-task";
   };
-};
-```
-
-`RemainAfterExit = true` keeps the unit in the "active" state after the command exits — useful when other units declare `After=my-task.service` as a one-time setup gate:
-
-```nix
-serviceConfig = {
-  Type = "oneshot";
-  RemainAfterExit = true;
-  ExecStart = "${pkgs.bash}/bin/bash -c '...setup...";
 };
 ```
 
@@ -150,7 +77,7 @@ systemd.timers.my-poller = {
   description = "Poll something every 60s";
   wantedBy = [ "timers.target" ];
   timerConfig = {
-    OnBootSec = "30s";      # first run: 30s after boot
+    OnBootSec = "30s";       # first run: 30s after boot
     OnUnitActiveSec = "60s"; # subsequent runs: 60s after the last run
   };
 };
@@ -304,16 +231,16 @@ serviceConfig = {
 
 ## Checklist
 
-When adding a new service, verify each item before deploying:
+When adding a new system service, verify each item before deploying:
 
 **Type and scope**
 - [ ] Service type chosen (`simple`, `oneshot`, `notify`) — see the types table above
-- [ ] System vs user service decided — does it need root / boot-time start, or user session / D-Bus access?
+- [ ] System vs [user service](user.md) decided — does it need root / boot-time start, or user session / D-Bus access?
 - [ ] Oneshot services have `restartIfChanged = false` to avoid blocking `nixos-rebuild switch`
 - [ ] Any service with `restartIfChanged = false` also has `reloadIfChanged = true` so unit changes still take effect on switch
 
 **Startup ordering**
-- [ ] `wantedBy` set if the service should start automatically (system: `multi-user.target`; user: `default.target`)
+- [ ] `wantedBy` set if the service should start automatically (`multi-user.target`)
 - [ ] If the service connects to any hostname: `after` and `wants` include both `network-online.target` and `nss-lookup.target`
 - [ ] If the service communicates over Tailscale (MagicDNS hostnames or Tailscale IPs): `after` and `wants` also include `tailscale-autoconnect.service`
 - [ ] If timer-activated and needs network: `ExecCondition` verifies DNS resolves before the main command runs
@@ -335,8 +262,8 @@ When adding a new service, verify each item before deploying:
 - [ ] Long-running daemons have `Restart = "on-failure"` so they recover from crashes
 
 **Verification**
-- [ ] `systemctl status <unit>` (or `systemctl --user status`) shows active after deploy
-- [ ] `journalctl -u <unit>` (or `journalctl --user -u`) shows no unexpected errors on first run
+- [ ] `systemctl status <unit>` shows active after deploy
+- [ ] `journalctl -u <unit>` shows no unexpected errors on first run
 
 ## Real examples in this codebase
 
