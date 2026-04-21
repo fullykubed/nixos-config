@@ -13,6 +13,7 @@
     killall # Kills all processes in tree
     pv # Stream monitoring
     viddy # better watch
+    hyperfine # Command-line benchmarking tool
   ];
 
   home-manager.users.${config.username} = {
