@@ -1,14 +1,12 @@
 {
   pkgs,
   lib,
-  config,
   ...
 }:
 {
   options.systemd.services = lib.mkOption {
     type = lib.types.attrsOf (
       lib.types.submodule {
-        config.serviceConfig.RemainAfterExit = lib.mkDefault true;
         config.serviceConfig.LogFilterPatterns = lib.mkDefault [
           # High confidence — known vendor prefixes
           "~(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}"
@@ -31,14 +29,6 @@
   };
 
   config = {
-    # Services paired with a timer must not use RemainAfterExit=yes.
-    # With RemainAfterExit the service stays "active (exited)" after completion,
-    # so the next timer trigger is a no-op (already active).  Use mkOverride 999
-    # so this beats the mkDefault true above but yields to any explicit override.
-    systemd.services = lib.mapAttrs (_: _: {
-      serviceConfig.RemainAfterExit = lib.mkOverride 999 false;
-    }) config.systemd.timers;
-
     systemd.user.extraConfig = "DefaultLimitNOFILE=65536";
 
     environment.systemPackages = with pkgs; [

@@ -8,8 +8,6 @@ For services that need a user session (desktop notifications, Wayland/X11, `$HOM
 
 `modules/common/systemd/` applies these defaults to every system service via `lib.mkDefault`, overridable per-service:
 
-**`RemainAfterExit = true`** — Oneshot services stay in the "active" state after their command exits rather than transitioning to "inactive". This makes `systemctl status` reflect the outcome of the last run and lets other units use `After=<unit>.service` as a dependency gate. Set `RemainAfterExit = false` explicitly for maintenance tasks that should show as inactive after running (e.g. a USB device reset).
-
 **`LogFilterPatterns`** — A set of patterns that redact common secret shapes from the journal before they are stored: AWS key prefixes, GitHub tokens, private key headers, JWTs, Google API keys, Slack tokens, age secret keys, and Vault tokens. No per-service configuration is needed.
 
 ## Service types
@@ -83,7 +81,7 @@ systemd.timers.my-poller = {
 };
 ```
 
-The service itself does **not** need `wantedBy` — the timer activates it.
+The service itself does **not** need `wantedBy` — the timer activates it. Do not set `RemainAfterExit = true` on a timer-paired service: the service would stay in "active (exited)" after its first run, and subsequent timer triggers would be no-ops because systemd sees it as already active.
 
 `OnUnitActiveSec` measures from the last time the unit became active (i.e. last successful run). If the service fails, systemd falls back to `OnUnitInactiveSec` if set, or the timer may fire sooner. For most polling services `OnUnitActiveSec` is the right choice.
 

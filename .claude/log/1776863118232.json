@@ -1,0 +1,15 @@
+{
+  "changes": [
+    {
+      "motivation": "The module used `config.systemd.timers` in a `mapAttrs` call but `config` was not listed in the module's argument destructuring, causing an `undefined variable 'config'` eval error that broke all nix evaluation on the flake — manifesting as nix appearing to hang or immediately error on any `nixos-rebuild` or `nix build`.",
+      "summary": "Added `config` to the argument destructuring in `modules/common/systemd/default.nix` (`{ pkgs, lib, config, ... }:`), fixing the undefined variable error introduced in commit 0953b4cba."
+    }
+  ],
+  "problems": [
+    "modules/common/systemd/default.nix used `config.systemd.timers` without `config` in its argument list — a straightforward NixOS module authoring mistake that silently passes linting but causes a hard eval failure at build time. The commit message for 0953b4cba ('fix(systemd): prevent timer-paired services from skipping reruns') gave no indication that a new module argument was needed, making the regression non-obvious.",
+    "A stale `/nix/var/nix/db/big-lock` file (owned nobody:nogroup, dated Aug 2025) exists with no nix process holding it. This is a red herring when diagnosing nix hangs — the lock file's presence without an owner process can mislead diagnosis. There is no documented cleanup procedure for stale lock files in the project docs.",
+    "The `vulnix-scanner.service` failure (`cups-progs has no known deriver`) is a known side-effect of content-addressed derivations stripping deriver metadata, but this interaction is not documented in `modules/patches/stdenv/` or `docs/build-system/README.md`. Developers encountering vulnix failures on CA-enabled systems have to discover this by trial and error."
+  ],
+  "session_id": "1b16f4bb-8953-42db-9637-78dd46e1d02c",
+  "timestamp": "2026-04-22T13:05:35.564Z"
+}

@@ -1,0 +1,17 @@
+{
+  "changes": [
+    {
+      "motivation": "The previous commit added lib.mapAttrs over config.systemd.timers inside a systemd.services definition, creating a cycle: NixOS systemd.nix validates timers by checking services, which triggers the services definition to read timers again. This caused infinite recursion on every build.",
+      "summary": "Removed RemainAfterExit = lib.mkDefault true from the systemd service submodule and removed the lib.mapAttrs ... config.systemd.timers override from modules/common/systemd/default.nix. Services that need RemainAfterExit must now set it explicitly."
+    },
+    {
+      "motivation": "The docs described RemainAfterExit = true as a codebase default, which was no longer true after the fix. The initial doc update placed a RemainAfterExit note in the 'Codebase defaults' section, which was wrong since it is no longer a default.",
+      "summary": "Updated docs/modules/systemd-services/system.md: removed RemainAfterExit from the codebase defaults section and moved a warning about it (specifically that timer-paired services must not set it to true) into the timer-activated service section where it is contextually relevant."
+    }
+  ],
+  "problems": [
+    "The commit that introduced the infinite recursion (fix(systemd): prevent timer-paired services from skipping reruns) used config.systemd.timers inside a config.systemd.services definition — a classic NixOS evaluation cycle that is easy to overlook. There is no guard or lint check to catch cross-referencing mutually-validating systemd options, and the error message (infinite recursion) does not point clearly to the location in the custom module, making diagnosis slower than it should be."
+  ],
+  "session_id": "ff31780c-e255-433a-9f47-384f1b6834dd",
+  "timestamp": "2026-04-22T13:14:30.520Z"
+}
