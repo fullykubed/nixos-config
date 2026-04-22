@@ -439,6 +439,11 @@
       claudeHeadroom = pkgs.callPackage ./headroom { inherit versions; };
       claudeBetterCcflare = pkgs.callPackage ./better-ccflare { inherit versions; };
 
+      claude-unwrapped = pkgs.runCommand "claude-unwrapped" { } ''
+        mkdir -p $out/bin
+        ln -s ${nixpkgs-unstable.claude-code}/bin/claude $out/bin/claude-unwrapped
+      '';
+
       locateHook = pkgs.writeShellApplication {
         name = "claude-locate-hook";
         runtimeInputs = [
@@ -672,6 +677,7 @@
         aiAmend
         aiRebase
         aiSquashCommits
+        claude-unwrapped
         claude-code-sandboxed
         claude-wrapper
         ccusage

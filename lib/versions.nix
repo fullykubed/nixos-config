@@ -48,4 +48,9 @@
   agentBrowserSrcHash = "sha256-hTtBm2iSDcPkiEwvJ5nBYXIjThi6JdYFrajkYZcsOkg=";
   agentBrowserPnpmDepsHash = "sha256-Ndt5KND4zIbKbnR5a+qXsoqsocFH3Mz9fvYohXGhQBE=";
   agentBrowserCargoHash = "sha256-kEvU+YIyiAwFCWzz3QvM/8ncqaCUDKCDGxzNBrvMhN4=";
+
+  # nono (modules/common/nono)
+  nono = "0.38.0";
+  nonoSrcHash = "sha256-5GR0EfTHouhHC0cgqtG4OMVU6EtXy/WPLNzQdL05hMc=";
+  nonoCargoHash = "sha256-yLPk2oEQ5KIpn5VB4LGfbfLjx7EUOAghgiFzpMJ+2Pc=";
 }

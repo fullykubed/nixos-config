@@ -51,6 +51,7 @@
     ./common/home-manager
     ./common/messaging
     ./common/nvim
+    ./common/nono
     ./common/claude
     ./common/crypto
     ./common/recording
