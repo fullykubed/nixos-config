@@ -1,4 +1,9 @@
-{ pkgs, lib, ... }:
+{
+  pkgs,
+  lib,
+  config,
+  ...
+}:
 {
   options.systemd.services = lib.mkOption {
     type = lib.types.attrsOf (
