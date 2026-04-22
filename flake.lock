@@ -977,10 +977,10 @@
         ]
       },
       "locked": {
-        "lastModified": 1776779929,
+        "lastModified": 1776866689,
         "ref": "refs/heads/main",
-        "rev": "384bfc0fe19a311693d89627ce786bc4434700fc",
-        "revCount": 23,
+        "rev": "0329dc9b2231b1761b9597a2f1e8dba6f07d059d",
+        "revCount": 26,
         "type": "git",
         "url": "ssh://git@github.com/fullykubed/repo-sync.git"
       },
