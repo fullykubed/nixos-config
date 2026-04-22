@@ -104,18 +104,12 @@
         format = "tsv";
       };
 
-      # TODO: Enable monitoring UI in next NixOS release
-      # The monitoring_ui option is not yet available in NixOS stable
-      # Uncomment after upgrading to a newer release
-      # monitoring_ui = {
-      #   enabled = true;
-      #   username = "";
-      #   tls_certificate = "";
-      #   tls_key = "";
-      #   privacy_level = 1;
-      #   listen_address = "127.0.0.1:8053";
-      #   enable_query_log = true;
-      # };
+      monitoring_ui = {
+        enabled = true;
+        listen_address = "0.0.0.0:8053";
+        privacy_level = 1;
+        enable_query_log = true;
+      };
 
       # Sources for server lists
       sources = {
