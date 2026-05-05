@@ -1,0 +1,22 @@
+{
+  "changes": [
+    {
+      "motivation": "Explicit Effect.Effect<A, E, R> return type annotations on method files were wider than inference — e.g. deleteServer annotated HcloudServerNotFound | HcloudDeleteServerError but the implementation catches HcloudServerNotFound internally, so the real error type is just HcloudDeleteServerError. Callers were forced to handle impossible errors, defeating Effect's precise error tracking.",
+      "summary": "Stripped explicit return type annotations from all 15 Hcloud method files (list-servers, get-server, server-exists, create-server, delete-server, list-images, get-image, image-exists, delete-image, list-volumes, get-volume, volume-exists, create-volume, delete-volume, detach-volume). Inference now determines exact error, success, and requirement types."
+    },
+    {
+      "motivation": "Effect.gen generators infer undefined not void for empty returns. The old explicit annotations had masked this, but stripping them exposed mismatches between method implementations and callers expecting void.",
+      "summary": "Added .pipe(Effect.asVoid) to four void-returning method files: delete-server, delete-image, delete-volume, and detach-volume."
+    },
+    {
+      "motivation": "The hand-written HcloudServiceShape interface (15 manually-typed method signatures) and repetitive (opts) => run(fn(opts)) wrappers were a maintenance burden — any change to a method's types required updating the interface separately, creating a staleness risk.",
+      "summary": "Rewrote Hcloud.ts to derive the service shape using Effect.Effect.Success<typeof make> instead of a hand-written interface, and replaced per-method wrapper boilerplate with a generic wrap helper that infers parameter types via Parameters<typeof fn> and strips R via Effect.provide."
+    }
+  ],
+  "problems": [
+    "Effect.gen generators infer undefined not void for empty-return generators, but explicit return type annotations had been masking this. This was only discovered when annotations were stripped — it should be documented in CLAUDE.md or the service pattern docs so future refactors know to add .pipe(Effect.asVoid) to void-returning methods upfront.",
+    "The existing pattern of hand-writing HcloudServiceShape as a separate interface was never documented as problematic. The docs/architecture.md or service directory pattern docs should note that explicit Effect.Effect return type annotations on method files can silently widen the error channel beyond what the implementation actually produces, and should be avoided."
+  ],
+  "session_id": "27acd6eb-ddad-4943-b5fa-3c72856eb4f6",
+  "timestamp": "2026-04-23T17:37:45.383Z"
+}

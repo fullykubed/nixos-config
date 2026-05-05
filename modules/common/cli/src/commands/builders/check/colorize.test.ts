@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "bun:test"
 
 const RESET = "\x1b[0m"
 
-describe("colorize", () => {
+describe.serial("colorize", () => {
   const originalIsTTY = process.stdout.isTTY
 
   afterEach(() => {

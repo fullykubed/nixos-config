@@ -1,14 +1,14 @@
 import { Effect, Either } from "effect"
-import * as readline from "node:readline"
-import type { ParsedCommand } from "../../../cli/types"
+import { createInterface } from "node:readline"
+import type { Parsed } from "./command"
 import { HcloudService } from "../../../services/Hcloud"
 import { json } from "../../../lib/output"
 
-export const cleanupHandler = (parsed: ParsedCommand) =>
+export const cleanupHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
     const hcloud = yield* HcloudService
-    const isJson = parsed.flags.get("json") === true
-    const skipConfirmation = parsed.flags.get("yes") === true
+    const isJson = parsed.flags.json
+    const skipConfirmation = parsed.flags.yes
 
     // List all builder snapshots
     const images = yield* hcloud.listImages("snapshot", { type: "builder" })
@@ -55,7 +55,7 @@ export const cleanupHandler = (parsed: ParsedCommand) =>
       yield* Effect.log("")
       process.stdout.write("Delete these snapshots? [y/N] ")
 
-      const rl = readline.createInterface({
+      const rl = createInterface({
         input: process.stdin,
         output: process.stdout
       })

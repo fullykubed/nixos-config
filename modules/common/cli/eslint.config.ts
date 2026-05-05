@@ -31,7 +31,7 @@ const shellBanSelectors = shellBans.flatMap(({ cmd, alt }) => {
 });
 
 export default [
-  { ignores: ["node_modules", "dist", ".build", "scripts"] },
+  { ignores: ["node_modules", "dist", ".build", "scripts", "eslint.config.ts"] },
   eslint.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,
@@ -40,7 +40,7 @@ export default [
     ...solid,
     languageOptions: {
       ...solid.languageOptions,
-      parserOptions: { projectService: true, sourceType: "module" },
+      parserOptions: { projectService: { allowDefaultProject: ["*.config.ts"] }, sourceType: "module" },
     },
     rules: {
       "@typescript-eslint/restrict-template-expressions": [
@@ -79,8 +79,15 @@ export default [
         { selector: "BinaryExpression[operator='==='][left.property.name='_tag'][right.value='Right']", message: "Use Either.isRight() instead of _tag === 'Right'." },
         { selector: "BinaryExpression[operator='==='][left.property.name='_tag'][right.value='Left']", message: "Use Either.isLeft() instead of _tag === 'Left'." },
         { selector: "ImportDeclaration[source.value=/\\.js$/]", message: "Import .ts files directly without the .js extension. Bun's bundler resolves extensionless imports." },
+        { selector: "ImportNamespaceSpecifier", message: "Avoid 'import * as X' namespace imports. Use named imports instead (e.g. import { Command } from '@effect/platform')." },
         ...shellBanSelectors,
         { selector: "TSTypeReference[typeName.left.name='Effect'][typeName.right.name='Effect'] > TSTypeParameterInstantiation > TSUnknownKeyword", message: "Do not use 'unknown' in Effect.Effect type parameters. Use specific error and service types to preserve Effect's compile-time safety." },
+        { selector: "CallExpression[callee.property.name='makeTempDirectory']", message: "Use makeTempDirectoryScoped() instead — it auto-cleans up when the scope finalizer runs." },
+        { selector: "CallExpression[callee.property.name='makeTempFile']", message: "Use makeTempFileScoped() instead — it auto-cleans up when the scope finalizer runs." },
+        { selector: "TSImportType", message: "Use a top-level import instead of inline import('...') type annotations." },
+        { selector: "ClassDeclaration[superClass.callee.property.name='TaggedError'] TSTypeLiteral:not(:has(TSPropertySignature[key.name='cause']))", message: "TaggedError must include a 'cause?: unknown' field for error chaining." },
+        { selector: ":function > TSTypeAnnotation > TSTypeReference[typeName.left.name='Effect'][typeName.right.name='Effect']", message: "Don't explicitly type Effect return types — let TypeScript infer them. Explicit annotations duplicate what inference provides and can drift from the real type, causing unnecessary widening." },
+        { selector: "MemberExpression[object.name='Console'][property.name=/^(log|error|warn|info|debug)$/]", message: "Use Effect.log / Effect.logWarning / Effect.logError instead of Console.log. Effect's logger respects log levels, structured annotations, and can be tested without mocking Console." },
       ],
     },
   },

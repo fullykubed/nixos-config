@@ -1,24 +1,18 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { SshService } from "../../../services/Ssh"
 import { setupHostKeyVerification } from "./setup-host-key"
 import { parseRemoteCommand } from "./parse-remote-command"
 
-export const sshHandler = (parsed: ParsedCommand) =>
+export const sshHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
-    const nameArg = parsed.args[0]
-    const isRoot = parsed.flags.get("root") === true
-
-    if (!nameArg) {
-      yield* Effect.logError("Usage: j builders ssh <name|N> [--root] [-- <remote-command>]")
-      yield* Effect.fail(new Error("Builder name is required"))
-    }
+    const isRoot = parsed.flags.root
 
     const builders = yield* BuildersService
     const ssh = yield* SshService
 
-    const name = yield* builders.resolve(nameArg!)
+    const name = yield* builders.resolve(parsed.args.name)
 
     // Parse remote command from raw args if -- separator present
     const remoteCommand = parseRemoteCommand(parsed.raw, name)

@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { json } from "../../../lib/output"
 import { getConfirmation } from "./get-confirmation"
@@ -7,11 +7,11 @@ import { getConfirmation } from "./get-confirmation"
 /**
  * Destroy all builders
  */
-export const destroyAllBuilders = (parsed: ParsedCommand) =>
+export const destroyAllBuilders = (parsed: Parsed) =>
   Effect.gen(function* () {
     const svc = yield* BuildersService
-    const isJson = parsed.flags.get("json") === true
-    const skipConfirmation = parsed.flags.get("yes") === true
+    const isJson = parsed.flags.json
+    const skipConfirmation = parsed.flags.yes
 
     const servers = yield* svc.list()
     const builderNames = servers.map(s => s.name)

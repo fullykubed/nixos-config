@@ -1,10 +1,10 @@
 import { Effect } from "effect"
 import { FileSystem } from "@effect/platform"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import type { BuilderOutput } from "./types"
 
-export const pollStatusHandler = (_parsed: ParsedCommand) => Effect.gen(function* () {
+export const pollStatusHandler = (_parsed: Parsed) => Effect.gen(function* () {
   const fs = yield* FileSystem.FileSystem
   const builders = yield* BuildersService
 

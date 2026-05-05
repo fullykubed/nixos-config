@@ -3,34 +3,9 @@
 import { Cause, Effect, Exit, Fiber } from "effect"
 import { parse } from "./cli/parser"
 import { topLevelHelp, groupHelp, commandHelp } from "./cli/help"
-import type { BooleanFlag } from "./cli/types"
-import { buildersGroup } from "./commands/builders/index"
+import { registry } from "./cli/registry"
 import { CliLoggerLive } from "./lib/logger"
 
-// Global flags
-const globalFlags: readonly BooleanFlag[] = [
-  {
-    kind: "boolean",
-    name: "json",
-    description: "Output structured JSON instead of human-readable format",
-    default: false
-  },
-  {
-    kind: "boolean",
-    name: "help",
-    short: "h",
-    description: "Show help information",
-    default: false
-  }
-] as const
-
-// Build command registry
-const registry = {
-  groups: new Map([
-    ["builders", buildersGroup]
-  ]),
-  globalFlags
-}
 
 const program = Effect.gen(function* () {
   const parsed = yield* parse(registry, process.argv)
@@ -53,7 +28,7 @@ const program = Effect.gen(function* () {
   const command = group.commands.get(parsed.command)!
 
   // Show command-level help when --help / -h is passed
-  if (parsed.flags.get("help") === true) {
+  if (parsed.flags.help === true) {
     yield* Effect.log(commandHelp(group, command))
     return
   }
@@ -87,12 +62,16 @@ const formatTaggedError = (e: object & { readonly _tag: string }): string => {
       return `Missing required argument: ${s(f(e, "name"))} (command: ${s(f(e, "command"))})`
     case "InvalidValue":
       return `Invalid value '${s(f(e, "value"))}' for --${s(f(e, "flag"))}. Expected: ${s(f(e, "expected"))}`
+    case "ValidationErrors": {
+      const errors = f(e, "errors") as { flag: string; value: string; expected: string }[]
+      return errors.map((err) =>
+        `Invalid value '${err.value}' for --${err.flag}. Expected: ${err.expected}`
+      ).join("\n")
+    }
     case "ParseError":
       return `Parse error: ${s(f(e, "message"))}`
     case "ShellError":
       return `Command failed: ${s(f(e, "command"))}${f(e, "stderr") ? `\n${s(f(e, "stderr"))}` : ""}`
-    case "HcloudTokenError":
-      return `Hetzner Cloud auth error: ${s(f(e, "message"))}`
     case "HcloudServerNotFound":
       return `Server not found: ${s(f(e, "name"))}`
     case "HcloudImageNotFound":
@@ -158,11 +137,41 @@ const formatTaggedError = (e: object & { readonly _tag: string }): string => {
     case "JsonParseError":
       return `JSON parse error from ${s(f(e, "command"))}: ${s(f(e, "error"))}`
     case "StoreError":
-      return `Store error (${s(f(e, "operation"))}): ${s(f(e, "message"))}`
+      return `Store error (${s(f(e, "operation"))}): ${s(f(e, "message"))}\n  path: ${s(f(e, "path"))}`
     case "LockAcquireError":
       return `Failed to acquire lock "${s(f(e, "name"))}": ${s(f(e, "message"))}`
     case "LockReleaseError":
       return `Failed to release lock "${s(f(e, "name"))}": ${s(f(e, "message"))}`
+    case "NotInsideTmuxError":
+      return `Not inside tmux: ${s(f(e, "message"))}`
+    case "TmuxWindowNotFoundError":
+      return `Tmux window not found: ${s(f(e, "name"))}`
+    case "TmuxPaneNotFoundError":
+      return `Tmux pane not found: ${s(f(e, "pane"))}`
+    case "TmuxSessionNotFoundError":
+      return `Tmux session not found: ${s(f(e, "session"))}`
+    case "TmuxNotRunningError":
+      return `Tmux server is not running`
+    case "TmuxCommandError":
+      return `Tmux error (${s(f(e, "operation"))}): ${s(f(e, "message"))}`
+    case "GitNotRepoError":
+      return `Not a git repository: ${s(f(e, "message"))}`
+    case "GitRepoDoesNotExistError":
+      return `Remote repository not found: ${s(f(e, "message"))}`
+    case "GitRefDoesNotExistError":
+      return `Git ref does not exist: ${s(f(e, "message"))}`
+    case "GitRemoteDoesNotExistError":
+      return `Git remote not configured: ${s(f(e, "message"))}`
+    case "GitAuthError":
+      return `Git authentication failed: ${s(f(e, "message"))}`
+    case "GitConnectivityError":
+      return `Git network error: ${s(f(e, "message"))}`
+    case "GitUnknownError":
+      return `Git error: ${s(f(e, "message"))}`
+    case "ProjectConfigParseError":
+      return `Invalid project.json at ${s(f(e, "path"))}: ${s(f(e, "message"))}`
+    case "MuxStoreError":
+      return `Store error (${s(f(e, "operation"))}): ${s(f(e, "message"))}`
     default:
       return `${e._tag}: ${JSON.stringify(e)}`
   }
@@ -178,10 +187,10 @@ const formatError = (e: unknown): string =>
         : String(e)
 
 const main = program.pipe(
-  Effect.provide(CliLoggerLive),
   Effect.catchAll((e) =>
     Effect.logError(formatError(e)).pipe(Effect.as(1))
   ),
+  Effect.provide(CliLoggerLive),
   Effect.as(0)
 )
 

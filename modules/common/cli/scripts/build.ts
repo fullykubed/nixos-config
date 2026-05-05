@@ -1,5 +1,5 @@
 import { createSolidTransformPlugin } from "@opentui/solid/bun-plugin"
-import { $ } from "bun"
+import { renameSync } from "fs"
 import type { BunPlugin } from "bun"
 
 // @opentui/core loads its native library via a dynamic import with a template
@@ -11,11 +11,11 @@ import type { BunPlugin } from "bun"
 // so the reference survives into the bundle and causes `bun build --compile` to
 // fail with "Could not resolve: @opentui/core-linux-x64/index.ts".
 //
-// This plugin intercepts the pre-bundled @opentui/core file during Step 1 and
-// replaces the template literal with a static string for the current platform.
-// Bun then bundles @opentui/core-linux-x64/index.ts, which in turn embeds
-// libopentui.so via `import("./libopentui.so", { with: { type: "file" } })`
-// — the standard Bun pattern for native assets in compiled binaries.
+// This plugin intercepts the pre-bundled @opentui/core file and replaces the
+// template literal with a static string for the current platform. Bun then
+// bundles @opentui/core-linux-x64/index.ts, which in turn embeds libopentui.so
+// via `import("./libopentui.so", { with: { type: "file" } })` — the standard
+// Bun pattern for native assets in compiled binaries.
 //
 // Upstream issue: https://github.com/anomalyco/opentui/issues/355
 const resolveOpenTuiNativePlugin: BunPlugin = {
@@ -35,12 +35,18 @@ const resolveOpenTuiNativePlugin: BunPlugin = {
   }
 }
 
-// Step 1: Bundle with Solid JSX transform plugin + OpenTUI native resolve plugin.
-// (bun build --compile doesn't support plugins, so we bundle first)
+// Single-step compile: bundle + compile in one pass so file-type imports
+// (like libopentui.so) are properly tracked and embedded into the binary.
+const define: Record<string, string> = {}
+if (process.env.J_PRODUCTION) {
+  define["process.env.J_PRODUCTION"] = JSON.stringify(process.env.J_PRODUCTION)
+}
+
 const result = await Bun.build({
   entrypoints: ["src/main.ts"],
-  outdir: ".build",
-  target: "bun",
+  outdir: "dist",
+  compile: true,
+  define,
   plugins: [createSolidTransformPlugin(), resolveOpenTuiNativePlugin],
 })
 
@@ -52,5 +58,5 @@ if (!result.success) {
   process.exit(1)
 }
 
-// Step 2: Compile bundled JS to standalone executable
-await $`bun build --compile .build/main.js --outfile dist/j`
+// Bun.build names the output after the entrypoint ("main"), rename to "j"
+renameSync("dist/main", "dist/j")

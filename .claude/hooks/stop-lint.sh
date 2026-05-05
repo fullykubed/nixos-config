@@ -10,6 +10,11 @@
 
 set -euo pipefail
 
+if [[ -n "${CLAUDE_SKIP_LINT:-}" ]]; then
+  echo "stop-lint: skipping (CLAUDE_SKIP_LINT is set)" >&2
+  exit 0
+fi
+
 if [[ -z "${CLAUDE_PROJECT_DIR:-}" ]]; then
   echo "stop-lint: CLAUDE_PROJECT_DIR is not set" >&2
   exit 2

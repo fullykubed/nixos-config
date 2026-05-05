@@ -1,9 +1,9 @@
 import { Effect } from "effect"
 import type { SshService } from "../../../services/Ssh"
-import type { CheckResult } from "./handler"
+
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkTailscaleStatus = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult> =>
+export const checkTailscaleStatus = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     const tsScript = `
       json=$(tailscale status --json 2>/dev/null) || { echo "error"; exit 0; }

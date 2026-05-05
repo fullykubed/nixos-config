@@ -1,23 +1,45 @@
 import { Effect } from "effect"
-import type { CommandRegistry, ParsedCommand, Flag, Command } from "./types"
-import type { CliError } from "./errors"
+import type { CommandRegistry, Flag, IntegerFlag, StringFlag, Command, ParsedCommand } from "./types"
+import type {} from "./errors"
 import {
   UnknownCommand,
   UnknownFlag,
   MissingArgument,
   InvalidValue,
+  ValidationErrors,
   ParseError,
 } from "./errors"
 
+/** Extract a human-readable message from a Brand validation error (which is an array of BrandErrors). */
+const extractBrandError = (e: unknown): string => {
+  if (Array.isArray(e)) return (e as { message?: string }[]).map((err) => err.message ?? "").filter(Boolean).join("; ")
+  return String(e)
+}
+
+interface DeferredBrand {
+  readonly target: "flag" | "arg"
+  readonly name: string
+  readonly value: string
+  readonly brand: (raw: string) => unknown
+}
+
+/** Parse and validate a string as an integer flag value. Returns the coerced number or an InvalidValue error. */
+const parseIntegerValue = (flag: IntegerFlag, raw: string) => {
+  const parsed = Number(raw)
+  if (Number.isNaN(parsed) || !Number.isInteger(parsed)) {
+    return Effect.fail(new InvalidValue({ flag: flag.name, value: raw, expected: "an integer" }))
+  }
+  if (flag.min !== undefined && parsed < flag.min) {
+    return Effect.fail(new InvalidValue({ flag: flag.name, value: raw, expected: `an integer >= ${String(flag.min)}` }))
+  }
+  return Effect.succeed(parsed)
+}
+
 interface GlobalFlagsResult {
-  readonly globalFlags: ReadonlyMap<string, string | boolean>
+  readonly globalFlags: Readonly<Record<string, string | boolean | number | undefined>>
   readonly remaining: readonly string[]
 }
 
-interface ParsedArgs {
-  readonly flags: ReadonlyMap<string, string | boolean>
-  readonly args: readonly string[]
-}
 
 /**
  * Extract global flags from argv and return remaining args
@@ -26,7 +48,7 @@ export const extractGlobalFlags = (
   globalFlags: readonly Flag[],
   argv: readonly string[]
 ): GlobalFlagsResult => {
-  const flags = new Map<string, string | boolean>()
+  const flags: Record<string, string | boolean | number | undefined> = {}
   const remaining: string[] = []
 
   const globalFlagsByName = new Map<string, Flag>()
@@ -63,21 +85,21 @@ export const extractGlobalFlags = (
             const baseName = flagName.slice(3)
             const baseFlag = globalFlagsByName.get(baseName)
             if (baseFlag?.kind === "boolean") {
-              flags.set(baseName, false)
+              flags[baseName] = false
               i++
               continue
             }
           }
-          flags.set(flag.name, true)
+          flags[flag.name] = true
           i++
         } else {
-          // String flag
+          // String or integer flag — both consume one value
           const value = flagValue ?? argv[i + 1]
           if (value === undefined) {
             remaining.push(arg)
             i++
           } else {
-            flags.set(flag.name, value)
+            flags[flag.name] = value
             i += flagValue !== undefined ? 1 : 2
           }
         }
@@ -94,14 +116,14 @@ export const extractGlobalFlags = (
         const flag = globalFlagsByShort.get(shortFlags)
         if (flag) {
           if (flag.kind === "boolean") {
-            flags.set(flag.name, true)
+            flags[flag.name] = true
             consumed = true
             i++
           } else {
-            // String flag
+            // String or integer flag
             const value = argv[i + 1]
             if (value !== undefined && !value.startsWith("-")) {
-              flags.set(flag.name, value)
+              flags[flag.name] = value
               consumed = true
               i += 2
             }
@@ -119,10 +141,14 @@ export const extractGlobalFlags = (
     }
   }
 
-  // Set defaults for boolean global flags
+  // Set defaults for global flags
   for (const flag of globalFlags) {
-    if (flag.kind === "boolean" && !flags.has(flag.name)) {
-      flags.set(flag.name, flag.default)
+    if (!(flag.name in flags)) {
+      if (flag.kind === "boolean") {
+        flags[flag.name] = flag.default
+      } else if (flag.default !== undefined) {
+        flags[flag.name] = flag.default
+      }
     }
   }
 
@@ -138,11 +164,12 @@ export const extractGlobalFlags = (
 export const parseCommandArgs = <E>(
   command: Command<E>,
   argv: readonly string[],
-  globalFlags: ReadonlyMap<string, string | boolean>
-): Effect.Effect<ParsedArgs, CliError> =>
+  globalFlags: Readonly<Record<string, string | boolean | number | undefined>>
+) =>
   Effect.gen(function* () {
-    const flags = new Map<string, string | boolean>(globalFlags)
-    const args: string[] = []
+    const flags: Record<string, string | boolean | number | undefined> = { ...globalFlags }
+    const positionals: string[] = []
+    const deferred: DeferredBrand[] = []
 
     const flagsByName = new Map<string, Flag>()
     const flagsByShort = new Map<string, Flag>()
@@ -153,11 +180,12 @@ export const parseCommandArgs = <E>(
         flagsByShort.set(flag.short, flag)
       }
       // Set defaults only if not already set by a global flag
-      if (!flags.has(flag.name)) {
+      if (!(flag.name in flags)) {
         if (flag.kind === "boolean") {
-          flags.set(flag.name, flag.default)
+          flags[flag.name] = flag.default
         } else if (flag.default !== undefined) {
-          flags.set(flag.name, flag.default)
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- brand() return type is erased at runtime
+          flags[flag.name] = "brand" in flag && flag.brand ? flag.brand(flag.default) : flag.default
         }
       }
     }
@@ -202,10 +230,10 @@ export const parseCommandArgs = <E>(
         }
 
         if (flag.kind === "boolean") {
-          flags.set(actualFlagName, booleanValue ?? true)
+          flags[actualFlagName] = booleanValue ?? true
           i++
         } else {
-          // String flag
+          // String or integer flag
           const value = flagValue ?? argv[i + 1]
           if (value === undefined) {
             return yield* new ParseError({
@@ -213,16 +241,22 @@ export const parseCommandArgs = <E>(
             })
           }
 
-          // Validate choices
-          if (flag.choices && !flag.choices.includes(value)) {
-            return yield* new InvalidValue({
-              flag: flag.name,
-              value,
-              expected: `one of: ${flag.choices.join(", ")}`
-            })
+          if (flag.kind === "integer") {
+            flags[flag.name] = yield* parseIntegerValue(flag, value)
+          } else {
+            // Validate choices
+            if (flag.choices && !flag.choices.includes(value)) {
+              return yield* new InvalidValue({
+                flag: flag.name,
+                value,
+                expected: `one of: ${flag.choices.join(", ")}`
+              })
+            }
+            if ("brand" in flag && flag.brand) {
+              deferred.push({ target: "flag", name: flag.name, value, brand: (flag as StringFlag).brand! })
+            }
+            flags[flag.name] = value
           }
-
-          flags.set(flag.name, value)
           i += flagValue !== undefined ? 1 : 2
         }
       } else if (!stopFlagParsing && arg.startsWith("-") && arg.length > 1 && arg !== "-") {
@@ -239,10 +273,10 @@ export const parseCommandArgs = <E>(
           }
 
           if (flag.kind === "boolean") {
-            flags.set(flag.name, true)
+            flags[flag.name] = true
             i++
           } else {
-            // String flag
+            // String or integer flag
             const value = argv[i + 1]
             if (value === undefined || value.startsWith("-")) {
               return yield* new ParseError({
@@ -250,16 +284,22 @@ export const parseCommandArgs = <E>(
               })
             }
 
-            // Validate choices
-            if (flag.choices && !flag.choices.includes(value)) {
-              return yield* new InvalidValue({
-                flag: flag.name,
-                value,
-                expected: `one of: ${flag.choices.join(", ")}`
-              })
+            if (flag.kind === "integer") {
+              flags[flag.name] = yield* parseIntegerValue(flag, value)
+            } else {
+              // Validate choices
+              if (flag.choices && !flag.choices.includes(value)) {
+                return yield* new InvalidValue({
+                  flag: flag.name,
+                  value,
+                  expected: `one of: ${flag.choices.join(", ")}`
+                })
+              }
+              if ("brand" in flag && flag.brand) {
+                deferred.push({ target: "flag", name: flag.name, value, brand: (flag as StringFlag).brand! })
+              }
+              flags[flag.name] = value
             }
-
-            flags.set(flag.name, value)
             i += 2
           }
         } else {
@@ -277,25 +317,25 @@ export const parseCommandArgs = <E>(
                 message: `Cannot bundle non-boolean flag -${shortFlag}`
               })
             }
-            flags.set(flag.name, true)
+            flags[flag.name] = true
           }
           i++
         }
       } else {
         // Positional argument
-        args.push(arg)
+        positionals.push(arg)
         i++
       }
     }
 
     // Skip validation when --help / -h is set — the user is asking for
     // usage info, not trying to run the command.
-    const helpRequested = flags.get("help") === true
+    const helpRequested = flags.help === true
 
     if (!helpRequested) {
-      // Validate required string flags
+      // Validate required flags
       for (const flag of command.flags) {
-        if (flag.kind === "string" && flag.required && !flags.has(flag.name)) {
+        if (flag.kind !== "boolean" && flag.required && !(flag.name in flags)) {
           return yield* new ParseError({
             message: `Required flag --${flag.name} not provided`
           })
@@ -310,8 +350,8 @@ export const parseCommandArgs = <E>(
         }
       }
 
-      if (args.length < requiredArgCount) {
-        const missingArg = command.args[args.length]
+      if (positionals.length < requiredArgCount) {
+        const missingArg = command.args[positionals.length]
         if (missingArg) {
           return yield* new MissingArgument({
             name: missingArg.name,
@@ -320,6 +360,35 @@ export const parseCommandArgs = <E>(
         }
       }
     }
+
+    // Zip positionals with arg definitions to build named args object.
+    // Brand constructors return subtypes of string, so the cast is safe.
+    const args: Record<string, string | undefined> = {}
+    for (let idx = 0; idx < command.args.length; idx++) {
+      const argDef = command.args[idx]!
+      const raw = positionals[idx]
+      if (raw !== undefined && argDef.brand) {
+        deferred.push({ target: "arg", name: argDef.name, value: raw, brand: argDef.brand })
+      }
+      args[argDef.name] = raw
+    }
+
+    // Validate all deferred brands and collect errors
+    const [brandErrors] = yield* Effect.partition(
+      deferred,
+      (d) => Effect.try({
+        try: () => {
+          const branded = d.brand(d.value) as string
+          if (d.target === "flag") flags[d.name] = branded
+          else args[d.name] = branded
+          return branded
+        },
+        catch: (e) => new InvalidValue({ flag: d.name, value: d.value, expected: extractBrandError(e) })
+      })
+    )
+
+    if (brandErrors.length === 1) return yield* Effect.fail(brandErrors[0]!)
+    if (brandErrors.length > 1) return yield* Effect.fail(new ValidationErrors({ errors: brandErrors }))
 
     return {
       flags,
@@ -330,12 +399,12 @@ export const parseCommandArgs = <E>(
 /**
  * Create a help response for the top level (no group specified)
  */
-const showTopLevelHelp = (): Effect.Effect<ParsedCommand> =>
-  Effect.succeed({
+const showTopLevelHelp = () =>
+  Effect.succeed<ParsedCommand>({
     group: "",
     command: "help",
-    flags: new Map(),
-    args: [],
+    flags: {},
+    args: {},
     raw: [],
   })
 
@@ -344,12 +413,12 @@ const showTopLevelHelp = (): Effect.Effect<ParsedCommand> =>
  */
 const showGroupHelp = (
   groupName: string
-): Effect.Effect<ParsedCommand> =>
-  Effect.succeed({
+) =>
+  Effect.succeed<ParsedCommand>({
     group: groupName,
     command: "help",
-    flags: new Map(),
-    args: [],
+    flags: {},
+    args: {},
     raw: [],
   })
 
@@ -359,7 +428,7 @@ const showGroupHelp = (
 export const parse = <E>(
   registry: CommandRegistry<E>,
   argv: readonly string[]
-): Effect.Effect<ParsedCommand, CliError> =>
+) =>
   Effect.gen(function* () {
     // 1. Skip program name (argv[0] is bun, argv[1] is script path)
     const args = argv.slice(2)

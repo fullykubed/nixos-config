@@ -2,7 +2,7 @@ import { Effect } from "effect"
 import { BuildersService, type BuilderStats } from "../../../services/Builders"
 
 // Fetch all builder stats in parallel
-export function fetchAllBuilderStats(): Effect.Effect<BuilderStats[], never, BuildersService> {
+export function fetchAllBuilderStats() {
   return Effect.gen(function* () {
     const builders = yield* BuildersService
 

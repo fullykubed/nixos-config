@@ -3,7 +3,7 @@ import type { SshService } from "../../../services/Ssh"
 import type { CheckResult } from "./handler"
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkCcacheStatus = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult[]> =>
+export const checkCcacheStatus = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     const checks: CheckResult[] = []
 

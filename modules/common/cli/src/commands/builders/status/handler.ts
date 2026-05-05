@@ -1,12 +1,11 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
-import { BuildersService, BUILDER_CONFIG, builderType } from "../../../services/Builders"
+import type { Parsed } from "./command"
+import { BuildersService, BUILDER_CONFIG, builderType, calculateUptimeHours } from "../../../services/Builders"
 import { json } from "../../../lib/output"
 import type { BuilderSummary, BuilderDetails, StatusOutput } from "./types"
-import { calculateUptimeHours } from "../../../services/Builders/calculate-uptime"
 import { formatCost } from "./format-cost"
 
-export const statusHandler = (parsed: ParsedCommand) => Effect.gen(function* () {
+export const statusHandler = (parsed: Parsed) => Effect.gen(function* () {
   const builders = yield* BuildersService
   const servers = yield* builders.list()
 
@@ -52,7 +51,7 @@ export const statusHandler = (parsed: ParsedCommand) => Effect.gen(function* () 
   }
 
   // Handle JSON output
-  if (parsed.flags.get("json") === true) {
+  if (parsed.flags.json) {
     json(output)
     return
   }

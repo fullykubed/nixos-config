@@ -1,0 +1,80 @@
+fail_fast: true
+repos:
+- repo: local
+  hooks:
+
+  # Wave 1
+  - id: gitleaks
+    name: gitleaks
+    language: system
+    entry: gitleaks protect --staged -v --config gitleaks.toml
+    pass_filenames: false
+    priority: 10
+
+  - id: deadnix
+    name: deadnix
+    language: system
+    entry: deadnix --edit
+    files: \.nix$
+    exclude: (^|/)bun\.nix$
+    priority: 10
+
+  - id: check-package-json
+    name: check-package-json
+    language: system
+    entry: check-package-json
+    files: (^|/)package\.json$
+    pass_filenames: false
+    priority: 10
+
+  - id: knip-cli
+    name: knip-cli
+    language: system
+    entry: check-bun-knip-cli
+    files: ^modules/common/cli/.*\.(ts|tsx)$
+    pass_filenames: false
+    priority: 10
+
+  # Wave 2
+  - id: statix
+    name: statix
+    language: system
+    entry: statix fix
+    files: \.nix$
+    exclude: (^|/)bun\.nix$
+    pass_filenames: false
+    priority: 20
+
+  - id: typecheck-cli
+    name: typecheck-cli
+    language: system
+    entry: check-bun-typecheck-cli
+    files: ^modules/common/cli/.*\.(ts|tsx)$
+    pass_filenames: false
+    priority: 20
+
+  # Wave 3
+  - id: nixfmt-rfc-style
+    name: nixfmt-rfc-style
+    language: system
+    entry: nixfmt
+    files: \.nix$
+    exclude: (^|/)bun\.nix$
+    priority: 30
+
+  - id: lint-cli
+    name: lint-cli
+    language: system
+    entry: check-bun-lint-cli
+    files: ^modules/common/cli/.*\.(ts|tsx)$
+    pass_filenames: true
+    priority: 30
+
+  # Wave 4
+  - id: test-cli
+    name: test-cli
+    language: system
+    entry: check-bun-test-cli
+    files: ^modules/common/cli/.*\.(ts|tsx)$
+    pass_filenames: false
+    priority: 40

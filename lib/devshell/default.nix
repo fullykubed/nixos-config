@@ -176,7 +176,7 @@ let
       text = ''
         ${ensureBunInstalled project.dir}
         cd "$REPO_ROOT/${project.dir}"
-        tsc --noEmit
+        bunx tsc --noEmit
       '';
     };
 
@@ -186,133 +186,49 @@ let
     project:
     pkgs.writeShellApplication {
       name = "check-bun-test-${project.name}";
-      runtimeInputs = [ pkgs.bun ];
+      runtimeInputs = [
+        pkgs.bun
+        pkgs.git
+        pkgs.tmux
+      ];
       text = ''
         ${ensureBunInstalled project.dir}
         cd "$REPO_ROOT/${project.dir}"
-        bun test
+        bun run test --only-failures
       '';
     };
 
-  # Per-project lint: ensure both the project's deps (for type info via
-  # typescript-eslint's project service) AND the root deps (for eslint
-  # itself + the shared eslint.config.ts) are installed, then run eslint
-  # from the repo root over the changed files. prek's `files:` regex
-  # restricts inputs to the project's tree.
+  # Per-project lint: ensure the project's deps are installed (eslint and
+  # typescript-eslint live in the project's own package.json), then run eslint
+  # from the project directory. prek passes filenames relative to the repo
+  # root, so prefix each with $REPO_ROOT to make them absolute before cd-ing.
   mkBunLint =
     project:
     pkgs.writeShellApplication {
       name = "check-bun-lint-${project.name}";
       runtimeInputs = [ pkgs.bun ];
       text = ''
-        ${ensureBunInstalled ""}
         ${ensureBunInstalled project.dir}
-        cd "$REPO_ROOT"
-        bunx eslint --no-warn-ignored "$@"
+        cd "$REPO_ROOT/${project.dir}"
+        bunx eslint --fix --no-warn-ignored "''${@/#/$REPO_ROOT/}"
       '';
     };
 
-  # Hand-generate .pre-commit-config.yaml from Nix. All hooks are declared
-  # as `repo: local` with explicit `entry` paths into /nix/store so they
-  # resolve without needing network or a toolchain fetch. Priority tiers
-  # enable prek's parallel-by-tier scheduler (higher priority runs first,
-  # same-priority hooks run in parallel):
-  #   10 — gitleaks (security gate, runs first)
-  #   20 — nix formatters/linters (parallel)
-  #   30 — check-package-json (pin + consistency, no network)
-  #   40 — per-project typecheck-${name} + lint-${name} + test-${name}
-  # Per-project hooks are emitted by builtins.concatMap below. typecheck
-  # uses the project's own node_modules; lint uses the repo-root
-  # node_modules where eslint.config.ts lives, so they don't race within
-  # a project. Each hook sets require_serial=true so prek doesn't fan out
-  # multiple workers and race on its own bun install.
-  yamlFormat = pkgs.formats.yaml { };
-  prekConfig = yamlFormat.generate "pre-commit-config.yaml" {
-    repos = [
-      {
-        repo = "local";
-        hooks = [
-          {
-            id = "gitleaks";
-            name = "gitleaks";
-            language = "system";
-            entry = "${pkgs.gitleaks}/bin/gitleaks protect --staged -v --config ${../../gitleaks.toml}";
-            pass_filenames = false;
-            priority = 10;
-          }
-          {
-            id = "nixfmt-rfc-style";
-            name = "nixfmt-rfc-style";
-            language = "system";
-            entry = "${pkgs.nixfmt-rfc-style}/bin/nixfmt";
-            files = "\\.nix$";
-            exclude = "(^|/)bun\\.nix$";
-            priority = 20;
-          }
-          {
-            id = "statix";
-            name = "statix";
-            language = "system";
-            entry = "${pkgs.statix}/bin/statix check";
-            files = "\\.nix$";
-            exclude = "(^|/)bun\\.nix$";
-            pass_filenames = false;
-            priority = 20;
-          }
-          {
-            id = "deadnix";
-            name = "deadnix";
-            language = "system";
-            entry = "${pkgs.deadnix}/bin/deadnix --fail";
-            files = "\\.nix$";
-            exclude = "(^|/)bun\\.nix$";
-            priority = 20;
-          }
-          {
-            id = "check-package-json";
-            name = "check-package-json";
-            language = "system";
-            entry = "${checkPackageJson}/bin/check-package-json";
-            files = "(^|/)package\\.json$";
-            pass_filenames = false;
-            priority = 30;
-          }
-        ]
-        ++ builtins.concatMap (project: [
-          {
-            id = "typecheck-${project.name}";
-            name = "typecheck-${project.name}";
-            language = "system";
-            entry = "${mkBunTypecheck project}/bin/check-bun-typecheck-${project.name}";
-            files = "^${project.dir}/.*\\.(ts|tsx)$";
-            pass_filenames = false;
-            require_serial = true;
-            priority = 40;
-          }
-          {
-            id = "lint-${project.name}";
-            name = "lint-${project.name}";
-            language = "system";
-            entry = "${mkBunLint project}/bin/check-bun-lint-${project.name}";
-            files = "^${project.dir}/.*\\.(ts|tsx)$";
-            pass_filenames = true;
-            require_serial = true;
-            priority = 40;
-          }
-          {
-            id = "test-${project.name}";
-            name = "test-${project.name}";
-            language = "system";
-            entry = "${mkBunTest project}/bin/check-bun-test-${project.name}";
-            files = "^${project.dir}/.*\\.(ts|tsx)$";
-            pass_filenames = false;
-            require_serial = true;
-            priority = 40;
-          }
-        ]) bunProjects;
-      }
-    ];
-  };
+  # Per-project knip: ensure the project's deps are installed, then
+  # cd into the project and run knip to detect unused exports, files,
+  # and dependencies.
+  mkBunKnip =
+    project:
+    pkgs.writeShellApplication {
+      name = "check-bun-knip-${project.name}";
+      runtimeInputs = [ pkgs.bun ];
+      text = ''
+        ${ensureBunInstalled project.dir}
+        cd "$REPO_ROOT/${project.dir}"
+        bun run knip --fix --allow-remove-files
+      '';
+    };
+
 in
 {
   formatter = nixfmt;
@@ -322,6 +238,7 @@ in
       pkgs.agenix-rekey
       pkgs.age
       pkgs.gitleaks
+      pkgs.nixfmt-rfc-style
       pkgs.statix
       pkgs.deadnix
       prek
@@ -343,13 +260,21 @@ in
       updateHostKey
       generateSyncthingKey
       createSecret
+      checkPackageJson
     ]
-    ++ ntScripts;
+    ++ ntScripts
+    ++ builtins.concatMap (project: [
+      (mkBunTypecheck project)
+      (mkBunLint project)
+      (mkBunKnip project)
+      (mkBunTest project)
+    ]) bunProjects;
 
-    # Install the generated prek config as a symlink in the worktree,
-    # register prek as the git pre-commit hook, and pre-warm `bun install`
+    # Register prek as the git pre-commit hook and pre-warm `bun install`
     # in every bun project (the repo root + each `bunProjects` entry) so
     # the typecheck/lint hooks don't pay the install cost on first commit.
+    # .pre-commit-config.yaml is committed directly to the repo; hook
+    # entries use PATH-based binary names resolved from the devshell.
     # Each install runs under a per-name lock in the git common dir so
     # concurrent devshell entries (multiple terminals or worktrees) don't
     # race on bun's global cache or on the shared git hooks directory.
@@ -357,7 +282,6 @@ in
     # (prevents a stray local override from shadowing the hook).
     shellHook = ''
       REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-      ln -sfn ${prekConfig} "$REPO_ROOT/.pre-commit-config.yaml"
       git config --unset-all --local core.hooksPath 2>/dev/null || true
 
       LOCK_DIR="$(cd "$(git rev-parse --git-common-dir 2>/dev/null || git rev-parse --show-toplevel)" && pwd)/devshell-locks"
@@ -405,7 +329,6 @@ in
       }
 
       run_install prek prek install --quiet &
-      run_install bun-root bun_install_in "$REPO_ROOT" &
       ${lib.concatMapStringsSep "\n      " (
         p: ''run_install bun-${p.name} bun_install_in "$REPO_ROOT/${p.dir}" &''
       ) bunProjects}

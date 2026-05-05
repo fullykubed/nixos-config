@@ -1,0 +1,31 @@
+{
+  "changes": [
+    {
+      "motivation": "Remove per-edit linting that ran after every file write, which was noisy and blocked edits on lint errors mid-refactor.",
+      "summary": "Removed the PostToolUse hook from `.claude/settings.json` that ran `lint.sh` after every Edit/Write tool use."
+    },
+    {
+      "motivation": "Pre-commit YAML was a Nix-store symlink that went stale every time package versions bumped, requiring devshell re-entry to get a valid file. Moving to a committed, PATH-based file makes it stable and version-controlled without depending on generated Nix store paths.",
+      "summary": "Replaced the symlinked `.pre-commit-config.yaml` (pointing to a Nix store path) with a plain committed file using PATH-based binary names. Added `typecheck-cli`, `lint-cli`, and `test-cli` hooks for the CLI module (previously missing), and added `test-proxy` (also previously missing)."
+    },
+    {
+      "motivation": "The bun check scripts (`check-bun-typecheck-cli`, `check-bun-lint-cli`, `check-bun-test-cli`) need to be on PATH for the PATH-based YAML entries to work.",
+      "summary": "Added `mkBunTypecheck`, `mkBunLint`, and `mkBunTest` scripts for all `bunProjects` to the devshell packages list in `lib/devshell/default.nix`."
+    },
+    {
+      "motivation": "The PATH-based YAML uses `nixfmt` as a bare binary, but `pkgs.nixfmt-rfc-style` was only a transitive dep of the `treefmt` wrapper — not directly on PATH.",
+      "summary": "Added `pkgs.nixfmt-rfc-style` explicitly to devshell packages in `lib/devshell/default.nix` so `nixfmt` is on PATH for the pre-commit hook."
+    },
+    {
+      "motivation": "The `yamlFormat`/`prekConfig` Nix derivations and the `ln -sfn` shellHook line are now dead code since the YAML is committed directly.",
+      "summary": "Removed `yamlFormat` and `prekConfig` derivations (~90 lines) and the `ln -sfn ${prekConfig} .pre-commit-config.yaml` shellHook line from `lib/devshell/default.nix`. Updated shellHook comment accordingly."
+    }
+  ],
+  "problems": [
+    "The Glob tool does not follow symlinks, so `.pre-commit-config.yaml` (a symlink) was not found by Glob and required a Bash `find` fallback. This caused unnecessary confusion before the root cause was identified.",
+    "In `lib/devshell/default.nix`, the Nix variable `nixfmt` is a `treefmt.withConfig` wrapper whose binary is `treefmt`, not `nixfmt`. Nothing in the code or comments indicates this — the variable name strongly implies it exposes the `nixfmt` binary. This caused the agent to discover by trial-and-error that `nixfmt` was not on PATH despite appearing to be configured.",
+    "After removing `prekConfig`, `checkPackageJson` became an unreferenced derivation (deadnix would flag it), and `check-package-json` was not added to devshell packages, leaving the hook entry in the YAML pointing to a binary that is not on PATH. This was flagged but not fully resolved before the session ended."
+  ],
+  "session_id": "b3ca8607-53e5-477b-803b-c54ad62c508b",
+  "timestamp": "2026-04-23T16:13:24.226Z"
+}

@@ -1,9 +1,9 @@
 import { Effect } from "effect"
 import type { SshService } from "../../../services/Ssh"
-import type { CheckResult } from "./handler"
+
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkCpuPerformance = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult> =>
+export const checkCpuPerformance = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     const benchScript = `
       cores=$(nproc)

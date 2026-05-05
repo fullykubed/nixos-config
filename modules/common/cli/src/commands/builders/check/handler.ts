@@ -1,5 +1,5 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { SshService } from "../../../services/Ssh"
 import { ShellService } from "../../../services/Shell"
@@ -29,27 +29,20 @@ interface CheckOutput {
   checks: CheckResult[]
 }
 
-export const checkHandler = (parsed: ParsedCommand) => Effect.gen(function* () {
+export const checkHandler = (parsed: Parsed) => Effect.gen(function* () {
   const builders = yield* BuildersService
   const ssh = yield* SshService
   const shell = yield* ShellService
 
-  // Get builder name from first argument
-  const builderName = parsed.args[0]
-  if (!builderName) {
-    yield* Effect.logError("Builder name is required")
-    yield* Effect.fail("Missing builder name")
-  }
-
-  const name = yield* builders.resolve(builderName!)
+  const name = yield* builders.resolve(parsed.args.name)
 
   // Check if any specific flags are set
   const hasSpecificFlags = [
     "nix", "hw", "cpu", "net", "disk", "tailscale", "ccache", "shutdown"
-  ].some(flag => parsed.flags.get(flag) === true)
+  ].some(flag => (parsed.flags as Record<string, boolean>)[flag] === true)
 
   const shouldRun = (checkName: string) =>
-    !hasSpecificFlags || parsed.flags.get(checkName) === true
+    !hasSpecificFlags || (parsed.flags as Record<string, boolean>)[checkName] === true
 
   yield* Effect.log(`Checking ${name}...`)
 
@@ -86,7 +79,7 @@ export const checkHandler = (parsed: ParsedCommand) => Effect.gen(function* () {
   output.connectivity = connectivityResult.status === "OK" ? "OK" : "FAILED"
 
   if (connectivityResult.status === "FAILED") {
-    if (parsed.flags.get("json") === true) {
+    if (parsed.flags.json) {
       json(output)
       return
     }
@@ -149,7 +142,7 @@ export const checkHandler = (parsed: ParsedCommand) => Effect.gen(function* () {
   output.checks = allChecks
 
   // Output results
-  if (parsed.flags.get("json") === true) {
+  if (parsed.flags.json) {
     json(output)
     return
   }

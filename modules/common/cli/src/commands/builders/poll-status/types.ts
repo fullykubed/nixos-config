@@ -1,14 +1,3 @@
-export interface ParsedStats {
-  builds: number
-  cpu_pct: number
-  mem_pct: number
-  idle_count: number
-  ts_status: string
-  ccache_mount: boolean
-  ccache_sync: boolean
-  transfers: number
-}
-
 export interface BuilderOutput {
   id: number
   name: string

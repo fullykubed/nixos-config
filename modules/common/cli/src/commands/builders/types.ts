@@ -12,7 +12,3 @@ export interface Builder {
   readonly publicIp: string
   readonly created: string
 }
-
-export interface BuilderListOptions {
-  readonly json?: boolean
-}

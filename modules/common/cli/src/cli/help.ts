@@ -160,6 +160,13 @@ function formatFlags(flags: readonly Flag[]): string[] {
       if (flag.required) {
         description += " <required>"
       }
+    } else if (flag.kind === "integer") {
+      if (flag.default !== undefined) {
+        description += ` (default: ${String(flag.default)})`
+      }
+      if (flag.required) {
+        description += " <required>"
+      }
     } else if (flag.default) {
       description += " (default: true)"
     }

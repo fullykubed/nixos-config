@@ -1,0 +1,43 @@
+{
+  "changes": [
+    {
+      "motivation": "Brand.nominal provides no runtime validation — invalid branch names only fail at git execution time with cryptic errors. Refined brands validate at construction time, giving users clear errors immediately.",
+      "summary": "Converted BranchName from Brand.nominal to Brand.refined in src/services/Git/types.ts with an isValidBranchName predicate implementing all 11 git check-ref-format rules. Also converted ProjectId from Brand.nominal to Brand.refined with UUID regex validation. Both predicates are exported for testing."
+    },
+    {
+      "motivation": "Brand.refined constructors throw on invalid input. Inside Effect.gen, uncaught throws become opaque defects rather than typed errors the CLI can format nicely.",
+      "summary": "Updated src/cli/parser.ts to defer brand validation for all flag and positional arg sites, then validate all at once using Effect.partition. Single failure yields InvalidValue; multiple failures yield a new ValidationErrors tagged error (added to errors.ts) containing all InvalidValue instances. Added extractBrandError helper to format brand error messages."
+    },
+    {
+      "motivation": "config.primary_branch is external data and could contain an invalid branch name, which would throw a defect instead of producing a user-visible error.",
+      "summary": "Wrapped BranchName(config.primary_branch) in Effect.try in src/commands/mux/merge/handler.ts so an invalid project config value produces a clear error."
+    },
+    {
+      "motivation": "Provide test coverage for the new refined brand predicates and parser brand-rejection paths.",
+      "summary": "Added 3 invalid-brand rejection tests to src/cli/parser.test.ts. Created src/services/Git/types.test.ts with 40 tests covering valid and invalid branch names (all 11 rules) and valid/invalid UUIDs."
+    },
+    {
+      "motivation": "Needed a way to test passing invalid CLI arguments to exercise the refined brand validation end-to-end without using real commands.",
+      "summary": "Created src/commands/dev/echo/command.ts — a dev subcommand accepting an optional BranchName positional arg and an optional --project-id / -p ProjectId flag that echoes the parsed values back. Registered it in src/commands/dev/index.ts."
+    },
+    {
+      "motivation": "Error output was showing structured log prefixes (timestamp, level, fiber) because CliLoggerLive was provided before catchAll, so parse errors fell through to the default Effect logger.",
+      "summary": "Moved Effect.provide(CliLoggerLive) to wrap the entire pipeline after catchAll in src/main.ts so the custom logger (no timestamps, stderr) applies to all error output. Also added ValidationErrors handling in the error formatter."
+    },
+    {
+      "motivation": "Brand.error messages like 'Invalid project ID (expected UUID): not-u' combined with the InvalidValue formatter produced a redundant, double-repeating error message.",
+      "summary": "Changed Brand.error messages in types.ts to describe expectations concisely ('a valid git branch name', 'a valid UUID') so the full error reads cleanly: \"Invalid value 'not-u' for --project-id. Expected: a valid UUID\"."
+    },
+    {
+      "motivation": "The sync command was deleted but its import remained in mux/index.ts, causing a runtime crash when running any CLI command.",
+      "summary": "Removed the broken import of the deleted sync command from src/commands/mux/index.ts."
+    }
+  ],
+  "problems": [
+    "The deleted `mux sync` command left a dangling import in src/commands/mux/index.ts that wasn't caught until the CLI was run interactively — no build or type error surfaces a missing local file import in this setup, so deletions should include removing their import sites.",
+    "Brand.error message format was not documented: the raw message is concatenated directly after 'Expected:' in the InvalidValue formatter, so messages that repeat context already in the formatter (like 'Invalid X: value') produce redundant output. The contract between Brand.error strings and the error formatter should be explicit.",
+    "CliLoggerLive placement in main.ts was counterintuitive: providing the custom logger before catchAll meant error paths silently fell back to the default structured logger, emitting timestamp/level/fiber prefixes on user-visible errors. The correct ordering (provide logger after catchAll) was not obvious from reading main.ts."
+  ],
+  "session_id": "124b3eb4-f716-4dee-8d08-b21272292d80",
+  "timestamp": "2026-05-05T15:49:31.917Z"
+}

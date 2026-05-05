@@ -1,0 +1,43 @@
+{
+  "changes": [
+    {
+      "motivation": "No documentation existed for the canonical service layer patterns, slowing down onboarding for humans and AI agents.",
+      "summary": "Created `modules/common/cli/docs/services.md` documenting directory layout, service file pattern (derived types, mkContextInjector), method files, types, internal utilities, errors, testing, and layer composition."
+    },
+    {
+      "motivation": "Error patterns are a cross-cutting concern referenced from multiple docs; keeping them separate allows focused linking.",
+      "summary": "Extracted error documentation into `modules/common/cli/docs/errors.md`, including tagged error classes, wrapping upstream errors with cause, and the rule that services must not let dependency errors bubble through."
+    },
+    {
+      "motivation": "Command-specific patterns (command builders, handler structure, registry) were mixed into core-conventions.md, making both harder to navigate.",
+      "summary": "Extracted all command documentation into `modules/common/cli/docs/commands.md`, leaving `core-conventions.md` focused on Effect-level conventions applicable to all CLI code."
+    },
+    {
+      "motivation": "Testing patterns are reusable across commands and services; a dedicated file allows both doc sets to link to one authoritative source.",
+      "summary": "Extracted testing section into `modules/common/cli/docs/testing.md` covering unit tests, test-helpers factories, and integration test structure."
+    },
+    {
+      "motivation": "Explicit Effect.Effect return type annotations can silently narrow the error channel, hiding real errors from callers.",
+      "summary": "Added a 'Never annotate Effect.Effect return types' section to `core-conventions.md` with good/bad examples, explaining that type inference should determine requirements and errors from the implementation."
+    },
+    {
+      "motivation": "The .claude/rules/effect.md file was a flat list mixing generic Effect rules with service-specific guidance, and not scoped to paths.",
+      "summary": "Deleted `.claude/rules/effect.md`; merged its content into `core-conventions.md`; created three path-scoped rules files (`.claude/rules/cli.md`, `cli-commands.md`, `cli-services.md`) using `@` syntax to pull in the relevant docs."
+    },
+    {
+      "motivation": "Layer composition docs in services.md were duplicating information that belongs with the code itself.",
+      "summary": "Moved layer composition documentation into a file-header comment in `src/services/layers.ts`; services.md now contains only a brief pointer to that file."
+    },
+    {
+      "motivation": "Integration tests are a first-class requirement for services, not optional, and must follow specific sandboxing constraints.",
+      "summary": "Added a Testing section to `services.md` stating all services require integration tests using real local resources, must not mutate the host OS, and must run fully sandboxed."
+    }
+  ],
+  "problems": [
+    "The `public/` subfolder convention for method files was not discovered during initial codebase exploration, so docs were written with incorrect paths and required a multi-location correction pass afterward. A pre-write exploration of an actual service directory listing (e.g. `ls services/Builders/`) would have caught this.",
+    "After moving the Effect.orDie section out of core-conventions.md, a stray heading or whitespace was left behind that required an additional edit to clean up — indicating the edit boundaries weren't precise enough.",
+    "The Errors section was initially placed near the top of services.md (after directory layout) but the user wanted it at the bottom. The instruction was 'Add an errors section' without specifying position, leading to a placement that required correction."
+  ],
+  "session_id": "b6f0fb5b-fa0e-4e2c-a89f-931b9097faa9",
+  "timestamp": "2026-04-23T21:29:34.709Z"
+}

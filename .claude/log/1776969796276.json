@@ -1,0 +1,33 @@
+{
+  "changes": [
+    {
+      "motivation": "Reorganize Hcloud service for clarity by grouping public-facing method implementations separately from the service scaffolding.",
+      "summary": "Moved all 15 Hcloud method files and their 15 test files from `services/Hcloud/` into a `services/Hcloud/public/` subdirectory. Updated imports in the moved files (`./errors` → `../errors`, etc.) and updated `Hcloud.ts` to import from `./public/`."
+    },
+    {
+      "motivation": "Prevent explicit `Effect.Effect<A, E, R>` return type annotations on function implementations from drifting out of sync with the actual inferred types.",
+      "summary": "Added a `no-restricted-syntax` ESLint rule targeting the AST selector `:function > TSTypeAnnotation > TSTypeReference[typeName.left.name='Effect'][typeName.right.name='Effect']` to ban explicit Effect return types on function implementations while allowing them on interface method signatures."
+    },
+    {
+      "motivation": "Remove all existing violations of the new ESLint rule — approximately 75 explicit Effect return type annotations across Lock, Builders, Tailscale, Shell, Croc, Ssh, JackConfig, CLI parser, commands, Git, Tmux, and Mux services.",
+      "summary": "Stripped explicit `): Effect.Effect<A, E, R>` annotations from ~75 implementation functions codebase-wide. Also removed unused imports that were only referenced in the now-deleted annotations (113 imports across 75 files via a batch script). Removed genuinely dead code exposed by this cleanup: `ParsedArgs`, `ParsedStats`, `BuilderListOptions` interfaces, `output` function, `WorktreeConfig` type alias, and dead helpers in Mux integration test setup."
+    },
+    {
+      "motivation": "Removing explicit return types from `run` helpers in service Layer files caused `any`/`unknown` to leak through the `R` type parameter, breaking TypeScript's ability to verify that dependencies were properly eliminated.",
+      "summary": "Applied the Hcloud `provide` + `wrap` pattern uniformly to all service Layer files (Git, Tmux, Shell, Builders, Mux, Ssh, Croc, Tailscale, Lock). Also fixed two root-cause type unification issues: `ensure-ready-or-destroy.ts` changed `true` to `'ready' as const` so all flatMap branches return string literals; `Tmux/errors.ts` added `<TmuxError>` type parameter to all `Effect.fail()` calls to unify the return type union."
+    },
+    {
+      "motivation": "Deduplicate the `provide` + `inject` pattern which was copy-pasted identically into all 10 service Layer files.",
+      "summary": "Extracted `mkContextInjector` into `src/lib/mkContextInjector.ts`. The utility takes a `Context.Context<R2>` and returns an `inject` function that wraps any `(...args) => Effect<A, E, R>` into `(...args) => Effect<A, E, Exclude<R, R2>>`. Updated all 10 service files to import from the shared utility. Note: generic methods (`execJson<T>`, `withLock<A,E,R>`) cannot use `inject` and retain manual `provide(fn(...args))` lambdas."
+    }
+  ],
+  "problems": [
+    "The initial `mkContextInjector` type signature used `<Ctx extends Context.Context<never>>`, which constrained `R2 = never`, making `Exclude<R, never> = R` — no services were actually eliminated from the requirements. Had to change the signature to `<R2>(ctx: Context.Context<R2>)` to match the `Effect.provide` overload and properly subtract provided services. This type-level issue was not caught until a full `tsc` run after applying the utility to all services.",
+    "Running `bunx knip --fix` aggressively removed `export` keywords from symbols that were used by external consumers but not detected as such (e.g., `fetchAllBuilderStats` used by a command handler). This caused downstream type errors that required manual investigation and re-adding exports. Knip's auto-fix is not safe to run without reviewing its output.",
+    "`bunx tsc` resolved to TypeScript 6.0.3 (a newer cached version) instead of the project's pinned version, producing confusing spurious errors. The correct command is `./node_modules/.bin/tsc --noEmit` to use the project-local TypeScript.",
+    "Background agents that removed explicit return type annotations did not clean up imports that were only used in those annotations, leaving ~113 unused imports across 75 files that required a separate batch-fix script to clean up. The task decomposition should have included import cleanup as part of each annotation-removal pass.",
+    "The factory pattern refactor plan was implemented (Tier 0 factory files written, `HcloudDeps` added to config) before the fundamental cross-method call ergonomics problem was identified. The plan document should have flagged this as a key trade-off requiring validation before implementation began."
+  ],
+  "session_id": "2b47cb73-af42-48c6-a83a-a055a7b6a22b",
+  "timestamp": "2026-04-23T18:44:11.516Z"
+}

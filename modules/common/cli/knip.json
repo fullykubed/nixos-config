@@ -1,0 +1,10 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/main.ts",
+    "scripts/generate-completions.ts"
+  ],
+  "project": ["src/**/*.ts", "scripts/**/*.ts"],
+  "exclude": ["exports", "types"],
+  "ignoreDependencies": ["@opentui/core", "globals"]
+}

@@ -6,3 +6,10 @@ exact = true
 auto = "auto"
 frozenLockfile = true
 
+[test]
+preload = ["./src/test-preload.ts"]
+randomize = true
+coverageSkipTestFiles = true
+coverageReporter = ["text", "lcov"]
+coveragePathIgnorePatterns = ["**/integration-tests/**", "**/test-helpers.*"]
+

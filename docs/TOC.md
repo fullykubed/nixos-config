@@ -7,4 +7,5 @@
 - **install/** - Installation documentation: step-by-step new machine guide, installer architecture with diagrams, and troubleshooting.
 - **secrets.md** - Describes agenix-based secret management with per-machine rekeying and runtime decryption.
 - **build-system/** - Comprehensive build system documentation: custom stdenv (mold, ccache, hardening), R2-backed compiler cache, ephemeral Hetzner Cloud builders, and niks3 binary cache.
+- **cli/** - Documentation for the `j` CLI: swiss-army knife consolidating all custom scripts and tooling into a single binary. Architecture (Bun/Effect/OpenTUI), service layer, command reference, and build/test instructions.
 - **claude-architecture.md** - Comprehensive architecture reference for Claude Code integration: sandbox, credential proxy, skills, MCP servers, hooks, shell integration, configuration hierarchy, and secrets.

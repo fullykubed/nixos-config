@@ -31,29 +31,3 @@ export const json = (data: unknown): void => {
 /**
  * Output data in either table or JSON format based on options.
  */
-export const output = (
-  data: unknown,
-  opts: {
-    json?: boolean
-    headers?: string[]
-  } = {}
-): void => {
-  if (opts.json) {
-    json(data)
-  } else if (opts.headers && Array.isArray(data)) {
-    const rows = data.map(item => {
-      if (typeof item === 'object' && item !== null) {
-        return opts.headers!.map(header => {
-          const val = (item as Record<string, unknown>)[header]
-          if (val == null) return ''
-          if (typeof val === 'object') return JSON.stringify(val)
-          return String(val as string | number | boolean)
-        })
-      }
-      return [String(item)]
-    })
-    table(opts.headers, rows)
-  } else {
-    json(data)
-  }
-}

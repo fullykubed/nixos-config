@@ -3,7 +3,7 @@ import type { SshService } from "../../../services/Ssh"
 import type { CheckResult } from "./handler"
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkShutdownStatus = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult> =>
+export const checkShutdownStatus = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     const shutdownScript = `
       timer=$(systemctl is-active inactivity-monitor.timer 2>/dev/null || echo inactive)

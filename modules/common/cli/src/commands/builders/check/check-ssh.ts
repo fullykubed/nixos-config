@@ -1,9 +1,9 @@
 import { Effect } from "effect"
 import type { SshService } from "../../../services/Ssh"
-import type { CheckResult } from "./handler"
+
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkSshConnectivity = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult> =>
+export const checkSshConnectivity = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     const result = yield* runSshCheck(ip, ssh, "true", 10)
 

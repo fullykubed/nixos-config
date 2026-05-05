@@ -1,5 +1,5 @@
 import { Effect, Exit } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { TailscaleService } from "../../../services/Tailscale"
 import { waitForBuilder } from "./wait-for-builder"
@@ -8,14 +8,10 @@ import { serverExists } from "./server-exists"
 
 const BUILDER_WAIT_TIMEOUT = 900 // 15 minutes
 
-export const ensureHandler = (parsed: ParsedCommand) =>
+export const ensureHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
-    const hostname = parsed.args[0]
-    const port = parsed.args[1]
-
-    if (!hostname || !port) {
-      return yield* Effect.fail(new Error("Usage: j builders ensure <hostname> <port>"))
-    }
+    const hostname = parsed.args.hostname
+    const port = parsed.args.port
 
     const tailscale = yield* TailscaleService
     const builders = yield* BuildersService

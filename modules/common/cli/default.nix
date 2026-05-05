@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ config, pkgs, ... }:
 let
   jBinary = pkgs.bun2nix-cli.mkDerivation {
     pname = "j";
@@ -29,12 +29,14 @@ let
     # the Solid JSX transform needed by the dashboard command.
     buildPhase = ''
       runHook preBuild
-      bun scripts/build.ts
+      J_PRODUCTION=1 bun scripts/build.ts
+      bun scripts/generate-completions.ts > completion-spec.yaml
       runHook postBuild
     '';
     installPhase = ''
       runHook preInstall
       install -Dm755 dist/j $out/bin/j
+      install -Dm644 completion-spec.yaml $out/share/carapace/specs/j.yaml
       runHook postInstall
     '';
   };
@@ -54,5 +56,14 @@ let
   };
 in
 {
-  environment.systemPackages = [ jCli ];
+  environment.systemPackages = [
+    jCli
+    pkgs.jq
+  ];
+
+  home-manager.users.${config.username} = {
+    xdg.configFile."carapace/specs/j.yaml" = {
+      source = "${jBinary}/share/carapace/specs/j.yaml";
+    };
+  };
 }

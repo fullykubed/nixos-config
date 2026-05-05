@@ -1,0 +1,30 @@
+{
+  "changes": [
+    {
+      "motivation": "Eliminate boilerplate in command handlers where `string` args were manually wrapped in brand constructors (e.g. `BranchName(parsed.args.branch)`) — the parser can apply brands automatically at parse time.",
+      "summary": "Added optional generic `brand?: (raw: string) => B` to `PositionalArg<B>` and `StringFlag<B>` in `src/cli/types.ts`. Updated `InferArgs` and `FlagValue` conditional types to extract the brand return type when the property is present. Widened `Flag` union and `Command.args` to accept `<any>` generics."
+    },
+    {
+      "motivation": "Wire up the new brand slot so the parser actually invokes the constructor at runtime, delivering already-typed values to handlers.",
+      "summary": "In `src/cli/parser.ts`, positional arg assignment now calls `argDef.brand(raw)` when present. String flag assignment in both long-flag and short-flag paths applies `flag.brand(value)` when present. Default string flag values are also branded. The args record is cast back to `Record<string, string | undefined>` for `ParsedCommand` compatibility since brands are structural subtypes of string."
+    },
+    {
+      "motivation": "Use the new parser-level branding to eliminate manual brand wrapping in command definitions and handlers.",
+      "summary": "Added `brand: BranchName` to the `branch` positional arg in `mux/create/command.ts` and `mux/remove/command.ts`, and to the `--into` string flag in `mux/merge/command.ts`. In `mux/remove/handler.ts`, removed the manual `BranchName(providedBranch)` call since the value arrives pre-branded. In `mux/merge/handler.ts`, simplified to `parsed.flags.into ?? BranchName(config.primary_branch)` (only the config fallback still needs branding)."
+    },
+    {
+      "motivation": "Keep tests type-correct after the `Parsed` type now infers `BranchName` instead of `string` for branded args/flags.",
+      "summary": "Updated `createParsedCommand` mocks in `mux/create/handler.test.ts`, `mux/remove/handler.test.ts`, and `mux/merge/handler.test.ts` to pass `BranchName('...')` values. Added 5 new tests in `parser.test.ts` covering brand application on positional args, long/short string flags, defaults, and the optional-undefined case."
+    },
+    {
+      "motivation": "User requested converting `BranchName` from a type-only nominal brand to a refined brand that validates input against git ref-format rules at construction time, giving clear CLI errors for invalid branch names.",
+      "summary": "Planned (not yet implemented): convert `BranchName` in `src/services/Git/types.ts` to `Brand.refined` with a pure JS predicate covering all 11 git check-ref-format rules. Parser brand calls to be wrapped in `Effect.try` so validation failures become `InvalidValue` errors. New `types.test.ts` for predicate unit tests."
+    }
+  ],
+  "problems": [
+    "Branded types (which extend `string`) are structurally compatible with `string`, but assigning them into a `Record<string, string | undefined>` (the `ParsedCommand` args map) required an explicit `as string` cast in `parser.ts`. There was no comment explaining why the cast is safe — a future reader could think it's masking a real type error.",
+    "The parser stores flag values in `flags: Record<string, string | boolean | number | undefined>`. When checking whether a flag has a brand, the code uses `'brand' in flag` rather than narrowing to `StringFlag` — this works but is subtle. A helper type guard `isStringFlag(flag): flag is StringFlag<unknown>` would make the intent clearer and be reusable."
+  ],
+  "session_id": "d5390902-84a5-4e18-96e0-98c5c60592ab",
+  "timestamp": "2026-05-05T15:32:54.277Z"
+}

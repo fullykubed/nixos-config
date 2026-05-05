@@ -1,9 +1,9 @@
 import { Effect } from "effect"
 import type { SshService } from "../../../services/Ssh"
-import type { CheckResult } from "./handler"
+
 import { runSshCheck } from "./run-ssh-check"
 
-export const checkDiskPerformance = (ip: string, ssh: SshService["Type"]): Effect.Effect<CheckResult> =>
+export const checkDiskPerformance = (ip: string, ssh: SshService["Type"]) =>
   Effect.gen(function* () {
     // First check disk space
     const spaceResult = yield* runSshCheck(ip, ssh, "df -h /nix/store --output=size,used,avail,pcent | tail -1")

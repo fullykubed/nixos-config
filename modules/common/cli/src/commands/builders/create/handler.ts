@@ -1,12 +1,11 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 
-export const createHandler = (parsed: ParsedCommand) =>
+export const createHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
     const builders = yield* BuildersService
 
-    const rawName = parsed.args[0]!
-    const name = yield* builders.resolve(rawName)
+    const name = yield* builders.resolve(parsed.args.name)
     yield* builders.create(name)
   })

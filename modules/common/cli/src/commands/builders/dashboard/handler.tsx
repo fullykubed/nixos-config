@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return -- OpenTUI JSX types resolve to any */
 import { Effect, Layer } from "effect"
 import { render } from "@opentui/solid"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { fetchAllBuilderStats } from "./fetch-all-stats"
 import { Dashboard } from "./render"
 
-export const dashboardHandler = (_parsed: ParsedCommand) =>
+export const dashboardHandler = (_parsed: Parsed) =>
   Effect.gen(function* () {
     const builders = yield* BuildersService
 

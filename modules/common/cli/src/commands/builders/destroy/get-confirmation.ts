@@ -1,17 +1,17 @@
-import * as readline from "node:readline"
+import { createInterface } from "node:readline"
 import { Effect } from "effect"
 
 /**
  * Get user confirmation for destroy-all
  */
-export const getConfirmation = (skipConfirmation: boolean): Effect.Effect<boolean> => {
+export const getConfirmation = (skipConfirmation: boolean) => {
   if (skipConfirmation) {
     return Effect.succeed(true)
   }
 
   return Effect.tryPromise({
     try: async () => {
-      const rl = readline.createInterface({
+      const rl = createInterface({
         input: process.stdin,
         output: process.stdout
       })

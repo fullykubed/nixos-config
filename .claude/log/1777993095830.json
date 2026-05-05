@@ -1,0 +1,26 @@
+{
+  "changes": [
+    {
+      "motivation": "Handler files accepted `ParsedCommand` which has `args: Record<string, string | undefined>`, losing the narrowing from `defineCommand`'s generic types. This forced `!` non-null assertions on every required arg and flag access.",
+      "summary": "Each `command.ts` now exports `flags` and `args` as `const` tuples and a `ParsedArgs` type alias computed via `TypedParsed<typeof flags, typeof args>`. All handler files import `ParsedArgs` from their sibling command file and use it as the parameter type, eliminating non-null assertions on required args and flags."
+    },
+    {
+      "motivation": "Handler test files used ad-hoc inline object literals for parsed arguments, which could silently diverge from the real command definition.",
+      "summary": "Handler test files now import `ParsedArgs` from the command module to type their mock parsed objects, keeping them in sync with the actual definition."
+    },
+    {
+      "motivation": "The `check` command's flags are dynamically generated from a runtime map of check functions, making a static `const` tuple impossible. A manual type definition was needed.",
+      "summary": "check/command.ts exports a manually-written `ParsedArgs` type with `flags: Partial<Record<keyof typeof checks, true>>` instead of the generic `TypedParsed` derivation."
+    },
+    {
+      "motivation": "The docs in commands.md described lazy handler loading but had no guidance on the `ParsedArgs` pattern, making it undiscoverable.",
+      "summary": "Added a 'Typed parsed arguments (ParsedArgs)' section to modules/common/cli/docs/commands.md covering how to export const tuples and the type alias from command.ts, how handlers consume ParsedArgs, and the dynamic-flags special case."
+    }
+  ],
+  "problems": [
+    "The check command's flags are built dynamically from a runtime `checks` object rather than a static const tuple, which broke the generic `TypedParsed` approach and required a manually-typed `ParsedArgs`. This wasn't documented anywhere and had to be discovered by inspecting the command and hitting lint errors.",
+    "handler.ts files accepted `ParsedCommand` (the unnarrowed type) while the inline handler inside `defineCommand` got the narrowed `TypedParsed` type — these two call sites were silently inconsistent and there was no doc explaining the discrepancy or the correct pattern."
+  ],
+  "session_id": "1a7c240c-6bcc-49b8-98f8-edba3a834164",
+  "timestamp": "2026-05-05T15:00:06.927Z"
+}

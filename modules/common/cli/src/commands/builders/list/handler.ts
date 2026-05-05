@@ -1,13 +1,13 @@
 import { Effect } from "effect"
-import type { ParsedCommand } from "../../../cli/types"
+import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
 import { table, json } from "../../../lib/output"
 import type { Builder } from "../types"
 
-export const listHandler = (parsed: ParsedCommand) =>
+export const listHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
     const builders = yield* BuildersService
-    const isJson = parsed.flags.get("json") === true
+    const isJson = parsed.flags.json
 
     const servers = yield* builders.list()
 

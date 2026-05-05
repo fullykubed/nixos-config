@@ -1,0 +1,41 @@
+{
+  "changes": [
+    {
+      "motivation": "Enforce consistent import style across the codebase — namespace imports (`import * as X`) are banned in favor of named imports (`import { X }`) for better tree-shaking and readability.",
+      "summary": "Added `ImportNamespaceSpecifier` selector to `no-restricted-syntax` in `eslint.config.ts`. Fixed all existing violations: Shell/exec*.ts (`import * as Command from \"@effect/platform/Command\"` → `import { Command, CommandExecutor } from \"@effect/platform\"`), Store.ts (`import * as os` → `import { homedir }`), and two readline files (`import * as readline` → `import { createInterface }`)."
+    },
+    {
+      "motivation": "Tab completion requires access to the registry type structure without triggering CLI side effects (process.argv parsing, stdio setup).",
+      "summary": "Extracted the `CommandRegistry` definition and `globalFlags` constant from `src/main.ts` into a new side-effect-free module `src/cli/registry.ts`. `main.ts` now imports from this module."
+    },
+    {
+      "motivation": "Provide zsh tab-completion for all `j` CLI commands, flags, and dynamic values (builder names) without maintaining a separate spec by hand.",
+      "summary": "Created `scripts/generate-completions.ts` which walks the `CommandRegistry` and emits a carapace-spec YAML file. Dynamic builder name completions use the `$sh(timeout 5 j builders list --json 2>/dev/null | jq -r '.[].name' 2>/dev/null)` macro."
+    },
+    {
+      "motivation": "Deliver the generated carapace spec to the user's system automatically via the NixOS module, and enable carapace in the shell module.",
+      "summary": "Updated `default.nix` to run `generate-completions.ts` at build time, install the output to `$out/share/carapace/specs/j.yaml`, add `jq` as a runtime dep, and wire `xdg.configFile` to symlink the spec. Changed `programs.carapace.enable` from `false` to `true` in `shell/default.nix`."
+    },
+    {
+      "motivation": "Allow testing completions locally without a full `nixos-rebuild switch`.",
+      "summary": "Created `scripts/test-completions.sh` which generates a fresh spec into a temp dir, creates a `j` shim pointing at `bun src/main.ts`, and launches a minimal zsh with carapace sourced via `XDG_CONFIG_HOME` override. Added `\"completions:test\": \"bash scripts/test-completions.sh\"` to `package.json`."
+    },
+    {
+      "motivation": "The two-step build (bun bundle → bun compile) did not embed native `.so` assets into the compiled binary, causing opentui to fail with 'not supported on this platform' at runtime.",
+      "summary": "Rewrote `scripts/build.ts` to use a single-step `Bun.build({ compile: true, plugins: [...] })` call, matching the approach used by opencode and other Bun CLI projects. This properly embeds file-type imports (including `libopentui.so`) into the compiled binary. The previous hack involving `patchSoPathPlugin`, `globalThis.__OPENTUI_LIB_PATH`, and a generated `entry.ts` wrapper was removed."
+    },
+    {
+      "motivation": "\"Attempt to write a readonly database\" errors gave no indication of which file was affected, making them impossible to diagnose without reading source code.",
+      "summary": "Added an optional `path` field to `StoreError` and populated it at all `StoreError` construction sites in `Store.ts`. Updated the error formatter in `main.ts` to print the path. Error messages now show the full database path."
+    }
+  ],
+  "problems": [
+    "The two-step Bun build (`bun build` to bundle, then `bun build --compile` to compile) silently drops native `.so` assets — the asset path becomes a plain string in the CJS wrapper and `bun build --compile` doesn't recognize it as something to embed. This required extensive debugging to diagnose. The fix (`Bun.build({ compile: true })` in a single step) is documented in Bun's changelog and used by opencode, but nothing in the project warned that two-step builds have this limitation.",
+    "The `~/.config` and `~/.local/state` directories are separate read-only ZFS datasets on this system. This is not documented anywhere in the project, causing the test script to fail when writing the carapace spec and causing confusing 'readonly database' errors for the SQLite store. Any script or tool that writes to `$XDG_CONFIG_HOME` or `$XDG_STATE_HOME` needs to account for this.",
+    "The Nix build does not set `XDG_STATE_HOME` to a sandbox-local path, so running `bun test` during the build writes `cli.db` to `~/.local/state/j/` as `nobody:nogroup`, leaving a corrupted/wrong-owner database that breaks the installed binary. The fix is to set `XDG_STATE_HOME` in the Nix build environment.",
+    "Running `bun scripts/test-completions.sh` fails with 'Unexpected token: `(`' because Bun tries to parse `.sh` files as JavaScript when passed as a direct argument. Shell scripts must be invoked via `bash` explicitly or wrapped in a `package.json` script.",
+    "The carapace-spec `$sh()` macro syntax for dynamic completions is not documented in the main carapace-spec README — it required searching through GitHub issues and example specs to discover. This should be noted in the generator script or PRD spec."
+  ],
+  "session_id": "e33de79f-22d9-454a-8aec-2d7d27655ccd",
+  "timestamp": "2026-04-21T02:25:17.271Z"
+}

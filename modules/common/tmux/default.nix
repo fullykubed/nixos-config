@@ -239,6 +239,10 @@
                 # X11/SSH; we append Wayland-specific vars here.
                 set -ag update-environment "WAYLAND_DISPLAY SWAYSOCK I3SOCK XDG_SESSION_TYPE XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP DESKTOP_SESSION"
 
+                # Mux worktree hooks — keep SQLite state consistent
+                # Only process windows with the git branch icon prefix
+                set-hook -g after-kill-window 'run-shell -b "window_name=\"#{window_name}\"; if [ \"''${window_name#\uf418 }\" != \"$window_name\" ]; then j mux _hook window-closed \"#{session_name}\" \"#{window_name}\" 2>/dev/null; fi"'
+
                 set -g window-style 'bg=${config.lib.stylix.colors.withHashtag.base00}'
                 set -g window-active-style 'bg=${config.lib.stylix.colors.withHashtag.base01}'
 

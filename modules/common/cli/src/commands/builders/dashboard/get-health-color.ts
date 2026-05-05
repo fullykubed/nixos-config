@@ -1,6 +1,6 @@
 import type { BuilderStats } from "./types"
 
-export type HealthColor = "red" | "yellow" | "green"
+type HealthColor = "red" | "yellow" | "green"
 
 export function getHealthColor(stats: BuilderStats): HealthColor {
   if (!stats.reachable) return "red"

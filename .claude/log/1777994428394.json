@@ -1,0 +1,23 @@
+{
+  "changes": [
+    {
+      "motivation": "Handler files accepted `ParsedCommand` (a loose `Record<string, string | undefined>`) for both flags and args, forcing `!` assertions on required args even though the parser already validated them. The fix exports concrete `Parsed` type aliases from each command file so handlers receive narrowed types.",
+      "summary": "Exported `TypedParsed` from `src/cli/types.ts`. In all 16 command files (builders: check, cleanup, create, dashboard, destroy, ensure, list, poll-status, ssh, status; mux: _hook, create, list, merge, remove, sync), extracted `flags` and `args` arrays into named `as const` variables and exported a `Parsed = TypedParsed<...>` type alias. Updated all corresponding handler files to import `Parsed` from `./command` instead of `ParsedCommand` from the CLI types module. Updated three test files (mux/create, mux/remove, mux/merge) to use `Parsed` for mock objects."
+    },
+    {
+      "motivation": "Tightening the `Parsed` type for `cleanup/handler.ts` revealed a latent bug: the handler referenced `parsed.flags.json` (to control JSON output format) but the cleanup command definition had no `--json` flag, so the flag was never populated. This was silently ignored under the loose `ParsedCommand` type.",
+      "summary": "Added a `{ kind: 'boolean', name: 'json', description: '...' }` flag to `builders/cleanup/command.ts` to match the existing JSON-formatting logic in `cleanup/handler.ts`."
+    },
+    {
+      "motivation": "Removing now-invalid guard clauses (`if (!arg)`) and non-null assertions (`arg!`) from handlers that previously needed them due to the loose `ParsedCommand` type.",
+      "summary": "Removed `if (!nameArg)` guard and `nameArg!` in `builders/ssh/handler.ts`; removed `if (!builderName)` guard in `builders/check/handler.ts`; removed `if (!hostname || !port)` guard in `builders/ensure/handler.ts`; removed `!` from `parsed.args.name` in `builders/create/handler.ts` and `parsed.args.branch` in `mux/create/handler.ts`; removed `as string | undefined` cast on `parsed.flags.into` in `mux/merge/handler.ts`. Added `as Record<string, boolean>` cast in `check/handler.ts` for the dynamic flag lookup `parsed.flags[checkName]` which cannot be typed statically."
+    }
+  ],
+  "problems": [
+    "The `builders/cleanup/command.ts` was missing a `--json` flag that its handler already referenced (`parsed.flags.json`). This bug was completely invisible under the loose `ParsedCommand` type and only surfaced when the narrowed `Parsed` type was applied. Any future flag access that doesn't match the command definition will similarly be silently undefined rather than a type error — there is no test coverage for this class of mismatch.",
+    "Dynamic flag access by string key (`parsed.flags[checkName]`) in `check/handler.ts` is inherently incompatible with narrowed tuple types and required a `as Record<string, boolean>` cast, which loses the type safety benefit for that one usage site. This pattern is undocumented and non-obvious.",
+    "Two pre-existing TypeScript errors exist in `mux/remove/handler.test.ts` and `services/Mux/integration-tests/create-worktree.test.ts` related to missing TmuxService mock methods (`sessionExists`, `renameSession`) and `getProjectConfig` return type mismatches. These errors are masked during normal `bun test` runs but appear under `tsc --noEmit`, creating confusing signal when doing type checks."
+  ],
+  "session_id": "dfa6776f-9d99-4d9c-9601-c868dcc6e814",
+  "timestamp": "2026-05-05T15:21:20.233Z"
+}
