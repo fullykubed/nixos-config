@@ -1,5 +1,6 @@
 import { Effect } from "effect"
 import type { CommandRegistry, Flag, IntegerFlag, StringFlag, Command, ParsedCommand } from "./types"
+import { AbsolutePath } from "../lib/types/absolute-path"
 import type {} from "./errors"
 import {
   UnknownCommand,
@@ -8,12 +9,44 @@ import {
   InvalidValue,
   ValidationErrors,
   ParseError,
+  ConflictingFlags,
 } from "./errors"
 
 /** Extract a human-readable message from a Brand validation error (which is an array of BrandErrors). */
 const extractBrandError = (e: unknown): string => {
   if (Array.isArray(e)) return (e as { message?: string }[]).map((err) => err.message ?? "").filter(Boolean).join("; ")
   return String(e)
+}
+
+/**
+ * Return the subset of flags from the first conflicting group (if any).
+ * Returns undefined when all groups have at most one flag set.
+ */
+const findConflictingGroup = (
+  groups: readonly (readonly string[])[] | undefined,
+  setByUser: ReadonlySet<string>,
+): readonly string[] | undefined => {
+  for (const group of groups ?? []) {
+    const provided = group.filter((name) => setByUser.has(name))
+    if (provided.length > 1) return provided
+  }
+  return undefined
+}
+
+/**
+ * Resolve a raw CLI path string to an AbsolutePath.
+ * Absolute paths pass through unchanged; relative paths are resolved against CWD.
+ * Uses process.cwd() (a global) — no node:path import required.
+ */
+const resolvePath = (raw: string): AbsolutePath => {
+  if (raw.startsWith("/")) return AbsolutePath(raw)
+  const segments = `${process.cwd()}/${raw}`.split("/").filter(Boolean)
+  const parts: string[] = []
+  for (const seg of segments) {
+    if (seg === "..") parts.pop()
+    else if (seg !== ".") parts.push(seg)
+  }
+  return AbsolutePath(`/${parts.join("/")}`)
 }
 
 interface DeferredBrand {
@@ -170,6 +203,8 @@ export const parseCommandArgs = <E>(
     const flags: Record<string, string | boolean | number | undefined> = { ...globalFlags }
     const positionals: string[] = []
     const deferred: DeferredBrand[] = []
+    /** Flags explicitly supplied by the user (not from defaults). Used for mutual exclusivity checks. */
+    const setByUser = new Set<string>()
 
     const flagsByName = new Map<string, Flag>()
     const flagsByShort = new Map<string, Flag>()
@@ -183,6 +218,8 @@ export const parseCommandArgs = <E>(
       if (!(flag.name in flags)) {
         if (flag.kind === "boolean") {
           flags[flag.name] = flag.default
+        } else if (flag.kind === "path" && flag.default !== undefined) {
+          flags[flag.name] = resolvePath(flag.default)
         } else if (flag.default !== undefined) {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- brand() return type is erased at runtime
           flags[flag.name] = "brand" in flag && flag.brand ? flag.brand(flag.default) : flag.default
@@ -231,9 +268,10 @@ export const parseCommandArgs = <E>(
 
         if (flag.kind === "boolean") {
           flags[actualFlagName] = booleanValue ?? true
+          setByUser.add(actualFlagName)
           i++
         } else {
-          // String or integer flag
+          // String, integer, or path flag
           const value = flagValue ?? argv[i + 1]
           if (value === undefined) {
             return yield* new ParseError({
@@ -243,20 +281,24 @@ export const parseCommandArgs = <E>(
 
           if (flag.kind === "integer") {
             flags[flag.name] = yield* parseIntegerValue(flag, value)
+          } else if (flag.kind === "path") {
+            flags[flag.name] = resolvePath(value)
           } else {
+            const strFlag = flag as StringFlag
             // Validate choices
-            if (flag.choices && !flag.choices.includes(value)) {
+            if (strFlag.choices && !strFlag.choices.includes(value)) {
               return yield* new InvalidValue({
-                flag: flag.name,
+                flag: strFlag.name,
                 value,
-                expected: `one of: ${flag.choices.join(", ")}`
+                expected: `one of: ${strFlag.choices.join(", ")}`
               })
             }
-            if ("brand" in flag && flag.brand) {
-              deferred.push({ target: "flag", name: flag.name, value, brand: (flag as StringFlag).brand! })
+            if (strFlag.brand) {
+              deferred.push({ target: "flag", name: strFlag.name, value, brand: strFlag.brand })
             }
-            flags[flag.name] = value
+            flags[strFlag.name] = value
           }
+          setByUser.add(flag.name)
           i += flagValue !== undefined ? 1 : 2
         }
       } else if (!stopFlagParsing && arg.startsWith("-") && arg.length > 1 && arg !== "-") {
@@ -274,9 +316,10 @@ export const parseCommandArgs = <E>(
 
           if (flag.kind === "boolean") {
             flags[flag.name] = true
+            setByUser.add(flag.name)
             i++
           } else {
-            // String or integer flag
+            // String, integer, or path flag
             const value = argv[i + 1]
             if (value === undefined || value.startsWith("-")) {
               return yield* new ParseError({
@@ -286,20 +329,24 @@ export const parseCommandArgs = <E>(
 
             if (flag.kind === "integer") {
               flags[flag.name] = yield* parseIntegerValue(flag, value)
+            } else if (flag.kind === "path") {
+              flags[flag.name] = resolvePath(value)
             } else {
+              const strFlag = flag as StringFlag
               // Validate choices
-              if (flag.choices && !flag.choices.includes(value)) {
+              if (strFlag.choices && !strFlag.choices.includes(value)) {
                 return yield* new InvalidValue({
-                  flag: flag.name,
+                  flag: strFlag.name,
                   value,
-                  expected: `one of: ${flag.choices.join(", ")}`
+                  expected: `one of: ${strFlag.choices.join(", ")}`
                 })
               }
-              if ("brand" in flag && flag.brand) {
-                deferred.push({ target: "flag", name: flag.name, value, brand: (flag as StringFlag).brand! })
+              if (strFlag.brand) {
+                deferred.push({ target: "flag", name: strFlag.name, value, brand: strFlag.brand })
               }
-              flags[flag.name] = value
+              flags[strFlag.name] = value
             }
+            setByUser.add(flag.name)
             i += 2
           }
         } else {
@@ -318,6 +365,7 @@ export const parseCommandArgs = <E>(
               })
             }
             flags[flag.name] = true
+            setByUser.add(flag.name)
           }
           i++
         }
@@ -340,6 +388,13 @@ export const parseCommandArgs = <E>(
             message: `Required flag --${flag.name} not provided`
           })
         }
+      }
+
+      // Validate mutually exclusive flag groups
+      const conflictingGroup = findConflictingGroup(command.mutuallyExclusive, setByUser)
+      if (conflictingGroup !== undefined) {
+        const commandName = command.name
+        return yield* Effect.fail(new ConflictingFlags({ flags: conflictingGroup, command: commandName }))
       }
 
       // Validate required positional arguments
@@ -367,10 +422,14 @@ export const parseCommandArgs = <E>(
     for (let idx = 0; idx < command.args.length; idx++) {
       const argDef = command.args[idx]!
       const raw = positionals[idx]
-      if (raw !== undefined && argDef.brand) {
-        deferred.push({ target: "arg", name: argDef.name, value: raw, brand: argDef.brand })
+      if (raw !== undefined && argDef.kind === "path") {
+        args[argDef.name] = resolvePath(raw) as string
+      } else {
+        if (raw !== undefined && argDef.brand) {
+          deferred.push({ target: "arg", name: argDef.name, value: raw, brand: argDef.brand })
+        }
+        args[argDef.name] = raw
       }
-      args[argDef.name] = raw
     }
 
     // Validate all deferred brands and collect errors

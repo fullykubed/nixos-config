@@ -1,0 +1,19 @@
+{
+  "changes": [
+    {
+      "motivation": "Integration tests run during `git commit` pre-commit hooks inherit `GIT_DIR`, `GIT_INDEX_FILE`, and `GIT_WORK_TREE` env vars set by git, causing all test-spawned git subprocesses to operate on the outer repo's `.git` directory and fail with lock errors.",
+      "summary": "Created `src/test-preload.ts` that explicitly deletes known `GIT_*` env vars from `process.env` at startup, and registered it via `bunfig.toml` `[test].preload` so it runs before every test file without per-file duplication."
+    },
+    {
+      "motivation": "The `test-preload.ts` centralizes the fix; previously added per-file cleanup code in setup modules is redundant.",
+      "summary": "Removed duplicate `process.env` GIT var deletion code from `src/services/Git/integration-tests/setup.ts` and `src/services/Mux/integration-tests/setup.ts` after preload was introduced."
+    }
+  ],
+  "problems": [
+    "Effect's `@effect/platform-node-shared` CommandExecutor merges env with `{ ...process.env, ...Object.fromEntries(command.env) }` at spawn time, making it impossible to unset parent env vars via `Command.env()`. This is not documented in Effect's API docs — it had to be discovered by reading the compiled node_modules source. The agent spent two iterations on broken approaches (providing a cleaned `Command.env` map, then `env -u` wrapper in the setup helper) before realizing the merge happens unconditionally at spawn and the only correct fix is to mutate `process.env` itself before any tests run.",
+    "The fix applied to `setup.ts` files didn't cover `create-worktree.test.ts`, which has its own inline `gitCmd` helper and doesn't import either setup module. There's no convention or doc noting that integration tests needing git isolation must import a specific setup module — this created a hidden coupling that required a fourth iteration to discover.",
+    "ESLint's `@typescript-eslint/no-dynamic-delete` rule blocked the idiomatic loop approach (`for (const key of Object.keys(process.env).filter(k => k.startsWith('GIT_'))) delete process.env[key]`). The workaround of enumerating specific `GIT_*` keys by name is brittle — if git adds new env vars in a future version (e.g. `GIT_OBJECT_DIRECTORY`), they won't be stripped. This constraint should be documented alongside the preload file so future maintainers understand why keys are enumerated explicitly."
+  ],
+  "session_id": "eeed928c-0984-4e15-aa1d-a83a93289796",
+  "timestamp": "2026-05-05T17:42:17.411Z"
+}

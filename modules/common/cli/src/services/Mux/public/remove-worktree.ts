@@ -1,6 +1,6 @@
 import { Effect } from "effect"
 import { sql } from "kysely"
-import { GitService, type BranchName, type GitCommonPath } from "../../Git"
+import { GitService } from "../../Git"
 import { StoreService } from "../../Store"
 import type { WorktreeId } from "../types"
 import { MuxStoreError } from "../errors"
@@ -32,12 +32,11 @@ export const removeWorktree = (
     })
 
     if (row) {
-      const branch = row.branch as BranchName
-      const gitCommonDir = row.path as GitCommonPath
+      const gitCommonDir = yield* git.commonDir(row.path)
 
       // ── Remove git worktree ──────────────────────────────────────
       const worktrees = yield* git.worktreeList(gitCommonDir)
-      const worktree = worktrees.find(w => w.branch === branch)
+      const worktree = worktrees.find(w => w.branch === row.branch)
       if (worktree) {
         yield* git.worktreeRemove(worktree.path, { force: true }).pipe(
           Effect.catchAll(() => Effect.void)
@@ -45,7 +44,7 @@ export const removeWorktree = (
       }
 
       // ── Delete branch ────────────────────────────────────────────
-      yield* git.deleteBranch(branch, gitCommonDir, { force: true }).pipe(
+      yield* git.deleteBranch(row.branch, gitCommonDir, { force: true }).pipe(
         Effect.catchAll(() => Effect.void)
       )
     }

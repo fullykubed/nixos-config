@@ -32,3 +32,4 @@ describe("AbsolutePath constructor", () => {
     expect(() => AbsolutePath("relative")).toThrow()
   })
 })
+

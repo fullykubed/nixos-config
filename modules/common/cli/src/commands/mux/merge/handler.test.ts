@@ -1,5 +1,5 @@
 import { Effect, Context, Either, Option } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { describe, test, expect, mock } from "bun:test"
 import { mergeHandler } from "./handler"
 import { TmuxService, NotInsideTmuxError } from "../../../services/Tmux"
@@ -33,9 +33,7 @@ describe("mergeHandler", () => {
     return Context.empty().pipe(
       Context.add(MuxService, {
         trackWorktree: () => Effect.void,
-        find: () => Effect.succeed({ id: "00000000-0000-0000-0000-000000000001", project_id: "proj-1", project_path: "/repo/.git", branch: "feature-branch", created_at: "2025-01-01" }),
-        listAll: () => Effect.succeed([]),
-        listByProject: () => Effect.succeed([]),
+        getWorktreeFromBranch: () => Effect.succeed(Option.some({ id: "00000000-0000-0000-0000-000000000001", project_id: "proj-1", project_path: "/repo/.git", path: WorktreePath("/worktrees/feature-branch"), branch: BranchName("feature-branch"), created_at: "2025-01-01" })),
         removeWorktree: () => Effect.succeed({ windowClosed: true }),
         ...overrides.mux,
       } as any),

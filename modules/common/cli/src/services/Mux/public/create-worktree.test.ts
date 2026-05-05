@@ -1,7 +1,7 @@
 import { describe, it, expect } from "bun:test"
 import nodePath from "node:path"
 import { Context, Effect, Fiber } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { FileSystem, Path } from "@effect/platform"
 import { createWorktree } from "./create-worktree"
 import { GitService, GitCommonPath, WorktreePath, BranchName, ProjectPath, GitUnknownError } from "../../Git"

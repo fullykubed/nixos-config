@@ -23,7 +23,7 @@ const make = Effect.gen(function* () {
     Context.add(ShellService, shell),
     Context.add(FileSystem.FileSystem, fs),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Croc")
 
   return {
     relayAddress: RELAY_ADDRESS,

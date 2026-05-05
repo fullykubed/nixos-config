@@ -1,0 +1,27 @@
+{
+  "changes": [
+    {
+      "motivation": "Knip was not flagging files only imported by their own tests as unused, because test files are treated as entry points and anything they import is considered 'used'.",
+      "summary": "Switched knip to production mode: added `!` suffixes to entry/project patterns in knip.json, excluded test files (`!src/**/*.test.ts!`), mock files (`!src/**/*.mock.ts!`), test-preload (`src/test-preload.ts`), and the test lib dir (`!src/lib/test/**!`). Changed the `knip` package.json script to `knip --production`."
+    },
+    {
+      "motivation": "setup.ts files used in integration tests were being deleted by the knip hook since they were only referenced from test files.",
+      "summary": "Renamed `setup.ts` → `setup.test.ts` in Git, Mux, and Tmux integration-test directories. Updated all import references from `./setup` to `./setup.test` across 13 files."
+    },
+    {
+      "motivation": "test-helpers.ts files in Builders and Hcloud services were being deleted by the knip hook since they were only imported by test files.",
+      "summary": "Renamed `Builders/test-helpers.ts` → `Builders/helpers.test.ts` and `Hcloud/test-helpers.ts` → `Hcloud/helpers.test.ts`. Updated all import references across the affected test files."
+    },
+    {
+      "motivation": "test-logger.ts at src/lib/test-logger.ts was being deleted by the knip hook since it was only used in tests.",
+      "summary": "Moved `src/lib/test-logger.ts` → `src/lib/test/logger.ts` and updated all import references across test files."
+    }
+  ],
+  "problems": [
+    "The knip pre-commit hook runs with `--fix --allow-remove-files` by default. Switching to `--production` mode made the hook automatically delete test-only files (setup.ts, test-helpers.ts, mock files, test-preload.ts, etc.) without warning. This caused significant churn: files had to be restored and renamed repeatedly. The hook should not auto-delete files in production mode, or at minimum should exclude files matching `*.test.ts`, `*.mock.ts`, and similar test-support patterns from auto-removal.",
+    "Mux/test-helpers.ts was referenced in new test files (get-worktree-by-id.test.ts, get-worktree-from-branch.test.ts) but was never committed to git and not present in any stash. The import path had to be blindly updated to `../helpers.test` without the file existing, leaving those tests in a broken state. New test files that depend on non-existent helpers should not be committed.",
+    "The `setup.ts` convention for integration test setup files is ambiguous — Knip treats any file matching `src/**/*.ts` as a project file but not an entry, so non-test-named files that are only imported by tests appear unused. The convention of naming test support files `*.test.ts` or `*.mock.ts` was not established from the start, requiring a retroactive mass rename."
+  ],
+  "session_id": "6eba6183-2420-4f1c-829f-3cad8bc321e1",
+  "timestamp": "2026-05-05T21:00:26.227Z"
+}

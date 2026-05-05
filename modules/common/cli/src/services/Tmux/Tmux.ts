@@ -31,7 +31,7 @@ const make = Effect.gen(function* () {
   const ctx = Context.empty().pipe(
     Context.add(ShellService, shell),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Tmux")
 
   return {
     isInsideTmux,

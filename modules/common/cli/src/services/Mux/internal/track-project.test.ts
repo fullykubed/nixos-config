@@ -9,7 +9,7 @@ const PID_2 = ProjectId("aaaaaaaa-0000-0000-0000-000000000002")
 const PID_3 = ProjectId("aaaaaaaa-0000-0000-0000-000000000003")
 const PID_4 = ProjectId("aaaaaaaa-0000-0000-0000-000000000004")
 
-const findProject = (id: string) =>
+const findProject = (id: ProjectId) =>
   Effect.gen(function* () {
     const db = yield* StoreService
     return yield* Effect.tryPromise(() =>
@@ -34,7 +34,7 @@ describe("trackProject", () => {
       const project = yield* findProject(PID_1)
       expect(project).toBeDefined()
       expect(project!.id).toBe(PID_1)
-      expect(project!.path).toBe("/home/user/new-repo")
+      expect(project!.path).toBe(ProjectPath("/home/user/new-repo"))
     }))
   })
 
@@ -44,7 +44,7 @@ describe("trackProject", () => {
       yield* trackProject(PID_2, ProjectPath("/home/user/new-path"))
 
       const project = yield* findProject(PID_2)
-      expect(project!.path).toBe("/home/user/new-path")
+      expect(project!.path).toBe(ProjectPath("/home/user/new-path"))
     }))
   })
 
@@ -55,8 +55,8 @@ describe("trackProject", () => {
 
       const a = yield* findProject(PID_3)
       const b = yield* findProject(PID_4)
-      expect(a!.path).toBe("/home/user/repo-a")
-      expect(b!.path).toBe("/home/user/repo-b")
+      expect(a!.path).toBe(ProjectPath("/home/user/repo-a"))
+      expect(b!.path).toBe(ProjectPath("/home/user/repo-b"))
     }))
   })
 
@@ -66,7 +66,7 @@ describe("trackProject", () => {
       yield* trackProject(PID_1, ProjectPath("/home/user/new-repo"))
       const project = yield* findProject(PID_1)
       expect(project!.id).toBe(PID_1)
-      expect(project!.path).toBe("/home/user/new-repo")
+      expect(project!.path).toBe(ProjectPath("/home/user/new-repo"))
     }))
   })
 })

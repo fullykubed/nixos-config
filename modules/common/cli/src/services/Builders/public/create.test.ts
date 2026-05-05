@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test"
 import { Effect, Exit, Fiber, TestClock, TestContext } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { FileSystem } from "@effect/platform"
 import { HcloudCreateServerError, type HcloudServiceShape } from "../../Hcloud"
 import {
@@ -21,7 +21,7 @@ import {
   youngServer,
   baseLock,
   makeTestContext,
-} from "../test-helpers"
+} from "../helpers.test"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 

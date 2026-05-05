@@ -422,6 +422,225 @@ describe("parseCommandArgs", () => {
       expect(exit.cause.error._tag).toBe("InvalidValue")
     }
   })
+
+  it("resolves absolute path arg unchanged", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommand("test", {
+          args: [{ name: "dir", description: "directory", required: true, kind: "path" }],
+        }),
+        ["/tmp/foo"],
+        {}
+      )
+    )
+    expect(r.args.dir).toBe("/tmp/foo")
+  })
+
+  it("resolves relative path arg from CWD", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommand("test", {
+          args: [{ name: "dir", description: "directory", required: true, kind: "path" }],
+        }),
+        ["foo/bar"],
+        {}
+      )
+    )
+    expect(typeof r.args.dir).toBe("string")
+    expect((r.args.dir!).startsWith("/")).toBe(true)
+    expect(r.args.dir!).toBe(`${process.cwd()}/foo/bar`)
+  })
+
+  it("resolves . path arg to CWD", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommand("test", {
+          args: [{ name: "dir", description: "directory", required: false, kind: "path" }],
+        }),
+        ["."],
+        {}
+      )
+    )
+    expect(r.args.dir!).toBe(process.cwd())
+  })
+
+  it("leaves optional path arg undefined when not provided", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommand("test", {
+          args: [{ name: "dir", description: "directory", required: false, kind: "path" }],
+        }),
+        [],
+        {}
+      )
+    )
+    expect(r.args.dir).toBeUndefined()
+  })
+})
+
+// ── mutually exclusive flags ─────────────────────────────────────────
+
+const makeCommandWithExclusive = (groups: (readonly string[])[], flags: Flag[]) => ({
+  name: "test",
+  description: "test command",
+  flags,
+  args: [] as Command["args"],
+  mutuallyExclusive: groups,
+  handler: () => Effect.void,
+}) satisfies Command
+
+describe("mutually exclusive flags", () => {
+  it("allows a single flag from an exclusive group", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"]],
+          [boolFlag("json"), boolFlag("yaml")]
+        ),
+        ["--json"],
+        {}
+      )
+    )
+    expect(r.flags.json).toBe(true)
+    expect(r.flags.yaml).toBe(false)
+  })
+
+  it("allows no flags from an exclusive group", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"]],
+          [boolFlag("json"), boolFlag("yaml")]
+        ),
+        [],
+        {}
+      )
+    )
+    expect(r.flags.json).toBe(false)
+    expect(r.flags.yaml).toBe(false)
+  })
+
+  it("fails when two flags from the same exclusive group are provided", async () => {
+    const exit = await Effect.runPromiseExit(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"]],
+          [boolFlag("json"), boolFlag("yaml")]
+        ),
+        ["--json", "--yaml"],
+        {}
+      )
+    )
+    expect(Exit.isFailure(exit)).toBe(true)
+    if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+      expect(exit.cause.error._tag).toBe("ConflictingFlags")
+    }
+  })
+
+  it("error includes the names of the conflicting flags", async () => {
+    const exit = await Effect.runPromiseExit(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml", "text"]],
+          [boolFlag("json"), boolFlag("yaml"), boolFlag("text")]
+        ),
+        ["--json", "--text"],
+        {}
+      )
+    )
+    if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+      const err = exit.cause.error as { _tag: string; flags: readonly string[] }
+      expect(err._tag).toBe("ConflictingFlags")
+      expect(err.flags).toContain("json")
+      expect(err.flags).toContain("text")
+      expect(err.flags).not.toContain("yaml")
+    }
+  })
+
+  it("independent exclusive groups are checked separately", async () => {
+    // group A: json/yaml, group B: verbose/quiet — providing one from each is fine
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"], ["verbose", "quiet"]],
+          [boolFlag("json"), boolFlag("yaml"), boolFlag("verbose"), boolFlag("quiet")]
+        ),
+        ["--json", "--verbose"],
+        {}
+      )
+    )
+    expect(r.flags.json).toBe(true)
+    expect(r.flags.verbose).toBe(true)
+  })
+
+  it("fails when two flags from the second group conflict", async () => {
+    const exit = await Effect.runPromiseExit(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"], ["verbose", "quiet"]],
+          [boolFlag("json"), boolFlag("yaml"), boolFlag("verbose"), boolFlag("quiet")]
+        ),
+        ["--json", "--verbose", "--quiet"],
+        {}
+      )
+    )
+    if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+      const err = exit.cause.error as { _tag: string; flags: readonly string[] }
+      expect(err._tag).toBe("ConflictingFlags")
+      expect(err.flags).toContain("verbose")
+      expect(err.flags).toContain("quiet")
+    }
+  })
+
+  it("defaults do not count as user-provided (no false conflict)", async () => {
+    // json defaults to false but is still in the group — should not conflict with yaml being set
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"]],
+          [boolFlag("json"), boolFlag("yaml")]
+        ),
+        ["--yaml"],
+        {}
+      )
+    )
+    expect(r.flags.yaml).toBe(true)
+    expect(r.flags.json).toBe(false)
+  })
+
+  it("bypasses exclusivity check when --help is set", async () => {
+    const r = await Effect.runPromise(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["json", "yaml"]],
+          [boolFlag("help"), boolFlag("json"), boolFlag("yaml")]
+        ),
+        ["--help", "--json", "--yaml"],
+        {}
+      )
+    )
+    expect(r.flags.help).toBe(true)
+  })
+
+  it("works with string flags — only explicitly provided ones conflict", async () => {
+    const exit = await Effect.runPromiseExit(
+      parseCommandArgs(
+        makeCommandWithExclusive(
+          [["output", "format"]],
+          [
+            strFlag("output", { required: false }),
+            strFlag("format", { required: false }),
+          ]
+        ),
+        ["--output", "json", "--format", "yaml"],
+        {}
+      )
+    )
+    if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+      const err = exit.cause.error as { _tag: string; flags: readonly string[] }
+      expect(err._tag).toBe("ConflictingFlags")
+    }
+  })
 })
 
 // ── parse ───────────────────────────────────────────────────────────

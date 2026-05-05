@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect } from "effect"
 import { HttpClient } from "@effect/platform"
 import { serverExists } from "./server-exists"
-import { mockHttp, failHttp, server1, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, failHttp, server1, defaultHcloudConfig } from "../helpers.test"
 import { ServerId } from "../types"
 import { HcloudConfig } from "../config"
 

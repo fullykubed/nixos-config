@@ -1,4 +1,6 @@
 import type { Generated } from "kysely"
+import type { ProjectId, ProjectPath, BranchName } from "../Git"
+import type { WorktreeId } from "../Mux/types"
 
 interface LocksTable {
   name: string
@@ -7,14 +9,14 @@ interface LocksTable {
 }
 
 export interface MuxProjectsTable {
-  id: string
-  path: string
+  id: ProjectId
+  path: ProjectPath
 }
 
 export interface MuxWorktreesTable {
-  id: string
-  project_id: string
-  branch: string
+  id: WorktreeId
+  project_id: ProjectId
+  branch: BranchName
   created_at: Generated<string>
   deleted_at: string | null
 }

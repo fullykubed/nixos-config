@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "motivation": "The bare repo at /home/jack/repos/nixos-config/.bare had core.bare=false, so git worktree list --porcelain did not emit a 'bare' line for it. primaryWorktreeDir found it first (it was on main branch) and looked for .env there — but bare dirs have no working tree files, so nothing was ever copied.",
+      "summary": "Set core.bare=true and removed core.worktree from /home/jack/repos/nixos-config/.bare/config. The bare entry now appears with the 'bare' keyword in porcelain output, so isPrimary=false for it, and primaryWorktreeDir correctly resolves to the main/ checked-out worktree where .env lives."
+    }
+  ],
+  "problems": [
+    "The bare repo was cloned or initialized with core.bare=false (and a core.worktree override), which is a non-standard setup. Nothing in the codebase, docs, or project.json documented this requirement, so when the copy-files feature stopped working there was no obvious place to look. The root cause (wrong git config on the bare dir) was only found by manually inspecting porcelain worktree output and noticing the missing 'bare' line.",
+    "core.worktree in the bare repo pointed to the bun-desktop-cli-module worktree, which caused that worktree's local git config (containing test user identity) to leak into the bare repo's effective config. This side-effect was silent and only discovered when cleaning up."
+  ],
+  "session_id": "ec154b8a-1fa5-45a7-8350-8eb8659736fd",
+  "timestamp": "2026-05-05T19:08:49.217Z"
+}

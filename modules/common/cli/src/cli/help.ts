@@ -121,6 +121,15 @@ export function commandHelp<E>(group: CommandGroup<E>, command: Command<E>): str
     lines.push(...formatFlags(command.flags))
   }
 
+  // Show mutually exclusive groups if any
+  if (command.mutuallyExclusive && command.mutuallyExclusive.length > 0) {
+    lines.push("")
+    lines.push("Mutually Exclusive:")
+    for (const group of command.mutuallyExclusive) {
+      lines.push(`  ${group.map((n) => `--${n}`).join(", ")}  (use at most one)`)
+    }
+  }
+
   return lines.join("\n")
 }
 
@@ -154,6 +163,14 @@ function formatFlags(flags: readonly Flag[]): string[] {
       if (flag.choices) {
         description += ` (choices: ${flag.choices.join(", ")})`
       }
+      if (flag.default !== undefined) {
+        description += ` (default: "${flag.default}")`
+      }
+      if (flag.required) {
+        description += " <required>"
+      }
+    } else if (flag.kind === "path") {
+      description += " <path>"
       if (flag.default !== undefined) {
         description += ` (default: "${flag.default}")`
       }

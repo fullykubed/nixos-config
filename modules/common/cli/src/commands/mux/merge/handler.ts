@@ -3,7 +3,7 @@ import type { Parsed } from "./command"
 import { TmuxService, NotInsideTmuxError } from "../../../services/Tmux"
 import { GitService, GitUnknownError, AbsolutePath, WorktreePath, BranchName } from "../../../services/Git"
 import { ShellService } from "../../../services/Shell"
-import { MuxService, WorktreeId } from "../../../services/Mux"
+import { MuxService } from "../../../services/Mux"
 
 export const mergeHandler = (parsed: Parsed) =>
   Effect.gen(function* () {
@@ -95,7 +95,7 @@ export const mergeHandler = (parsed: Parsed) =>
     )
 
     // 12. On success: close worktree window, remove worktree, update SQLite
-    yield* cleanupWorktree(currentBranch, gitCommonDir)
+    yield* cleanupWorktree(currentBranch, worktreePath)
 
     // 13. Print success message with merge summary
     yield* Effect.log(`Successfully merged '${currentBranch}' into '${targetBranch}' using ${config.worktree.merge_strategy} strategy`)
@@ -137,13 +137,15 @@ const executeMerge = (
 
 const cleanupWorktree = (
   branch: BranchName,
-  gitCommonDir: string,
+  worktreePath: WorktreePath,
 ) =>
   Effect.gen(function* () {
+    const git = yield* GitService
     const mux = yield* MuxService
 
-    const entry = yield* mux.find(gitCommonDir, branch)
-    if (entry) {
-      yield* mux.removeWorktree(WorktreeId(entry.id))
+    const projectPath = yield* git.projectDir(worktreePath)
+    const entry = yield* mux.getWorktreeFromBranch(projectPath, branch)
+    if (Option.isSome(entry)) {
+      yield* mux.removeWorktree(entry.value.id)
     }
   }).pipe(Effect.catchAll(() => Effect.void)) // Ignore cleanup failures - best effort

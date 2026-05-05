@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Effect } from "effect"
 import { HcloudService, HcloudListServersError } from "../../Hcloud"
 import { list } from "./list"
-import { youngServer } from "../test-helpers"
+import { youngServer } from "../helpers.test"
 import type { Server } from "../../Hcloud"
 
 const server = (name: string): Server => ({ ...youngServer, name })

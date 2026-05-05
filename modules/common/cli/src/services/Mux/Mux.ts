@@ -3,18 +3,18 @@ import { FileSystem, Path } from "@effect/platform"
 import { mkContextInjector } from "../../lib/mkContextInjector"
 import { ShellService } from "../Shell"
 import { TmuxService } from "../Tmux"
-import { GitService, ProjectPath, type BranchName } from "../Git"
+import { GitService } from "../Git"
 import { StoreService } from "../Store"
 import { createWorktree } from "./public/create-worktree"
 import { trackWorktree } from "./internal/track-worktree"
-import { find } from "./public/find"
-import { listAll } from "./public/list-all"
-import { listByProject } from "./public/list-by-project"
+import { getWorktreeById } from "./public/get-worktree-by-id"
+import { getWorktreeFromBranch } from "./public/get-worktree-from-branch"
+import { getWorktreeFromPath } from "./public/get-worktree-from-path"
 import { removeWorktree } from "./public/remove-worktree"
 
 // ── Re-exports ───────────────────────────────────────────────────────
 
-export type { MuxWorktreeEntry } from "./types"
+export type { MuxWorktree } from "./types"
 export { WorktreeId } from "./types"
 export { MuxStoreError, MuxProjectNotFoundError, MuxTmuxSyncError, MuxBranchExistsOnRemoteError, MuxBranchExistsLocallyError, MuxWorktreePathConflictError, MuxCreateWorktreeError } from "./errors"
 
@@ -36,15 +36,14 @@ const make = Effect.gen(function* () {
     Context.add(FileSystem.FileSystem, fs),
     Context.add(Path.Path, path),
   )
-  const inject = mkContextInjector(ctx)
-  const provide = Effect.provide(ctx)
+  const inject = mkContextInjector(ctx, "Mux")
 
   return {
     createWorktree: inject(createWorktree),
     trackWorktree: inject(trackWorktree),
-    find: (projectPath: string, branch: BranchName) => provide(find(projectPath, branch)),
-    listAll: inject(listAll),
-    listByProject: (projectPath: string) => provide(listByProject(ProjectPath(projectPath))),
+    getWorktreeById: inject(getWorktreeById),
+    getWorktreeFromBranch: inject(getWorktreeFromBranch),
+    getWorktreeFromPath: inject(getWorktreeFromPath),
     removeWorktree: inject(removeWorktree),
   }
 })

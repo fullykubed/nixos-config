@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "completions:test": "bash scripts/test-completions.sh",
-    "knip": "knip"
+    "knip": "knip --production"
   },
   "dependencies": {
     "@effect/platform": "0.96.0",

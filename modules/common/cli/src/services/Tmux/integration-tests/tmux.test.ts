@@ -12,7 +12,7 @@ import { switchWindow } from "../public/switch-window"
 import { splitPane } from "../public/split-pane"
 import { sendKeys } from "../public/send-keys"
 import { selectPane } from "../public/select-pane"
-import { makeIsolatedTmuxShell } from "./setup"
+import { makeIsolatedTmuxShell } from "./setup.test"
 
 // Unique socket name for test isolation — no collision with user's tmux
 const socket = `j-test-${process.pid}`

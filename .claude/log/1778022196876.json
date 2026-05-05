@@ -1,0 +1,22 @@
+{
+  "changes": [
+    {
+      "motivation": "The DB query row was being cast to the wrong branded type — `GitCommonPath` instead of `ProjectPath` — which would have caused type errors downstream when passing the value to APIs expecting `ProjectPath`.",
+      "summary": "Fixed `remove-worktree.ts` to brand `row.path` as `ProjectPath` (via the brand constructor) instead of incorrectly casting it as `GitCommonPath`. Also derived `GitCommonPath` via `git.commonDir(projectPath)` for use with `worktreeList` and `deleteBranch`."
+    },
+    {
+      "motivation": "Kysely table interfaces used plain `string` for all columns, requiring manual branding at every query call site and making incorrect casts easy to write.",
+      "summary": "Updated `Store/types.ts` Kysely table interfaces (`MuxProjectsTable`, `MuxWorktreesTable`) to use branded types (`ProjectId`, `ProjectPath`, `BranchName`, `WorktreeId`) instead of raw `string`. Kysely propagates these through all query result types automatically."
+    },
+    {
+      "motivation": "After the Store types were updated to return branded types directly, the manual `BranchName(...)` and `ProjectPath(...)` calls in `remove-worktree.ts` became redundant.",
+      "summary": "Removed manual branding calls in `remove-worktree.ts`; `row.branch` and `row.path` are now correctly typed by Kysely without any explicit cast or brand constructor."
+    }
+  ],
+  "problems": [
+    "Initial fix applied the wrong branded type (`GitCommonPath` instead of `ProjectPath`) to `row.path`. The column stores a project path, not a git common dir — the difference is subtle but semantically important, and the existing column name `path` with no inline comment about what kind of path it stores made the mistake easy. A doc comment on the `MuxProjectsTable.path` field clarifying it is a `ProjectPath` (i.e. the working-tree root, distinct from the git common dir) would prevent this.",
+    "After removing the destructured `branch` variable, the agent failed to update references to `branch` on lines 39 and 47, leaving broken identifiers. This required a follow-up edit. The root cause was editing in two steps (removing the destructuring first, then the usage sites) without reading the full resulting file between edits."
+  ],
+  "session_id": "3d9b76cf-cd8e-41de-8b82-4e5cac8dd698",
+  "timestamp": "2026-05-05T23:03:40.960Z"
+}

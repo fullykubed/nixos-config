@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Effect, Exit } from "effect"
 import { HcloudService, HcloudServerNotFound } from "../../Hcloud"
 import { getAge } from "./get-age"
-import { youngServer } from "../test-helpers"
+import { youngServer } from "../helpers.test"
 
 describe("getAge", () => {
   it("returns age in hours based on server creation time", async () => {

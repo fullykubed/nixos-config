@@ -6,6 +6,7 @@ export class ShellError extends Data.TaggedError("ShellError")<{
   readonly exitCode: number
   readonly stdout: string
   readonly stderr: string
+  readonly cwd?: string
   readonly cause?: unknown
 }> {}
 

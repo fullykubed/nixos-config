@@ -1,10 +1,12 @@
 import { Brand } from "effect"
+import type { ProjectId, ProjectPath, BranchName, WorktreePath } from "../Git"
 
-export interface MuxWorktreeEntry {
-  readonly id: string
-  readonly project_id: string
-  readonly project_path: string
-  readonly branch: string
+export interface MuxWorktree {
+  readonly id: WorktreeId
+  readonly project_id: ProjectId
+  readonly project_path: ProjectPath
+  readonly path: WorktreePath
+  readonly branch: BranchName
   readonly created_at: string
 }
 

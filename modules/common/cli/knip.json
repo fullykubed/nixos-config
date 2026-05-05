@@ -1,10 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/main.ts",
-    "scripts/generate-completions.ts"
+    "src/main.ts!",
+    "scripts/generate-completions.ts!",
+    "scripts/build.ts!",
+    "src/test-preload.ts"
   ],
-  "project": ["src/**/*.ts", "scripts/**/*.ts"],
+  "project": ["src/**/*.ts!", "scripts/**/*.ts!", "!src/**/*.test.ts!", "!src/**/*.mock.ts!", "!src/lib/test/**!"],
   "exclude": ["exports", "types"],
   "ignoreDependencies": ["@opentui/core", "globals"]
 }

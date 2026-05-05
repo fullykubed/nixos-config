@@ -17,7 +17,7 @@ export {
 const make = Effect.gen(function* () {
   const db = yield* StoreService
   const ctx = Context.empty().pipe(Context.add(StoreService, db))
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Lock")
   const provide = Effect.provide(ctx)
 
   return {

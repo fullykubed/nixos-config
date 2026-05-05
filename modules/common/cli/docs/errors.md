@@ -42,3 +42,21 @@ Effect.catchAll((err) =>
   }))
 )
 ```
+
+## Reclassifying errors with `reclassify`
+
+When a service catches errors from a dependency and maps them to its own domain errors (e.g. `ShellError` → `GitError`), the new error normally captures a fresh JS stack and span annotation pointing at the classification code — not the original failure site. Use `reclassify` (`src/lib/reclassify.ts`) to preserve the original error's stack trace and Effect span annotation on the new error:
+
+```ts
+import { reclassify } from "../../lib/reclassify"
+
+export const toGitError = (e: ShellError) =>
+  Effect.fail(reclassify(e, classifyGitError))
+```
+
+`reclassify(source, classify)` does three things:
+1. Sets `Error.stackTraceLimit = 0` so the new error skips stack capture (perf)
+2. Calls `classify(source)` to produce the new error
+3. Copies the source's JS `.stack` and Effect span annotation onto the result
+
+This ensures the reclassified error's trace shows the original call chain through service spans rather than the classification internals.

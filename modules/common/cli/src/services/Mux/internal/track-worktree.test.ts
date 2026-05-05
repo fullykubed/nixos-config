@@ -1,11 +1,10 @@
 import { describe, it, expect } from "bun:test"
 import { Effect } from "effect"
-import { makeStoreLive } from "../../Store"
+import { makeStoreLive, StoreService } from "../../Store"
 import { ProjectId, ProjectPath, BranchName } from "../../Git"
 import { WorktreeId } from "../types"
 import { trackProject } from "./track-project"
 import { trackWorktree } from "./track-worktree"
-import { find } from "../public/find"
 
 const PID_A = ProjectId("aaaaaaaa-0000-0000-0000-000000000001")
 const PID_B = ProjectId("aaaaaaaa-0000-0000-0000-000000000002")
@@ -23,11 +22,19 @@ describe("trackWorktree", () => {
       yield* trackProject(PID_A, ProjectPath("/home/user/repo"))
       yield* trackWorktree(PID_A, BranchName("feature/login"), wtId)
 
-      const record = yield* find("/home/user/repo", BranchName("feature/login"))
-      expect(record).not.toBeNull()
+      const db = yield* StoreService
+      const record = yield* Effect.tryPromise(() =>
+        db.selectFrom("mux_worktrees as w")
+          .innerJoin("mux_projects as p", "p.id", "w.project_id")
+          .select(["w.id as id", "w.branch", "p.path as project_path"])
+          .where("w.id", "=", wtId)
+          .where("w.deleted_at", "is", null)
+          .executeTakeFirst()
+      )
+      expect(record).not.toBeUndefined()
       expect(record!.id).toBe(wtId)
-      expect(record!.project_path).toBe("/home/user/repo")
-      expect(record!.branch).toBe("feature/login")
+      expect(record!.project_path).toBe(ProjectPath("/home/user/repo"))
+      expect(record!.branch).toBe(BranchName("feature/login"))
     }))
   })
 

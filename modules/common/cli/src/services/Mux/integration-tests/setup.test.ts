@@ -1,10 +1,10 @@
-/* eslint-disable no-restricted-imports -- test infrastructure, not production code */
+ 
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, existsSync, lstatSync, readlinkSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-/* eslint-enable no-restricted-imports */
+ 
 import { Effect, Layer } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { BunContext } from "@effect/platform-bun"
 import { FileSystem, Path } from "@effect/platform"
 import { ShellLive, ShellService } from "../../Shell"

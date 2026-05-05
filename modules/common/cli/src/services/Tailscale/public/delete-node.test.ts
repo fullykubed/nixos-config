@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test"
 import { Context, Effect } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { FileSystem, HttpClient, HttpClientResponse } from "@effect/platform"
 import { deleteNode } from "./delete-node"
 

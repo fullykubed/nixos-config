@@ -3,18 +3,18 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { Effect, Layer, ManagedRuntime } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { Effect, Layer, ManagedRuntime, Option } from "effect"
+import { SilentLogger } from "../../../lib/test/logger"
 import { BunContext } from "@effect/platform-bun"
 import { GitLive, GitService, GitCommonPath, ProjectPath, BranchName } from "../../Git"
 import { TmuxLive } from "../../Tmux"
 import { makeStoreLive, StoreService } from "../../Store"
 import { ShellService } from "../../Shell"
-import { makeIsolatedTmuxShell } from "../../Tmux/integration-tests/setup"
+import { makeIsolatedTmuxShell } from "../../Tmux/integration-tests/setup.test"
 import { listWindows } from "../../Tmux/public/list-windows"
 import { createWorktree } from "../public/create-worktree"
 import { removeWorktree } from "../public/remove-worktree"
-import { find } from "../public/find"
+import { getWorktreeFromBranch } from "../public/get-worktree-from-branch"
 import { WorktreeId } from "../types"
 
 const socket = `j-remove-wt-${process.pid}`
@@ -51,11 +51,8 @@ describe.serial("removeWorktree integration", () => {
 
   let originDir: string
   let cloneDir: string
-  let originalCwd: string
 
   beforeAll(async () => {
-    originalCwd = process.cwd()
-
     const srcDir = mkdtempSync(join(tmpdir(), "rmwt-src-"))
     originDir = mkdtempSync(join(tmpdir(), "rmwt-origin-")) + ".git"
     cloneDir = mkdtempSync(join(tmpdir(), "rmwt-clone-"))
@@ -79,13 +76,11 @@ describe.serial("removeWorktree integration", () => {
     }))
 
     await run(tmuxCmd("new-session", "-d", "-s", "test", "-x", "200", "-y", "50"))
-    process.chdir(cloneDir)
 
     rmSync(srcDir, { recursive: true, force: true })
   })
 
   afterAll(async () => {
-    process.chdir(originalCwd)
     await run(tmuxCmd("kill-server")).catch(() => { /* noop */ })
     await runtime.dispose()
     if (existsSync(originDir)) rmSync(originDir, { recursive: true, force: true })
@@ -106,9 +101,9 @@ describe.serial("removeWorktree integration", () => {
     const windowsBefore = await run(listWindows())
     expect(windowsBefore.some(w => w.name.includes("feature-remove"))).toBe(true)
 
-    const dbEntryBefore = await run(find(cloneDir, BranchName("feature-remove")))
-    expect(dbEntryBefore).not.toBeNull()
-    const worktreeId = WorktreeId(dbEntryBefore!.id)
+    const dbEntryBefore = await run(getWorktreeFromBranch(ProjectPath(cloneDir), BranchName("feature-remove")))
+    expect(Option.isSome(dbEntryBefore)).toBe(true)
+    const worktreeId = Option.getOrThrow(dbEntryBefore).id
 
     // Remove the worktree
     const result = await run(removeWorktree(worktreeId))
@@ -129,9 +124,9 @@ describe.serial("removeWorktree integration", () => {
     const windowsAfter = await run(listWindows())
     expect(windowsAfter.some(w => w.name.includes("feature-remove"))).toBe(false)
 
-    // Verify: DB record soft-deleted (find returns null)
-    const dbEntryAfter = await run(find(cloneDir, BranchName("feature-remove")))
-    expect(dbEntryAfter).toBeNull()
+    // Verify: DB record soft-deleted (getWorktreeFromBranch returns None)
+    const dbEntryAfter = await run(getWorktreeFromBranch(ProjectPath(cloneDir), BranchName("feature-remove")))
+    expect(Option.isNone(dbEntryAfter)).toBe(true)
 
     // Verify: DB record still exists with deleted_at set
     const rawRow = await run(Effect.gen(function* () {
@@ -139,7 +134,7 @@ describe.serial("removeWorktree integration", () => {
       return yield* Effect.tryPromise(() =>
         db.selectFrom("mux_worktrees")
           .selectAll()
-          .where("branch", "=", "feature-remove")
+          .where("branch", "=", BranchName("feature-remove"))
           .executeTakeFirst()
       )
     }))
@@ -150,9 +145,9 @@ describe.serial("removeWorktree integration", () => {
   it("returns windowClosed: false when tmux window was already closed", async () => {
     await run(createWorktree(ProjectPath(cloneDir), BranchName("feature-no-window")))
 
-    const dbEntry = await run(find(cloneDir, BranchName("feature-no-window")))
-    expect(dbEntry).not.toBeNull()
-    const worktreeId = WorktreeId(dbEntry!.id)
+    const dbEntry = await run(getWorktreeFromBranch(ProjectPath(cloneDir), BranchName("feature-no-window")))
+    expect(Option.isSome(dbEntry)).toBe(true)
+    const worktreeId = Option.getOrThrow(dbEntry).id
 
     // Kill the tmux window manually before calling removeWorktree
     const windows = await run(listWindows())

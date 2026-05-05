@@ -19,11 +19,7 @@ export const initWorktree = (
     const projectRoot = yield* git.projectDir(worktreePath)
     const commonDir = yield* git.commonDir(worktreePath)
     const primaryDir = yield* git.primaryWorktreeDir(commonDir)
-
-    yield* Effect.log(`initWorktree: projectRoot=${projectRoot}, commonDir=${commonDir}, primaryDir=${primaryDir}`)
-
     const config = yield* git.getProjectConfig(projectRoot)
-    yield* Effect.log(`initWorktree: config=${JSON.stringify(config)}`)
 
     if (primaryDir !== null) {
       // Expand copy and link globs in parallel

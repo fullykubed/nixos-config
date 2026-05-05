@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit } from "effect"
 import { HttpClient } from "@effect/platform"
 import { listVolumes } from "./list-volumes"
-import { mockHttp, volume1, volume2, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, volume1, volume2, defaultHcloudConfig } from "../helpers.test"
 import { HcloudConfig } from "../config"
 
 const provide = (http: HttpClient.HttpClient) =>

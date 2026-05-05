@@ -1,8 +1,8 @@
-/* eslint-disable no-restricted-imports -- test infrastructure, not production code */
+ 
 import { mkdtempSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-/* eslint-enable no-restricted-imports */
+ 
 import { Effect, Exit, Layer } from "effect"
 import { BunContext } from "@effect/platform-bun"
 import { ShellLive, ShellService } from "../../Shell"

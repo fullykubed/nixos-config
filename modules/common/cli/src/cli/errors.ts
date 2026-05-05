@@ -35,6 +35,12 @@ export class ValidationErrors extends Data.TaggedError("ValidationErrors")<{
   readonly cause?: unknown
 }> {}
 
+export class ConflictingFlags extends Data.TaggedError("ConflictingFlags")<{
+  readonly flags: readonly string[]
+  readonly command: string
+  readonly cause?: unknown
+}> {}
+
 export type CliError =
   | UnknownCommand
   | UnknownFlag
@@ -42,3 +48,4 @@ export type CliError =
   | InvalidValue
   | ParseError
   | ValidationErrors
+  | ConflictingFlags

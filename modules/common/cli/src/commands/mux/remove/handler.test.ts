@@ -2,35 +2,11 @@ import { describe, expect, it, mock } from "bun:test"
 import { Effect, Exit, Option } from "effect"
 import type { Parsed } from "./command"
 import { removeHandler } from "./handler"
-import { makeTestLogger, SilentLogger } from "../../../lib/test-logger"
-import { TmuxService } from "../../../services/Tmux"
+import { makeTestLogger, SilentLogger } from "../../../lib/test/logger"
 import { GitService, type Worktree, WorktreePath, BranchName, GitCommonPath, ProjectPath } from "../../../services/Git"
 import { mockGetProjectConfig } from "../../../services/Git/public/get-project-config.mock"
-import { MuxService, type MuxServiceShape } from "../../../services/Mux"
-
-// Helper to create mock services using Service.of()
-const createTmuxService = (overrides = {}) => TmuxService.of({
-  isInsideTmux: () => Effect.succeed(true),
-  currentSession: () => Effect.succeed("test-session"),
-  listWindows: () => Effect.succeed([
-    { id: "@0", index: 1, name: "main", active: false },
-    { id: "@1", index: 2, name: "\uf418 feature-branch", active: false }
-  ]),
-  switchWindow: (_name: string) => Effect.succeed(undefined),
-  killWindow: (_name: string) => Effect.succeed(undefined),
-  createWindow: (_opts: any) => Effect.succeed("@0"),
-  splitPane: (_opts: any) => Effect.succeed(undefined),
-  sendKeys: (_target: string, _keys: string) => Effect.succeed(undefined),
-  selectPane: (_index: number) => Effect.succeed(undefined),
-  findWindow: (_namePattern: string) => Effect.succeed(null),
-  setWindowOption: (_target: string, _key: string, _value: string) => Effect.succeed(undefined),
-  setPaneOption: (_target: string, _key: string, _value: string) => Effect.succeed(undefined),
-  setSessionOption: (_key: string, _value: string, _session?: string) => Effect.succeed(undefined),
-  ensureSession: (_name: string) => Effect.succeed(undefined),
-  sessionExists: (_name: string) => Effect.succeed(true),
-  renameSession: (_oldName: string, _newName: string) => Effect.succeed(undefined),
-  ...overrides
-})
+import { MuxService, type MuxServiceShape, WorktreeId } from "../../../services/Mux"
+import { ProjectId } from "../../../services/Git"
 
 const createGitService = (overrides = {}) => GitService.of({
   isWorktree: () => Effect.succeed(Option.none()),
@@ -60,84 +36,169 @@ const createGitService = (overrides = {}) => GitService.of({
   ...overrides
 })
 
+const MOCK_ENTRY = {
+  id: WorktreeId("00000000-0000-0000-0000-000000000001"),
+  project_id: ProjectId(crypto.randomUUID()),
+  project_path: ProjectPath("/repo"),
+  path: WorktreePath("/repo/../feature-branch"),
+  branch: BranchName("feature-branch"),
+  created_at: "2025-01-01",
+}
+
 const createMuxService = (overrides: Partial<MuxServiceShape> = {}) => MuxService.of({
   trackWorktree: () => Effect.void,
-  find: () => Effect.succeed({ id: "00000000-0000-0000-0000-000000000001", project_id: "proj-1", project_path: "/repo/.git", branch: "feature-branch", created_at: "2025-01-01" }),
+  find: () => Effect.succeed(MOCK_ENTRY),
+  getWorktreeById: () => Effect.succeed(Option.some(MOCK_ENTRY)),
+  getWorktreeFromBranch: () => Effect.succeed(Option.some(MOCK_ENTRY)),
+  getWorktreeFromPath: () => Effect.succeed(Option.some(MOCK_ENTRY)),
   listAll: () => Effect.succeed([]),
   listByProject: () => Effect.succeed([]),
   removeWorktree: () => Effect.succeed({ windowClosed: true }),
   ...overrides,
 } as any)
 
-const createParsedCommand = (branch?: string, flags: Record<string, boolean | string> = {}): Parsed => ({
+const createParsedCommand = (flags: Partial<Record<string, boolean | string>> = {}): Parsed => ({
   group: "mux",
   command: "remove",
-  flags: { force: false, ...flags } as Parsed["flags"],
-  args: { branch: branch ? BranchName(branch) : undefined } as Parsed["args"],
+  flags: { force: false, branch: undefined, id: undefined, path: undefined, ...flags } as Parsed["flags"],
+  args: {} as Parsed["args"],
   raw: []
 })
 
 describe.serial("removeHandler", () => {
 
-  it("removes worktree and delegates cleanup to service", async () => {
+  it("removes worktree by --branch and delegates cleanup to service", async () => {
     const removeSpy = mock(() => Effect.succeed({ windowClosed: true }))
-    const findSpy = mock(() => Effect.succeed({ id: "00000000-0000-0000-0000-000000000001", project_id: "proj-42", project_path: "/repo/.git", branch: "feature-branch", created_at: "2025-01-01" }))
+    const getWorktreeFromBranchSpy = mock(() => Effect.succeed(Option.some(MOCK_ENTRY)))
     const { messages, layer } = makeTestLogger()
 
-    const tmux = createTmuxService()
     const git = createGitService()
-    const mux = createMuxService({ removeWorktree: removeSpy, find: findSpy })
+    const mux = createMuxService({ removeWorktree: removeSpy, getWorktreeFromBranch: getWorktreeFromBranchSpy })
 
-    const parsed = createParsedCommand("feature-branch")
+    const parsed = createParsedCommand({ branch: "feature-branch" })
     await Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(layer),
       )
     )
 
-    expect(findSpy).toHaveBeenCalledWith("/repo/.git", "feature-branch")
+    expect(getWorktreeFromBranchSpy).toHaveBeenCalledWith("/repo", "feature-branch")
     expect(removeSpy).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001")
     expect(messages).toContainEqual(expect.stringContaining("Removed worktree 'feature-branch' and closed tmux window"))
   })
+
+  it("removes worktree by --id", async () => {
+    const removeSpy = mock(() => Effect.succeed({ windowClosed: true }))
+    const getWorktreeByIdSpy = mock(() => Effect.succeed(Option.some(MOCK_ENTRY)))
+    const { messages, layer } = makeTestLogger()
+
+    const git = createGitService()
+    const mux = createMuxService({ removeWorktree: removeSpy, getWorktreeById: getWorktreeByIdSpy })
+
+    const parsed = createParsedCommand({ id: "00000000-0000-0000-0000-000000000001" })
+    await Effect.runPromise(
+      removeHandler(parsed).pipe(
+        Effect.provideService(GitService, git),
+        Effect.provideService(MuxService, mux),
+        Effect.provide(layer),
+      )
+    )
+
+    expect(getWorktreeByIdSpy).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001")
+    expect(removeSpy).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001")
+    expect(messages).toContainEqual(expect.stringContaining("Removed worktree 'feature-branch' and closed tmux window"))
+  })
+
+  it("errors when --id finds no DB entry", async () => {
+    const getWorktreeByIdSpy = mock(() => Effect.succeed(Option.none()))
+
+    const git = createGitService()
+    const mux = createMuxService({ getWorktreeById: getWorktreeByIdSpy })
+
+    const parsed = createParsedCommand({ id: "00000000-0000-0000-0000-000000000099" })
+    const result = Effect.runPromise(
+      removeHandler(parsed).pipe(
+        Effect.provideService(GitService, git),
+        Effect.provideService(MuxService, mux),
+        Effect.provide(SilentLogger),
+      )
+    )
+
+    // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression -- bun:test .rejects.toThrow() is async
+    await expect(result).rejects.toThrow("No worktree found with id")
+  })
+
+  it("removes worktree by --path", async () => {
+    const removeSpy = mock(() => Effect.succeed({ windowClosed: true }))
+    const getWorktreeFromPathSpy = mock(() => Effect.succeed(Option.some(MOCK_ENTRY)))
+    const { messages, layer } = makeTestLogger()
+
+    const git = createGitService()
+    const mux = createMuxService({ removeWorktree: removeSpy, getWorktreeFromPath: getWorktreeFromPathSpy })
+
+    const parsed = createParsedCommand({ path: "/repo/../feature-branch" })
+    await Effect.runPromise(
+      removeHandler(parsed).pipe(
+        Effect.provideService(GitService, git),
+        Effect.provideService(MuxService, mux),
+        Effect.provide(layer),
+      )
+    )
+
+    expect(getWorktreeFromPathSpy).toHaveBeenCalledWith("/repo/../feature-branch")
+    expect(removeSpy).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001")
+    expect(messages).toContainEqual(expect.stringContaining("Removed worktree 'feature-branch'"))
+  })
+
+  it("errors when --path finds no matching worktree", async () => {
+    const git = createGitService()
+    const mux = createMuxService({ getWorktreeFromPath: () => Effect.succeed(Option.none()) })
+
+    const parsed = createParsedCommand({ path: "/nonexistent/path" })
+    const result = Effect.runPromise(
+      removeHandler(parsed).pipe(
+        Effect.provideService(GitService, git),
+        Effect.provideService(MuxService, mux),
+        Effect.provide(SilentLogger),
+      )
+    )
+
+    // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression -- bun:test .rejects.toThrow() is async
+    await expect(result).rejects.toThrow("No worktree found at path")
+  })
+
 
   it("logs without tmux message when windowClosed is false", async () => {
     const removeSpy = mock(() => Effect.succeed({ windowClosed: false }))
     const { messages, layer } = makeTestLogger()
 
-    const tmux = createTmuxService()
     const git = createGitService()
-    const mux = createMuxService({ removeWorktree: removeSpy, find: () => Effect.succeed(null) })
+    const mux = createMuxService({ removeWorktree: removeSpy })
 
-    const parsed = createParsedCommand("feature-branch")
+    const parsed = createParsedCommand({ branch: "feature-branch" })
     await Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(layer),
       )
     )
 
-    // find returned null, so removeWorktree is skipped
-    expect(removeSpy).not.toHaveBeenCalled()
+    expect(removeSpy).toHaveBeenCalledWith("00000000-0000-0000-0000-000000000001")
     expect(messages).toContainEqual(expect.stringContaining("Removed worktree 'feature-branch'"))
-    // Should NOT contain "closed tmux window"
     const successMsg = messages.find(m => m.includes("Removed worktree 'feature-branch'"))
     expect(successMsg).not.toContain("closed tmux window")
   })
 
-  it("errors when not inside tmux", async () => {
-    const tmux = createTmuxService({ isInsideTmux: () => Effect.succeed(false) })
+  it("errors when on main with no flag specified", async () => {
     const git = createGitService()
     const mux = createMuxService()
 
-    const parsed = createParsedCommand("feature-branch")
+    const parsed = createParsedCommand() // No flags
     const result = Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(SilentLogger),
@@ -145,62 +206,38 @@ describe.serial("removeHandler", () => {
     )
 
     // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression -- bun:test .rejects.toThrow() is async
-    await expect(result).rejects.toThrow("Must be inside a tmux session")
+    await expect(result).rejects.toThrow("Specify --branch, --id, or --path, or run from inside a worktree")
   })
 
-  it("errors when on main with no branch arg", async () => {
-    const tmux = createTmuxService()
-    const git = createGitService({ isWorktree: () => Effect.succeed(false) })
-    const mux = createMuxService()
-
-    const parsed = createParsedCommand() // No branch argument
-    const result = Effect.runPromise(
-      removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
-        Effect.provideService(GitService, git),
-        Effect.provideService(MuxService, mux),
-        Effect.provide(SilentLogger),
-      )
-    )
-
-    // eslint-disable-next-line @typescript-eslint/await-thenable, @typescript-eslint/no-confusing-void-expression -- bun:test .rejects.toThrow() is async
-    await expect(result).rejects.toThrow("Specify a branch name or run from inside a worktree")
-  })
-
-  it("uses current branch when in worktree and no arg provided", async () => {
+  it("uses current worktree when in worktree and no flag provided", async () => {
     const removeSpy = mock(() => Effect.succeed({ windowClosed: false }))
+    const getWorktreeFromPathSpy = mock(() => Effect.succeed(Option.some(MOCK_ENTRY)))
 
-    const tmux = createTmuxService()
     const git = createGitService({
       isWorktree: () => Effect.succeed(Option.some(WorktreePath("/repo/../feature-branch"))),
-      currentBranch: () => Effect.succeed(BranchName("feature-branch")),
     })
-    const mux = createMuxService({ removeWorktree: removeSpy })
+    const mux = createMuxService({ removeWorktree: removeSpy, getWorktreeFromPath: getWorktreeFromPathSpy })
 
-    const parsed = createParsedCommand() // No branch argument
+    const parsed = createParsedCommand() // No flags
     await Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(SilentLogger),
       )
     )
 
+    expect(getWorktreeFromPathSpy).toHaveBeenCalled()
     expect(removeSpy).toHaveBeenCalled()
   })
 
-  it("errors when worktree not found", async () => {
-    const tmux = createTmuxService()
-    const git = createGitService({
-      worktreeList: () => Effect.succeed([]) // No worktrees
-    })
-    const mux = createMuxService()
+  it("errors when worktree not found by --branch", async () => {
+    const git = createGitService()
+    const mux = createMuxService({ getWorktreeFromBranch: () => Effect.succeed(Option.none()) })
 
-    const parsed = createParsedCommand("nonexistent-branch")
+    const parsed = createParsedCommand({ branch: "nonexistent-branch" })
     const result = Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(SilentLogger),
@@ -214,142 +251,31 @@ describe.serial("removeHandler", () => {
   it("skips prompt with --force flag when worktree is dirty", async () => {
     const removeSpy = mock(() => Effect.succeed({ windowClosed: false }))
 
-    const tmux = createTmuxService()
     const git = createGitService({
       isDirty: () => Effect.succeed(true), // Worktree is dirty
     })
     const mux = createMuxService({ removeWorktree: removeSpy })
 
-    const parsed = createParsedCommand("feature-branch", { force: true })
+    const parsed = createParsedCommand({ branch: "feature-branch", force: true })
 
     await Effect.runPromise(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(SilentLogger),
       )
     )
 
-    // With --force, removeWorktree should be called (via find returning default mock entry)
     expect(removeSpy).toHaveBeenCalled()
   })
 
-  it("prompts on dirty worktree without --force (interactive)", async () => {
-    const removeSpy = mock(() => Effect.succeed({ windowClosed: false }))
-    const writeSpy = mock(() => { /* noop */ })
-
-    // Mock TTY and stdin
-    const mockProcess = {
-      stdin: {
-        isTTY: true,
-        resume: mock(() => { /* noop */ }),
-        setEncoding: mock(() => { /* noop */ }),
-        once: mock((_event: string, callback: (data: string) => void) => {
-          // Simulate user typing 'y'
-          setTimeout(() => { callback("y\n") }, 0)
-        }),
-        pause: mock(() => { /* noop */ })
-      },
-      stdout: {
-        write: writeSpy
-      }
-    }
-
-    // Replace global process for this test
-    const originalProcess = global.process
-    global.process = { ...originalProcess, ...mockProcess } as any
-
-    const tmux = createTmuxService()
-    const git = createGitService({
-      isDirty: () => Effect.succeed(true), // Worktree is dirty
-    })
-    const mux = createMuxService({ removeWorktree: removeSpy })
-
-    const parsed = createParsedCommand("feature-branch")
-
-    await Effect.runPromise(
-      removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
-        Effect.provideService(GitService, git),
-        Effect.provideService(MuxService, mux),
-        Effect.provide(SilentLogger),
-      )
-    )
-
-    expect(writeSpy).toHaveBeenCalledWith("Worktree has uncommitted changes. Remove? [y/N] ")
-    expect(removeSpy).toHaveBeenCalled()
-
-    // Restore original process
-    global.process = originalProcess
-  })
-
-  it("cancels removal when user says no (interactive)", async () => {
-    const removeSpy = mock(() => Effect.succeed({ windowClosed: false }))
-    const { messages, layer } = makeTestLogger()
-
-    // Mock TTY and stdin
-    const mockProcess = {
-      stdin: {
-        isTTY: true,
-        resume: mock(() => { /* noop */ }),
-        setEncoding: mock(() => { /* noop */ }),
-        once: mock((_event: string, callback: (data: string) => void) => {
-          // Simulate user typing 'n'
-          setTimeout(() => { callback("n\n") }, 0)
-        }),
-        pause: mock(() => { /* noop */ })
-      },
-      stdout: {
-        write: mock(() => { /* noop */ })
-      }
-    }
-
-    const originalProcess = global.process
-    global.process = { ...originalProcess, ...mockProcess } as any
-
-    const tmux = createTmuxService()
-    const git = createGitService({
-      isDirty: () => Effect.succeed(true) // Worktree is dirty
-    })
-    const mux = createMuxService({ removeWorktree: removeSpy })
-
-    const parsed = createParsedCommand("feature-branch")
-
-    await Effect.runPromise(
-      removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
-        Effect.provideService(GitService, git),
-        Effect.provideService(MuxService, mux),
-        Effect.provide(layer),
-      )
-    )
-
-    expect(messages).toContainEqual(expect.stringContaining("Removal cancelled."))
-    expect(removeSpy).not.toHaveBeenCalled()
-
-    global.process = originalProcess
-  })
-
-  it("errors on dirty worktree in non-interactive mode without --force", async () => {
-    // Mock non-TTY
-    const mockProcess = {
-      stdin: {
-        isTTY: false
-      }
-    }
-
-    const originalProcess = global.process
-    global.process = { ...originalProcess, ...mockProcess } as any
-
-    const tmux = createTmuxService()
-    const git = createGitService({ isDirty: () => Effect.succeed(true) }) // Worktree is dirty
+  it("errors on dirty worktree without --force", async () => {
+    const git = createGitService({ isDirty: () => Effect.succeed(true) })
     const mux = createMuxService()
 
-    const parsed = createParsedCommand("feature-branch")
+    const parsed = createParsedCommand({ branch: "feature-branch" })
     const exit = await Effect.runPromiseExit(
       removeHandler(parsed).pipe(
-        Effect.provideService(TmuxService, tmux),
         Effect.provideService(GitService, git),
         Effect.provideService(MuxService, mux),
         Effect.provide(SilentLogger),
@@ -358,11 +284,8 @@ describe.serial("removeHandler", () => {
 
     expect(Exit.isFailure(exit)).toBe(true)
     if (Exit.isFailure(exit)) {
-      // Check that it's an error about uncommitted changes
       const errorMessage = String(exit.cause)
       expect(errorMessage).toContain("uncommitted changes")
     }
-
-    global.process = originalProcess
   })
 })

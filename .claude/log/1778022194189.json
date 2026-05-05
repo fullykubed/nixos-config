@@ -1,0 +1,59 @@
+{
+  "changes": [
+    {
+      "motivation": "Stack traces pointed to bundled `/$bunfs/root/main.js` line numbers, making errors impossible to navigate.",
+      "summary": "Added `sourcemap: \"linked\"` to `scripts/build.ts` so all stack frames resolve to actual `.ts` source files."
+    },
+    {
+      "motivation": "Git stderr for common errors like 'not a git repo' included multi-line noise ('Stopping at filesystem boundary...') that obscured the actual message.",
+      "summary": "Added `firstLine()` helper in `src/services/Git/errors.ts` and used it in all `classifyGitError` returns to extract only the first non-empty stderr line."
+    },
+    {
+      "motivation": "DEBUG output showed raw Effect cause values with no context about what command failed or where.",
+      "summary": "Added `renderCauseChain()` in `src/main.ts` that walks tagged error cause chains and prints key fields (message, command, cwd, exitCode) for each link. Also added `Cause.pretty` stack trace to DEBUG output."
+    },
+    {
+      "motivation": "When a shell command fails it was impossible to tell which working directory git was run from.",
+      "summary": "Added `cwd?: string` field to `ShellError` in `src/services/Shell/errors.ts` and threaded `opts?.cwd` through all `ShellError` construction sites in `exec.ts`."
+    },
+    {
+      "motivation": "Effect span traces showed no service or method context, making it hard to follow the call chain through errors.",
+      "summary": "Updated `mkContextInjector` in `src/lib/mkContextInjector.ts` to accept a mandatory `serviceName` parameter. It now captures two `Error` objects — one at wiring time and one at call time — and uses custom `captureStackTrace` on `Effect.withSpan` to emit both frames. Span names are inferred from `fn.name` so no explicit strings are needed at each call site."
+    },
+    {
+      "motivation": "Not all services had span tracing, and `withSpans` utility caused all span frames to point to `withSpans.ts` instead of the actual call site.",
+      "summary": "Migrated all 10 services (Git, Mux, Lock, Shell, Builders, Ssh, Hcloud, Tailscale, Tmux, Croc) to use the traced `mkContextInjector(ctx, \"ServiceName\")` pattern. Deleted `withSpans.ts`."
+    },
+    {
+      "motivation": "Debugging span flow across the full call chain required `Cause.pretty` output but there was no way to see timing or the complete span tree.",
+      "summary": "Created `src/lib/trace-tracer.ts` — a custom Effect `Tracer` that collects all spans in a tree and prints them to stderr on exit when `TRACE=1` is set. Durations are rounded to 0.1ms."
+    },
+    {
+      "motivation": "Debug `Effect.log` calls were left in service internals (`init-worktree.ts`, `create-window.ts`), leaking internal state to users on every command.",
+      "summary": "Removed 4 debug `Effect.log` calls from `src/services/Mux/internal/init-worktree.ts` and `src/services/Mux/internal/create-window.ts`."
+    },
+    {
+      "motivation": "When a `ShellError` was reclassified into a `GitError`, the new error captured a new JS stack pointing at `classifyGitError` instead of the original failure site, and lost its Effect span annotation.",
+      "summary": "Created `src/lib/reclassify.ts` with a `reclassify(source, classify)` utility that sets `Error.stackTraceLimit = 0` before calling the classifier (preventing new frame capture), then copies both `.stack` and the Effect span symbol from the source error to the result."
+    },
+    {
+      "motivation": "The reclassify pattern was only documented in code; future developers would have to discover it by reading the implementation.",
+      "summary": "Updated `docs/errors.md` with a section on the `reclassify` pattern and updated `docs/services.md` with a section on `mkContextInjector` span tracing, including example trace output."
+    },
+    {
+      "motivation": "The cause chain and stack trace were only printed in DEBUG mode, making errors harder to diagnose by default.",
+      "summary": "Removed `DEBUG=1` gating from cause chain and `Cause.pretty` output in `src/main.ts` — detailed error info now always prints."
+    }
+  ],
+  "problems": [
+    "scripts/build.ts was deleted in the working tree as part of an ongoing branch refactor, but existed in git HEAD. The agent repeatedly edited a non-existent file, requiring restoration via `git show HEAD:... > ...` multiple times. The deleted-in-working-tree state was not obvious from the git status summary.",
+    "`git checkout -- src/services/` to restore service files also restored Mux.ts to HEAD, which imported `find`, `listAll`, `listByProject` — files that were deleted in the working tree as part of the branch refactor. This broke the build and required a full rewrite of Mux.ts. There was no documentation indicating which files were deleted and which imports needed to be updated.",
+    "`Effect.withSpan` captures the lexical source location where it is called, not a runtime call site. The `withSpans.ts` utility called `Effect.withSpan` inside itself, so all span frames pointed to `withSpans.ts:30`. This fundamental limitation was only discovered after implementing and applying `withSpans` to all 10 services. The Effect docs do not prominently explain this behavior.",
+    "`Effect.fn` captures both a definition-site frame and a call-site frame, producing duplicate span entries in `Cause.pretty` output. The call-site frame pointed to `mkContextInjector` (the intermediary wrapper) rather than the actual caller. This was discovered by testing after implementation, not from docs.",
+    "`Cause.pretty` ignores function names in frames returned by `captureStackTrace` — it always uses the span name as the function name and only extracts the parenthesized location content. This made it impossible to annotate individual frames with different names (e.g., `Called(...)`) within a single span, which was only discovered by reading the Effect internal source code.",
+    "Effect.fn's `captureStackTrace` return value is processed with a `/(.*)/g` regex that extracts ALL parenthesized groups from ALL lines, not just one frame. Using `lines.slice(2).join(\"\\n\")` returned multiple frames including Effect internal `Utils.js` frames. Required using `lines[2]` to get a single frame.",
+    "The `reclassify` pattern (copying `.stack` and the Effect span symbol to reclassified errors) is non-obvious and uses an internal Effect symbol (`spanSymbol`). This pattern should have been documented earlier since it affects every service that wraps one error type in another."
+  ],
+  "session_id": "344eb90b-737c-4b40-961c-8b0d83895b00",
+  "timestamp": "2026-05-05T23:04:16.373Z"
+}

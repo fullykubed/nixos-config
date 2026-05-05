@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit } from "effect"
 import { HttpClient } from "@effect/platform"
 import { detachVolume } from "./detach-volume"
-import { mockHttp, volume2, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, volume2, defaultHcloudConfig } from "../helpers.test"
 import { VolumeId } from "../types"
 import { HcloudConfig } from "../config"
 

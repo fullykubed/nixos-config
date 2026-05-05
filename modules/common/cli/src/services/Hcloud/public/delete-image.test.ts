@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit } from "effect"
 import { HttpClient } from "@effect/platform"
 import { deleteImage } from "./delete-image"
-import { mockHttp, image1, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, image1, defaultHcloudConfig } from "../helpers.test"
 import { ImageId } from "../types"
 import { HcloudConfig } from "../config"
 

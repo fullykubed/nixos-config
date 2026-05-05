@@ -5,7 +5,7 @@ import { TailscaleService, TailscaleDNSResolutionError } from "../../Tailscale"
 import { SshService, SshConnectionError } from "../../Ssh"
 import { ShellService } from "../../Shell"
 import { getStats } from "./get-stats"
-import { youngServer } from "../test-helpers"
+import { youngServer } from "../helpers.test"
 
 /** 20-field pipe-delimited stats output matching the expected format. */
 const validStatsOutput =

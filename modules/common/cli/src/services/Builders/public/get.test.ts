@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Effect, Exit } from "effect"
 import { HcloudService, HcloudServerNotFound } from "../../Hcloud"
 import { get } from "./get"
-import { youngServer } from "../test-helpers"
+import { youngServer } from "../helpers.test"
 
 describe("get", () => {
   it("returns the server when found", async () => {

@@ -112,7 +112,7 @@ export const baseLock: LockServiceShape = {
   isLocked: () => Effect.succeed(false),
   acquire: () => Effect.succeed({ waited: false, attempts: 1 }),
   release: () => Effect.void,
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any -- generic mock can't satisfy Exclude<R, StoreService>
+   
   withLock: (_name, f) => f({ waited: false, attempts: 1 }) as any,
 }
 

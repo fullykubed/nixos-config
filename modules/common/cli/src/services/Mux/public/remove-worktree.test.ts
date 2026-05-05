@@ -5,9 +5,7 @@ import { ProjectId, ProjectPath, BranchName } from "../../Git"
 import { WorktreeId } from "../types"
 import { trackProject } from "../internal/track-project"
 import { trackWorktree } from "../internal/track-worktree"
-import { find } from "./find"
 import { removeWorktree } from "./remove-worktree"
-import { listAll } from "./list-all"
 import { TmuxService } from "../../Tmux"
 import { ShellService } from "../../Shell"
 import { GitService } from "../../Git"
@@ -24,6 +22,19 @@ const WID_4 = WorktreeId("dddddddd-0000-0000-0000-000000000004")
 const WID_5 = WorktreeId("dddddddd-0000-0000-0000-000000000005")
 const WID_6 = WorktreeId("dddddddd-0000-0000-0000-000000000006")
 const WID_NONEXISTENT = WorktreeId("dddddddd-0000-0000-0000-ffffffffffff")
+
+/** Direct DB query — returns active (non-deleted) worktree rows. */
+const queryActiveWorktrees = Effect.gen(function* () {
+  const db = yield* StoreService
+  return yield* Effect.tryPromise(() =>
+    db.selectFrom("mux_worktrees as w")
+      .innerJoin("mux_projects as p", "p.id", "w.project_id")
+      .select(["w.id as id", "w.branch", "p.path as project_path"])
+      .where("w.deleted_at", "is", null)
+      .orderBy("w.branch", "asc")
+      .execute()
+  )
+})
 
 describe("removeWorktree", () => {
   const TestStore = makeStoreLive(":memory:")
@@ -44,6 +55,7 @@ describe("removeWorktree", () => {
 
   const makeGitMock = (overrides = {}) => Context.empty().pipe(
     Context.add(GitService, {
+      commonDir: () => Effect.succeed("/stub/.git"),
       worktreeList: () => Effect.succeed([]),
       worktreeRemove: () => Effect.void,
       deleteBranch: () => Effect.void,
@@ -67,13 +79,13 @@ describe("removeWorktree", () => {
       yield* trackProject(PID_1, ProjectPath("/home/user/repo"))
       yield* trackWorktree(PID_1, BranchName("feature/remove-test"), WID_1)
 
-      let record = yield* find("/home/user/repo", BranchName("feature/remove-test"))
-      expect(record).not.toBeNull()
+      let rows = yield* queryActiveWorktrees
+      expect(rows.filter(r => r.project_path === "/home/user/repo" && r.branch === "feature/remove-test")).toHaveLength(1)
 
       yield* removeWorktree(WID_1)
 
-      record = yield* find("/home/user/repo", BranchName("feature/remove-test"))
-      expect(record).toBeNull()
+      rows = yield* queryActiveWorktrees
+      expect(rows.filter(r => r.project_path === "/home/user/repo" && r.branch === "feature/remove-test")).toHaveLength(0)
     }))
   })
 
@@ -88,7 +100,7 @@ describe("removeWorktree", () => {
       const row = yield* Effect.tryPromise(() =>
         db.selectFrom("mux_worktrees")
           .selectAll()
-          .where("branch", "=", "feature/soft-check")
+          .where("branch", "=", BranchName("feature/soft-check"))
           .executeTakeFirst()
       )
       expect(row).toBeDefined()
@@ -104,15 +116,15 @@ describe("removeWorktree", () => {
       yield* trackWorktree(PID_3, BranchName("feature/remove"), WID_4)
       yield* trackWorktree(PID_4, BranchName("feature/keep-other"), WID_5)
 
-      let allRecords = yield* listAll()
-      expect(allRecords).toHaveLength(3)
+      let rows = yield* queryActiveWorktrees
+      expect(rows).toHaveLength(3)
 
       yield* removeWorktree(WID_4)
 
-      allRecords = yield* listAll()
-      expect(allRecords).toHaveLength(2)
+      rows = yield* queryActiveWorktrees
+      expect(rows).toHaveLength(2)
 
-      const remainingBranches = allRecords.map(r => r.branch)
+      const remainingBranches = rows.map(r => r.branch) as string[]
       expect(remainingBranches).toContain("feature/keep")
       expect(remainingBranches).toContain("feature/keep-other")
       expect(remainingBranches).not.toContain("feature/remove")

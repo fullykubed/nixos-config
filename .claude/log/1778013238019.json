@@ -1,0 +1,14 @@
+{
+  "changes": [
+    {
+      "motivation": "Knip was reporting production-only test-imported files as 'used' because test files were included in the dependency graph as entry points. Using --production mode excludes test files from the graph, so code only referenced by tests is correctly flagged as unused.",
+      "summary": "Updated knip.json to use production mode patterns: added '!' suffix to entry/project patterns, excluded test files with '!src/**/*.test.ts!', added src/test-preload.ts as a non-production entry, and added scripts/build.ts! as a production entry. Updated package.json 'knip' script to pass --production flag."
+    }
+  ],
+  "problems": [
+    "The pre-commit hook (check-bun-knip-cli) runs with --fix --allow-remove-files. Switching to --production caused it to auto-delete files only imported by tests (test-preload.ts, test-logger.ts, test-helpers.ts, setup.ts files) rather than just reporting them. This was not obvious from the knip documentation — the interaction between --production and --allow-remove-files needs to be accounted for before enabling production mode in a hook with auto-fix.",
+    "knip.json had no comments or documentation explaining why test files or specific files (test-preload.ts) are listed as entries. This made it unclear whether test-preload.ts should be an 'entry' or a project exclusion, leading to an incorrect initial fix that had to be reverted."
+  ],
+  "session_id": "6eba6183-2420-4f1c-829f-3cad8bc321e1",
+  "timestamp": "2026-05-05T20:39:54.985Z"
+}

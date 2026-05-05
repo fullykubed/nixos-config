@@ -27,7 +27,7 @@ const make = Effect.gen(function* () {
     Context.add(FileSystem.FileSystem, fs),
     Context.add(HttpClient.HttpClient, http),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Tailscale")
 
   return {
     status: inject(status),

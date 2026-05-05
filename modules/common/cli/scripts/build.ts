@@ -46,6 +46,7 @@ const result = await Bun.build({
   entrypoints: ["src/main.ts"],
   outdir: "dist",
   compile: true,
+  sourcemap: "inline",
   define,
   plugins: [createSolidTransformPlugin(), resolveOpenTuiNativePlugin],
 })

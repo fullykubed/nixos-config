@@ -1,10 +1,12 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { StoreService } from "../../Store"
-import type { BranchName } from "../../Git"
+import type { BranchName, ProjectPath } from "../../Git"
 import { MuxStoreError } from "../errors"
+import type { MuxWorktree } from "../types"
+import { resolveWorktreePath } from "../internal/resolve-worktree-path"
 
-export const find = (
-  projectPath: string,
+export const getWorktreeFromBranch = (
+  projectPath: ProjectPath,
   branch: BranchName,
 ) =>
   Effect.gen(function* () {
@@ -24,22 +26,15 @@ export const find = (
         .where("w.deleted_at", "is", null)
         .executeTakeFirst(),
       catch: (e) => new MuxStoreError({
-        operation: "find",
+        operation: "getWorktreeFromBranch",
         message: e instanceof Error ? e.message : String(e),
         project_path: projectPath,
         branch,
       }),
     })
 
-    if (!record) {
-      return null
-    }
+    if (!record) return Option.none<MuxWorktree>()
 
-    return {
-      id: record.id,
-      project_id: record.project_id,
-      project_path: record.project_path,
-      branch: record.branch,
-      created_at: record.created_at,
-    }
+    const path = yield* resolveWorktreePath(projectPath, branch)
+    return Option.some({ ...record, path } as MuxWorktree)
   })

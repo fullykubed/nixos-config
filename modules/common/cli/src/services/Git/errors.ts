@@ -1,5 +1,6 @@
 import { Data, Effect } from "effect"
 import type { ShellError } from "../Shell/errors"
+import { reclassify } from "../../lib/reclassify"
 
 // ── Git domain errors ────────────────────────────────────────────────
 
@@ -65,12 +66,17 @@ export type GitError =
 
 // ── Classifier ───────────────────────────────────────────────────────
 
+/** First non-empty line of stderr — strips multi-line git noise
+ *  like "Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set)." */
+const firstLine = (stderr: string): string =>
+  stderr.split("\n").find((l) => l.trim().length > 0)?.trim() ?? stderr.trim()
+
 export const classifyGitError = (e: ShellError): GitError => {
   const s = `${e.stderr}\n${e.stdout}`.toLowerCase()
 
   // Not a repo
   if (s.includes("not a git repository"))
-    return new GitNotRepoError({ message: e.stderr, cause: e })
+    return new GitNotRepoError({ message: firstLine(e.stderr), cause: e })
 
   // Ref / pathspec / branch does not exist
   if (
@@ -83,15 +89,15 @@ export const classifyGitError = (e: ShellError): GitError => {
     s.includes("is not a commit") ||
     s.includes("did not match any file(s) known to git")
   )
-    return new GitRefDoesNotExistError({ message: e.stderr, cause: e })
+    return new GitRefDoesNotExistError({ message: firstLine(e.stderr), cause: e })
 
   // Remote does not exist
   if (s.includes("no such remote") || s.includes("no url configured"))
-    return new GitRemoteDoesNotExistError({ message: e.stderr, cause: e })
+    return new GitRemoteDoesNotExistError({ message: firstLine(e.stderr), cause: e })
 
   // Remote repository does not exist (404)
   if (s.includes("repository not found") || s.includes("does not appear to be a git repository"))
-    return new GitRepoDoesNotExistError({ message: e.stderr, cause: e })
+    return new GitRepoDoesNotExistError({ message: firstLine(e.stderr), cause: e })
 
   // Auth
   if (
@@ -101,7 +107,7 @@ export const classifyGitError = (e: ShellError): GitError => {
     s.includes("invalid credentials") ||
     s.includes("authorization failed")
   )
-    return new GitAuthError({ message: e.stderr, cause: e })
+    return new GitAuthError({ message: firstLine(e.stderr), cause: e })
 
   // Connectivity
   if (
@@ -113,12 +119,12 @@ export const classifyGitError = (e: ShellError): GitError => {
     s.includes("name or service not known") ||
     s.includes("ssl") && s.includes("error")
   )
-    return new GitConnectivityError({ message: e.stderr, cause: e })
+    return new GitConnectivityError({ message: firstLine(e.stderr), cause: e })
 
   // Catch-all
-  return new GitUnknownError({ message: e.stderr, cause: e })
+  return new GitUnknownError({ message: firstLine(e.stderr), cause: e })
 }
 
 /** Convert a ShellError into a classified GitError. Use with Effect.catchTag("ShellError", toGitError). */
 export const toGitError = (e: ShellError) =>
-  Effect.fail(classifyGitError(e))
+  Effect.fail(reclassify(e, classifyGitError))

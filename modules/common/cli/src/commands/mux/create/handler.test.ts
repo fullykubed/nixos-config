@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test"
 import { Context, Effect } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { createHandler } from "./handler"
 import { GitService, ProjectPath, WorktreePath, BranchName } from "../../../services/Git"
 import type { GitServiceShape } from "../../../services/Git"

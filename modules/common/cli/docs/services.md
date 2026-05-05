@@ -46,8 +46,7 @@ const make = Effect.gen(function* () {
     Context.add(DepA, depA),
     Context.add(DepB, depB),
   )
-  // `mkContextInjector` (`src/lib/mkContextInjector.ts`) takes a pre-built `Context` and returns an `inject` function. `inject` wraps a method function so its context requirements are pre-provided, eliminating the `R` type parameter from the service interface.
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Xyz")
 
   return {
     foo: inject(foo),
@@ -66,6 +65,25 @@ export const XyzLive = Layer.effect(XyzService, make)
 ```
 
 `Effect.Effect.Success<typeof make>` derives the shape type from the make effect's return value. This prevents a class of bugs where an explicit interface silently narrows or widens the type channels — the derived type always matches what `make` actually returns.
+
+### `mkContextInjector` and span tracing
+
+`mkContextInjector(ctx, "ServiceName")` does two things:
+
+1. **Provides context** — wraps each method so its dependency requirements (`R`) are pre-provided, keeping the service interface clean.
+2. **Adds span tracing** — wraps each method with `Effect.withSpan` using a custom `captureStackTrace` that records both the **wiring site** (where `inject(fn)` is called in the service file) and the **call site** (where the method is invoked at runtime). The span name is derived automatically from `fn.name` (e.g. `inject(repoRoot)` produces a span named `Git.repoRoot`).
+
+This means error traces show the full call chain through service boundaries without any manual span annotations in method files:
+
+```
+GitUnknownError: ...
+    at Git.repoRoot (Git.ts:50:15)           ← wiring site
+    at Git.repoRoot (get-worktree.ts:9:33)    ← call site
+    at Mux.getWorktree (Mux.ts:46:26)        ← wiring site
+    at Mux.getWorktree (handler.ts:47:25)     ← call site
+```
+
+Non-Effect values (constants, pure functions) can be included in the return object without `inject` — they just won't get spans.
 
 ## Types (branded types, domain interfaces)
 

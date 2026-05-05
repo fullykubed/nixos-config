@@ -1,14 +1,15 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { StoreService } from "../../Store"
+import type { WorktreeId, MuxWorktree } from "../types"
 import { MuxStoreError } from "../errors"
-import type {} from "../types"
+import { resolveWorktreePath } from "../internal/resolve-worktree-path"
 
-export const listByProject = (
-  projectPath: string,
+export const getWorktreeById = (
+  worktreeId: WorktreeId,
 ) =>
   Effect.gen(function* () {
     const db = yield* StoreService
-    const records = yield* Effect.tryPromise({
+    const record = yield* Effect.tryPromise({
       try: () => db.selectFrom("mux_worktrees as w")
         .innerJoin("mux_projects as p", "p.id", "w.project_id")
         .select([
@@ -18,22 +19,17 @@ export const listByProject = (
           "w.branch",
           "w.created_at",
         ])
-        .where("p.path", "=", projectPath)
+        .where("w.id", "=", worktreeId)
         .where("w.deleted_at", "is", null)
-        .orderBy("w.branch", "asc")
-        .execute(),
+        .executeTakeFirst(),
       catch: (e) => new MuxStoreError({
-        operation: "listByProject",
+        operation: "getWorktreeById",
         message: e instanceof Error ? e.message : String(e),
-        project_path: projectPath,
       }),
     })
 
-    return records.map((record) => ({
-      id: record.id,
-      project_id: record.project_id,
-      project_path: record.project_path,
-      branch: record.branch,
-      created_at: record.created_at,
-    }))
+    if (!record) return Option.none<MuxWorktree>()
+
+    const path = yield* resolveWorktreePath(record.project_path, record.branch)
+    return Option.some({ ...record, path } as MuxWorktree)
   })

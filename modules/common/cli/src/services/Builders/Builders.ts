@@ -42,7 +42,7 @@ const make = Effect.gen(function* () {
     Context.add(FileSystem.FileSystem, fs),
     Context.add(LockService, lock),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Builders")
 
   return {
     resolve,

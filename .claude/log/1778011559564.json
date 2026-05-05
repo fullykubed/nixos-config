@@ -1,0 +1,33 @@
+{
+  "changes": [
+    {
+      "motivation": "User requested a 'path' argument type that accepts relative or absolute paths and always produces AbsolutePath branded values",
+      "summary": "Added `kind: \"path\"` to PositionalArg in types.ts with updated InferArgs conditional type. Added `resolvePath` helper in parser.ts using process.cwd() + segment-walking (avoids node:path import ban). Parser resolves relative paths before the handler ever runs."
+    },
+    {
+      "motivation": "User requested mutually exclusive argument groups so conflicting flags are rejected at parse time rather than in each handler",
+      "summary": "Added ConflictingFlags tagged error in errors.ts. Added `mutuallyExclusive?: readonly (readonly string[])[]` to Command type. Parser tracks setByUser: Set<string> (only explicitly-provided flags, not defaults) and validates groups via findConflictingGroup helper. Help text displays exclusive groups. main.ts formats the error as '--X and --Y are mutually exclusive — use only one'."
+    },
+    {
+      "motivation": "Apply mutual exclusivity to the remove command's --branch, --id, --path flags since only one selector makes sense",
+      "summary": "Added `mutuallyExclusive: [[\"branch\", \"id\", \"path\"]]` to removeCommand in remove/command.ts. Removed manual selectors-array check from remove/handler.ts. Deleted the 'errors when multiple selectors are provided' handler test since validation moved to the parser."
+    },
+    {
+      "motivation": "Runtime crash: `mux remove -p ../../../../j-test-1` failed with AbsolutePath brand error because --path was kind:\"string\" and handler called AbsolutePath() directly on the raw relative string",
+      "summary": "Added PathFlag interface (kind: \"path\") to types.ts and updated FlagValue conditional type. Updated parseCommandArgs to call resolvePath() for path flags in all three processing branches (long, short, defaults). Changed --path in remove/command.ts from kind:\"string\" to kind:\"path\". Removed AbsolutePath() wrapper in handler since value is now pre-resolved. Added <path> display hint in help.ts."
+    },
+    {
+      "motivation": "test-helpers.ts used Record<string, unknown> for overrides causing no-unsafe-argument ESLint violations",
+      "summary": "Typed overrides parameter as Partial<GitServiceShape> (importing the shape type from the Git service index) and removed the as-any cast, making the mock factory type-safe."
+    }
+  ],
+  "problems": [
+    "node:path import is banned by ESLint no-restricted-imports but this restriction is not documented anywhere near AbsolutePath or path-handling code — the initial parsePath implementation using `import { resolve } from 'node:path'` was written and only rejected by the stop hook. A comment in eslint.config.ts or absolute-path.ts explaining the ban and the process.cwd() segment-walking alternative would have prevented this.",
+    "Data.TaggedError subclasses with readonly string[] fields silently break type inference when used as `yield* new Err(...)` — must use `yield* Effect.fail(new Err(...))` instead. This pattern is already required for ValidationErrors in the codebase but is not documented. The ESLint errors cascade from a single constructor call through all callers, making the root cause hard to trace.",
+    "A variable named `command` (the parameter to parseCommandArgs) and a field named `command` in the ConflictingFlags constructor literal caused ESLint's type resolver to infer `any`, requiring an alias `const commandName = command.name`. This is a silent ESLint/TypeScript inference failure with no clear error message pointing to the name collision.",
+    "kind: \"path\" was implemented only for PositionalArg and not for Flag — the design asymmetry was not caught until the user reported a runtime crash. The two type definitions (PositionalArg and the Flag union) are defined independently in types.ts with no cross-reference, making it easy to add a feature to one and forget the other.",
+    "npx was used instead of bunx for eslint and tsc invocations — the project uses bun throughout and bunx is the correct runner. No CLAUDE.md or README note exists about this convention."
+  ],
+  "session_id": "5f9fcdec-4933-44d0-9ee9-d364dd45e856",
+  "timestamp": "2026-05-05T20:06:39.726Z"
+}

@@ -5,7 +5,7 @@ import { Effect, Exit } from "effect"
 import {
   type RepoFixture, createNormalRepo, createBareWorktreeRepo,
   exists, git, isSymlink, readFile, readlink, run, writeFile, TestLayer,
-} from "./setup"
+} from "./setup.test"
 import { initWorktree } from "../internal/init-worktree"
 import { WorktreePath } from "../../Git"
 

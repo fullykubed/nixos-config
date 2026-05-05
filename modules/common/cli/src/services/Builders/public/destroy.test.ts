@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { HcloudService } from "../../Hcloud"
 import { TailscaleService } from "../../Tailscale"
 import { destroy } from "./destroy"

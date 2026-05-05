@@ -1,10 +1,13 @@
 import type { Effect } from "effect"
+import type { AbsolutePath } from "../lib/types/absolute-path"
 
 // ── Type-level inference utilities ────────────────────────────────────
 
 /** Map a single Flag definition to its runtime value type. */
 type FlagValue<F extends Flag> =
   F extends BooleanFlag ? boolean :
+  F extends { kind: "path"; required: true } ? AbsolutePath :
+  F extends { kind: "path" } ? AbsolutePath | undefined :
   F extends { kind: "string"; required: true; brand: (raw: string) => infer B } ? B :
   F extends { kind: "string"; default: string; brand: (raw: string) => infer B } ? B :
   F extends { kind: "string"; brand: (raw: string) => infer B } ? B | undefined :
@@ -25,6 +28,8 @@ type InferFlags<F extends readonly Flag[]> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InferArgs<A extends readonly PositionalArg<any>[]> = {
   readonly [K in A[number] as K["name"]]:
+    K extends { kind: "path"; required: true } ? AbsolutePath :
+    K extends { kind: "path" } ? AbsolutePath | undefined :
     K extends { required: true; brand: (raw: string) => infer B } ? B :
     K extends { required: true } ? string :
     K extends { brand: (raw: string) => infer B } ? B | undefined :
@@ -58,6 +63,8 @@ export function defineCommand<
   readonly description: string
   readonly flags: F
   readonly args: A
+  /** Groups of flag names where at most one may be provided per invocation. */
+  readonly mutuallyExclusive?: readonly (readonly string[])[]
   readonly handler: (parsed: TypedParsed<F, A>) => Effect.Effect<void, E>
 }): Command<E> {
   // The cast is safe: at runtime ParsedCommand is a superset of TypedParsed.
@@ -113,14 +120,25 @@ export interface IntegerFlag {
   readonly min?: number
 }
 
+export interface PathFlag {
+  readonly kind: "path"
+  readonly name: string
+  readonly short?: string
+  readonly description: string
+  readonly required: boolean
+  readonly default?: string
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type Flag = BooleanFlag | StringFlag<any> | IntegerFlag
+export type Flag = BooleanFlag | StringFlag<any> | IntegerFlag | PathFlag
 
 export interface PositionalArg<B = string> {
   readonly name: string
   readonly description: string
   readonly required: boolean
   readonly variadic?: boolean
+  /** Resolve the value as a filesystem path (absolute or relative to CWD). Mutually exclusive with `brand`. */
+  readonly kind?: "path"
   readonly brand?: (raw: string) => B
 }
 
@@ -132,6 +150,8 @@ export interface Command<E = never> {
   readonly flags: readonly Flag[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   readonly args: readonly PositionalArg<any>[]
+  /** Groups of flag names where at most one may be provided per invocation. */
+  readonly mutuallyExclusive?: readonly (readonly string[])[]
   readonly handler: (parsed: ParsedCommand) => Effect.Effect<void, E>
 }
 

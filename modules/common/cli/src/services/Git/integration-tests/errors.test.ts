@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { Effect, Layer } from "effect"
 import { BunContext } from "@effect/platform-bun"
 import { ShellLive } from "../../Shell"
-import { createTmpRepo, extractError, git, run, runExit } from "./setup"
+import { createTmpRepo, extractError, git, run, runExit } from "./setup.test"
 import { ShellError } from "../../Shell/errors"
 import {
   GitNotRepoError,

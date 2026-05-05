@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit, Fiber, TestClock, TestContext } from "effect"
 import { HttpClient, HttpClientResponse } from "@effect/platform"
 import { createServer } from "./create-server"
-import { mockHttp, failHttp, server1, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, failHttp, server1, defaultHcloudConfig } from "../helpers.test"
 import type { Server, CreateServerOptions } from "../types"
 import { HcloudConfig } from "../config"
 

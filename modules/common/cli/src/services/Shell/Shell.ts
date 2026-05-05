@@ -15,7 +15,7 @@ const make = Effect.gen(function* () {
   const executor = yield* CommandExecutor.CommandExecutor
 
   const ctx = Context.empty().pipe(Context.add(CommandExecutor.CommandExecutor, executor))
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Shell")
   const provide = Effect.provide(ctx)
 
   return {

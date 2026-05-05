@@ -56,7 +56,7 @@ const make = Effect.gen(function* () {
     Context.add(HcloudConfig, config),
     Context.add(HttpClient.HttpClient, http),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Hcloud")
 
   return {
     listServers: inject(listServers),

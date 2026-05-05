@@ -39,18 +39,18 @@ export const exec = (
     ).pipe(
       // Catch PlatformError (SystemError/BadArgument) from Command.start before timeout
       Effect.catchAll((e) =>
-        Effect.fail(new ShellError({ command: cmdString, exitCode: -1, stdout: "", stderr: String(e) })),
+        Effect.fail(new ShellError({ command: cmdString, exitCode: -1, stdout: "", stderr: String(e), cwd: opts?.cwd })),
       ),
       Effect.timeoutFail({
         duration: timeoutMs,
         onTimeout: () =>
-          new ShellError({ command: cmdString, exitCode: -1, stdout: "", stderr: "Command timed out" }),
+          new ShellError({ command: cmdString, exitCode: -1, stdout: "", stderr: "Command timed out", cwd: opts?.cwd }),
       }),
     )
 
     if (exitCode !== 0) {
       return yield* Effect.fail(
-        new ShellError({ command: cmdString, exitCode, stdout, stderr }),
+        new ShellError({ command: cmdString, exitCode, stdout, stderr, cwd: opts?.cwd }),
       )
     }
 

@@ -1,10 +1,10 @@
 import { describe, it, expect } from "bun:test"
 import { Context, Effect } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { HcloudService, HcloudServerNotFound } from "../../Hcloud"
 import { TailscaleService } from "../../Tailscale"
 import { ensureReadyOrDestroy } from "./ensure-ready-or-destroy"
-import { baseHcloud, baseTailscale, youngServer } from "../test-helpers"
+import { baseHcloud, baseTailscale, youngServer } from "../helpers.test"
 
 const provide = (hcloud: Partial<Parameters<typeof baseHcloud>[0]>, tailscale?: Partial<Parameters<typeof baseTailscale>[0]>) =>
   <A, E>(effect: Effect.Effect<A, E, any>) =>

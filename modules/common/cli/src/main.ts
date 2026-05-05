@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 
-import { Cause, Effect, Exit, Fiber } from "effect"
+import { Cause, Effect, Exit, Fiber, Option } from "effect"
 import { parse } from "./cli/parser"
 import { topLevelHelp, groupHelp, commandHelp } from "./cli/help"
 import { registry } from "./cli/registry"
 import { CliLoggerLive } from "./lib/logger"
+import { withTraceTracer, printTrace } from "./lib/trace-tracer"
 
 
 const program = Effect.gen(function* () {
@@ -70,6 +71,10 @@ const formatTaggedError = (e: object & { readonly _tag: string }): string => {
     }
     case "ParseError":
       return `Parse error: ${s(f(e, "message"))}`
+    case "ConflictingFlags": {
+      const flagList = (f(e, "flags") as string[]).map((n) => `--${n}`).join(" and ")
+      return `${flagList} are mutually exclusive — use only one`
+    }
     case "ShellError":
       return `Command failed: ${s(f(e, "command"))}${f(e, "stderr") ? `\n${s(f(e, "stderr"))}` : ""}`
     case "HcloudServerNotFound":
@@ -186,10 +191,41 @@ const formatError = (e: unknown): string =>
         ? e.message
         : String(e)
 
+/** Walk a tagged error's cause chain and render each link with its key fields.
+ *  Returns empty string if there's nothing beyond the top-level tag to show. */
+const renderCauseChain = (e: unknown, depth = 0): string => {
+  if (typeof e !== "object" || e === null) return ""
+  const indent = "  ".repeat(depth)
+  const tag = "_tag" in e ? String(f(e, "_tag")) : (f(e, "constructor") as { name?: string } | undefined)?.name ?? "Error"
+  const fields: string[] = []
+  for (const key of ["message", "command", "cwd", "exitCode", "operation", "path"] as const) {
+    const v = f(e, key)
+    if (v == null || v === "") continue
+    const display = typeof v === "string"
+      ? (v.includes("\n") ? v.split("\n")[0] : v)
+      : typeof v === "number" || typeof v === "boolean" ? String(v) : JSON.stringify(v)
+    fields.push(`${indent}  ${key}: ${display}`)
+  }
+  const inner = f(e, "cause")
+  const innerStr = inner != null && typeof inner === "object"
+    ? `${indent}  caused by:\n${renderCauseChain(inner, depth + 2)}`
+    : ""
+  // Skip rendering if there's nothing interesting beyond the tag
+  if (fields.length === 0 && !innerStr) return ""
+  return [`${indent}${tag}`, ...fields, innerStr].filter(Boolean).join("\n")
+}
+
+const traced = process.env.TRACE === "1"
+
 const main = program.pipe(
-  Effect.catchAll((e) =>
-    Effect.logError(formatError(e)).pipe(Effect.as(1))
-  ),
+  Effect.catchAllCause((cause) => {
+    const maybeErr = Cause.failureOption(cause)
+    const msg = Option.isSome(maybeErr) ? formatError(maybeErr.value) : Cause.pretty(cause)
+    const causeChain = Option.isSome(maybeErr) ? renderCauseChain(maybeErr.value) : ""
+    const suffix = (causeChain ? `\n\n${causeChain}\n` : "") + `\n${Cause.pretty(cause)}`
+    return Effect.logError(msg + suffix).pipe(Effect.as(1))
+  }),
+  traced ? withTraceTracer : (e: typeof program) => e,
   Effect.provide(CliLoggerLive),
   Effect.as(0)
 )
@@ -201,6 +237,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 void Effect.runPromise(Fiber.await(fiber)).then((exit) => {
+  if (traced) printTrace()
   if (Exit.isSuccess(exit)) process.exit(exit.value)
   if (Cause.isInterruptedOnly(exit.cause)) process.exit(130)
   process.stderr.write(`Fatal: ${Cause.pretty(exit.cause)}\n`)

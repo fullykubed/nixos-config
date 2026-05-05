@@ -9,11 +9,11 @@ export { SshConnectionError, SshAuthError, SshTimeoutError, SshHostKeyError } fr
 const make = Effect.gen(function* () {
   const shell = yield* ShellService
   const ctx = Context.empty().pipe(Context.add(ShellService, shell))
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Ssh")
 
   return {
     exec: inject(exec),
-    interactive,  // no service deps, no inject() needed
+    interactive,
   }
 })
 

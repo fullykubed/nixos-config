@@ -34,16 +34,17 @@ export const createWorktree = (
     const worktreePath = yield* git.worktreeAdd(branch, gitCommonDir, { create: true }).pipe(
       Effect.catchAll((gitErr) =>
         Effect.gen(function* () {
-          const errorMsg = gitErr._tag === "GitUnknownError" ? gitErr.message : ""
+          // Check full stderr (via cause) since the message field only has the first line
+          const stderr = gitErr._tag === "GitUnknownError" ? (gitErr.cause?.stderr ?? gitErr.message) : ""
 
-          if (errorMsg.includes("already exists and is not empty")) {
+          if (stderr.includes("already exists and is not empty")) {
             return yield* Effect.fail(new MuxWorktreePathConflictError({
               path: branch,
               cause: gitErr,
             }))
           }
 
-          if (errorMsg.includes("already exists")) {
+          if (stderr.includes("already exists")) {
             const worktrees = yield* git.worktreeList(gitCommonDir)
             const hasWorktree = worktrees.some(wt => wt.branch && wt.branch === branch)
             return yield* Effect.fail(new MuxBranchExistsLocallyError({

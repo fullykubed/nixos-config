@@ -2,7 +2,7 @@ import { describe, it, expect } from "bun:test"
 import { Context, Effect, Exit } from "effect"
 import { HttpClient } from "@effect/platform"
 import { createVolume } from "./create-volume"
-import { mockHttp, volume1, defaultHcloudConfig } from "../test-helpers"
+import { mockHttp, volume1, defaultHcloudConfig } from "../helpers.test"
 import type { CreateVolumeOptions } from "../types"
 import { HcloudConfig } from "../config"
 

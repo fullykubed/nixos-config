@@ -44,7 +44,7 @@ const make = Effect.gen(function* () {
     Context.add(FileSystem.FileSystem, fs),
     Context.add(Path.Path, path),
   )
-  const inject = mkContextInjector(ctx)
+  const inject = mkContextInjector(ctx, "Git")
 
   return {
     repoRoot: inject(repoRoot),

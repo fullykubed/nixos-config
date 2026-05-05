@@ -4,14 +4,14 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { Effect, Exit, Layer, ManagedRuntime } from "effect"
-import { SilentLogger } from "../../../lib/test-logger"
+import { SilentLogger } from "../../../lib/test/logger"
 import { sql } from "kysely"
 import { BunContext } from "@effect/platform-bun"
 import { GitLive, GitService, GitCommonPath, ProjectPath, BranchName } from "../../Git"
 import { TmuxLive } from "../../Tmux"
 import { makeStoreLive, StoreService } from "../../Store"
 import { ShellService } from "../../Shell"
-import { makeIsolatedTmuxShell } from "../../Tmux/integration-tests/setup"
+import { makeIsolatedTmuxShell } from "../../Tmux/integration-tests/setup.test"
 import { listWindows } from "../../Tmux/public/list-windows"
 import { createWorktree } from "../public/create-worktree"
 
@@ -52,12 +52,9 @@ describe.serial("createWorktree integration", () => {
 
   let originDir: string
   let cloneDir: string
-  let originalCwd: string
   let createdBranches: string[] = []
 
   beforeAll(async () => {
-    originalCwd = process.cwd()
-
     const srcDir = mkdtempSync(join(tmpdir(), "cwt-src-"))
     originDir = mkdtempSync(join(tmpdir(), "cwt-origin-")) + ".git"
     cloneDir = mkdtempSync(join(tmpdir(), "cwt-clone-"))
@@ -81,7 +78,6 @@ describe.serial("createWorktree integration", () => {
     }))
 
     await run(tmuxCmd("new-session", "-d", "-s", "test", "-x", "200", "-y", "50"))
-    process.chdir(cloneDir)
 
     rmSync(srcDir, { recursive: true, force: true })
   })
@@ -102,7 +98,6 @@ describe.serial("createWorktree integration", () => {
   })
 
   afterAll(async () => {
-    process.chdir(originalCwd)
     await run(tmuxCmd("kill-server")).catch(() => { /* noop */ })
     await runtime.dispose()
     if (existsSync(originDir)) rmSync(originDir, { recursive: true, force: true })
@@ -129,12 +124,12 @@ describe.serial("createWorktree integration", () => {
       return yield* Effect.tryPromise(() =>
         db.selectFrom("mux_worktrees")
           .selectAll()
-          .where("branch", "=", "feature-1")
+          .where("branch", "=", BranchName("feature-1"))
           .executeTakeFirst()
       )
     }))
     expect(dbWorktree).toBeDefined()
-    expect(dbWorktree!.branch).toBe("feature-1")
+    expect(dbWorktree!.branch).toBe(BranchName("feature-1"))
 
     // Verify: DB has project record linked to worktree
     const dbProject = await run(Effect.gen(function* () {
@@ -244,7 +239,7 @@ describe.serial("createWorktree integration", () => {
       return yield* Effect.tryPromise(() =>
         db.selectFrom("mux_worktrees")
           .selectAll()
-          .where("branch", "=", "cleanup-full")
+          .where("branch", "=", BranchName("cleanup-full"))
           .executeTakeFirst()
       )
     }))

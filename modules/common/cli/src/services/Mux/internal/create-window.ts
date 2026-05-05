@@ -28,7 +28,7 @@ export const createWindow = (
         cwd: worktreePath,
       })
       yield* setWindowWorktreeId(windowId, worktreeId)
-      yield* Effect.log(`Created window for worktree: ${branch}`)
+
       return windowId
     }
 
