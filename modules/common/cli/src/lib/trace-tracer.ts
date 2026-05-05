@@ -15,8 +15,7 @@ const collected: CollectedSpan[] = []
 const byId = new Map<string, CollectedSpan>()
 
 const parentSpanId = (parent: Option.Option<AnySpan>): string | undefined => {
-  if (Option.isNone(parent)) return undefined
-  return parent.value.spanId
+  if (Option.isSome(parent)) return parent.value.spanId
 }
 
 const tracer = Tracer.make({

@@ -5,10 +5,9 @@ import { FileSystem, HttpClient, HttpClientError, HttpClientRequest, HttpClientR
 import { mintPreAuthKey } from "./mint-pre-auth-key"
 
 function extractFailureTag(exit: Exit.Exit<unknown, unknown>): string | undefined {
-  if (Exit.isSuccess(exit)) return undefined
-  const cause = exit.cause
-  if (cause._tag === "Fail") return (cause.error as { _tag?: string })._tag
-  return undefined
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    return (exit.cause.error as { _tag?: string })._tag
+  }
 }
 
 const mockFs = FileSystem.FileSystem.of({

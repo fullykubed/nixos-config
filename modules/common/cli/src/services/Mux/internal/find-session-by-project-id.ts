@@ -28,5 +28,4 @@ export const parseSessionList = (stdout: string, projectId: string): string | un
     const id = line.slice(sep + 1)
     if (id === projectId) return name
   }
-  return undefined
 }

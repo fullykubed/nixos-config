@@ -1,0 +1,42 @@
+{
+  "changes": [
+    {
+      "motivation": "Enforce Effect-idiomatic code by preventing null/undefined returns, directing developers toward Option.none() for absent values and Effect.fail() for error/non-existence signaling.",
+      "summary": "Added two `no-restricted-syntax` ESLint rules to `eslint.config.ts` banning `return null` and `return undefined` statements. Messages reference `Effect.fail()` for absence-as-failure and `Option.none()` when no result is the expected case. Bare `return;` statements are unaffected."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule — `findConflictingGroup` returned `null` as a sentinel for no conflict found.",
+      "summary": "Refactored `findConflictingGroup` in `parser.ts` to return `Option<readonly string[]>` using `Option.some`/`Option.none()`. Updated the call site to use `Option.isSome` and unwrap with `.value`."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule — an explicit `return undefined` was used for a conditional branch.",
+      "summary": "Refactored `parentSpanId` logic in `trace-tracer.ts` to use an inverted condition with an implicit return instead of an explicit `return undefined`."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule — trailing `return undefined` at the end of `parseSessionList`.",
+      "summary": "Removed the trailing `return undefined` from `find-session-by-project-id.ts` (`parseSessionList` function)."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule — `findWindow` returned `null` when no matching window was found.",
+      "summary": "Refactored `find-window.ts` to return `Option<TmuxWindow>` via `Option.fromNullable(windows.find(...))` instead of the nullable result."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule — `getStats` returned `null` when no builder matched.",
+      "summary": "Refactored `get-stats.ts` to return `Option<BuilderStats>` instead of `BuilderStats | null`, using `Option.fromNullable`."
+    },
+    {
+      "motivation": "Update callers of `getStats` and `findWindow` after their return types changed to `Option`.",
+      "summary": "Updated `fetch-all-stats.ts` and `poll-status/handler.ts` to unwrap `Option` values from `getStats` using `Option.isSome`/`.value`. Updated callers of `findWindow` similarly."
+    },
+    {
+      "motivation": "Comply with the new ESLint rule across 17 test files where `extractFailureTag`/`extractFailure` helpers and mock Proxy handlers used explicit `return undefined`.",
+      "summary": "Refactored all test helper functions to use inverted conditions with implicit returns. Updated `findWindow` mocks to return `Option.none()`. Updated assertions in `get-stats.test.ts`, `find-window.test.ts`, and `tmux.test.ts` to match new `Option` return types."
+    }
+  ],
+  "problems": [
+    "The ESLint rule message went through 4 back-and-forth edits (ban both → remove Option.none → add back Option.none → refine wording) due to unclear initial requirements. The original request 'disallow null or undefined return values' was ambiguous about whether Option was an acceptable alternative, leading to repeated clarification loops.",
+    "There was no central documentation of which service methods return Option vs nullable, so determining whether callers expected null-checks or Option-checks required reading multiple files to trace call sites."
+  ],
+  "session_id": "27992092-e993-421b-93a6-468593eff0dc",
+  "timestamp": "2026-05-05T23:41:56.925Z"
+}

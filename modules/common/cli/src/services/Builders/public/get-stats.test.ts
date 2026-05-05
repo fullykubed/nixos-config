@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { Context, Effect } from "effect"
+import { Context, Effect, Option } from "effect"
 import { HcloudService, HcloudServerNotFound } from "../../Hcloud"
 import { TailscaleService, TailscaleDNSResolutionError } from "../../Tailscale"
 import { SshService, SshConnectionError } from "../../Ssh"
@@ -29,7 +29,7 @@ describe("getStats", () => {
       {},
       {}
     ))
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 
   it("returns null when tailscale IP cannot be resolved", async () => {
@@ -39,7 +39,7 @@ describe("getStats", () => {
       {},
       {}
     ))
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 
   it("returns null when SSH command fails", async () => {
@@ -49,7 +49,7 @@ describe("getStats", () => {
       { exec: () => Effect.fail(new SshConnectionError({ host: "100.64.0.1", exitCode: 255, stderr: "connection refused" })) },
       {}
     ))
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 
   it("returns parsed stats with uptime set from server creation time", async () => {
@@ -60,11 +60,13 @@ describe("getStats", () => {
       { exec: () => Effect.succeed({ stdout: validStatsOutput, stderr: "", exitCode: 0 }) },
       {}
     ))
-    expect(result).not.toBeNull()
-    expect(result!.name).toBe("builder-1")
-    expect(result!.reachable).toBe(true)
-    expect(result!.builds).toBe(5)
-    expect(result!.uptimeHours).toBeGreaterThan(1.9)
+    expect(Option.isSome(result)).toBe(true)
+    if (Option.isSome(result)) {
+      expect(result.value.name).toBe("builder-1")
+      expect(result.value.reachable).toBe(true)
+      expect(result.value.builds).toBe(5)
+      expect(result.value.uptimeHours).toBeGreaterThan(1.9)
+    }
   })
 
   it("returns null when stats output has wrong number of fields", async () => {
@@ -74,6 +76,6 @@ describe("getStats", () => {
       { exec: () => Effect.succeed({ stdout: "bad|output|only|4|fields", stderr: "", exitCode: 0 }) },
       {}
     ))
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 })

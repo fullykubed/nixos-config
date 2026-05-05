@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { ShellService } from "../../Shell"
 import { findWindow } from "./find-window"
 
@@ -15,7 +15,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toEqual({ id: "@1", index: 1, name: "vim", active: false })
+    expect(result).toEqual(Option.some({ id: "@1", index: 1, name: "vim", active: false }))
   })
 
   it("finds window by pattern match (case insensitive)", async () => {
@@ -29,7 +29,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toEqual({ id: "@1", index: 1, name: "vim-editor", active: false })
+    expect(result).toEqual(Option.some({ id: "@1", index: 1, name: "vim-editor", active: false }))
   })
 
   it("finds window by regex pattern", async () => {
@@ -43,7 +43,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toEqual({ id: "@2", index: 2, name: "shell", active: false })
+    expect(result).toEqual(Option.some({ id: "@2", index: 2, name: "shell", active: false }))
   })
 
   it("returns first matching window when multiple matches exist", async () => {
@@ -57,7 +57,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toEqual({ id: "@0", index: 0, name: "test-1", active: false })
+    expect(result).toEqual(Option.some({ id: "@0", index: 0, name: "test-1", active: false }))
   })
 
   it("returns null when no window matches", async () => {
@@ -71,7 +71,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 
   it("returns null when no windows exist", async () => {
@@ -85,7 +85,7 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toBeNull()
+    expect(Option.isNone(result)).toBe(true)
   })
 
   it("handles window names with special characters", async () => {
@@ -99,6 +99,6 @@ describe("findWindow", () => {
       } as any))
     )
 
-    expect(result).toEqual({ id: "@1", index: 1, name: "\uf418 feature-branch", active: false })
+    expect(result).toEqual(Option.some({ id: "@1", index: 1, name: "\uf418 feature-branch", active: false }))
   })
 })

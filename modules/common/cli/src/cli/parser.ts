@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import type { CommandRegistry, Flag, IntegerFlag, StringFlag, Command, ParsedCommand } from "./types"
 import { AbsolutePath } from "../lib/types/absolute-path"
 import type {} from "./errors"
@@ -25,12 +25,12 @@ const extractBrandError = (e: unknown): string => {
 const findConflictingGroup = (
   groups: readonly (readonly string[])[] | undefined,
   setByUser: ReadonlySet<string>,
-): readonly string[] | undefined => {
+): Option.Option<readonly string[]> => {
   for (const group of groups ?? []) {
     const provided = group.filter((name) => setByUser.has(name))
-    if (provided.length > 1) return provided
+    if (provided.length > 1) return Option.some(provided)
   }
-  return undefined
+  return Option.none()
 }
 
 /**
@@ -392,9 +392,9 @@ export const parseCommandArgs = <E>(
 
       // Validate mutually exclusive flag groups
       const conflictingGroup = findConflictingGroup(command.mutuallyExclusive, setByUser)
-      if (conflictingGroup !== undefined) {
+      if (Option.isSome(conflictingGroup)) {
         const commandName = command.name
-        return yield* Effect.fail(new ConflictingFlags({ flags: conflictingGroup, command: commandName }))
+        return yield* Effect.fail(new ConflictingFlags({ flags: conflictingGroup.value, command: commandName }))
       }
 
       // Validate required positional arguments

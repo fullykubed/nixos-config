@@ -88,6 +88,8 @@ export default [
         { selector: "ClassDeclaration[superClass.callee.property.name='TaggedError'] TSTypeLiteral:not(:has(TSPropertySignature[key.name='cause']))", message: "TaggedError must include a 'cause?: unknown' field for error chaining." },
         { selector: ":function > TSTypeAnnotation > TSTypeReference[typeName.left.name='Effect'][typeName.right.name='Effect']", message: "Don't explicitly type Effect return types — let TypeScript infer them. Explicit annotations duplicate what inference provides and can drift from the real type, causing unnecessary widening." },
         { selector: "MemberExpression[object.name='Console'][property.name=/^(log|error|warn|info|debug)$/]", message: "Use Effect.log / Effect.logWarning / Effect.logError instead of Console.log. Effect's logger respects log levels, structured annotations, and can be tested without mocking Console." },
+        { selector: "ReturnStatement > Literal[value=null]", message: "Don't return null. Use Option.none() when absence is a normal outcome, or Effect.fail() for unexpected failures." },
+        { selector: "ReturnStatement > Identifier[name='undefined']", message: "Don't return undefined explicitly. Use Option.none() when absence is a normal outcome, or Effect.fail() for unexpected failures." },
       ],
     },
   },

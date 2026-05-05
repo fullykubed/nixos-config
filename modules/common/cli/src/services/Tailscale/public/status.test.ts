@@ -4,10 +4,9 @@ import { ShellService } from "../../Shell"
 import { status } from "./status"
 
 function extractFailureTag(exit: Exit.Exit<unknown, unknown>): string | undefined {
-  if (Exit.isSuccess(exit)) return undefined
-  const cause = exit.cause
-  if (cause._tag === "Fail") return (cause.error as { _tag?: string })._tag
-  return undefined
+  if (Exit.isFailure(exit) && exit.cause._tag === "Fail") {
+    return (exit.cause.error as { _tag?: string })._tag
+  }
 }
 
 const mockShell = (json: unknown) => ShellService.of({

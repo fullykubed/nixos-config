@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test"
-import { Effect, Exit, Layer } from "effect"
+import { Effect, Exit, Layer, Option } from "effect"
 import { BunContext } from "@effect/platform-bun"
 import { ShellService } from "../../Shell"
 import { TmuxWindowNotFoundError } from "../errors"
@@ -78,8 +78,8 @@ describe.serial("Tmux integration", () => {
       run(
         Effect.gen(function* () {
           const found = yield* findWindow("integ-lifecycle")
-          expect(found).not.toBeNull()
-          expect(found!.name).toBe(fullName)
+          expect(Option.isSome(found)).toBe(true)
+          if (Option.isSome(found)) expect(found.value.name).toBe(fullName)
         }),
       ))
 
@@ -87,7 +87,7 @@ describe.serial("Tmux integration", () => {
       run(
         Effect.gen(function* () {
           const found = yield* findWindow("zzz-no-match-zzz")
-          expect(found).toBeNull()
+          expect(Option.isNone(found)).toBe(true)
         }),
       ))
   })

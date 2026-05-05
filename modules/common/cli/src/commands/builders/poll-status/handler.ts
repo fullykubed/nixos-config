@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { FileSystem } from "@effect/platform"
 import type { Parsed } from "./command"
 import { BuildersService } from "../../../services/Builders"
@@ -19,7 +19,7 @@ export const pollStatusHandler = (_parsed: Parsed) => Effect.gen(function* () {
       builders.getStats(server.name).pipe(
         Effect.map(stats => ({ name: server.name, stats })),
         Effect.timeout("10 seconds"),
-        Effect.catchAll(() => Effect.succeed({ name: server.name, stats: null }))
+        Effect.catchAll(() => Effect.succeed({ name: server.name, stats: Option.none() }))
       )
     ),
     { concurrency: "unbounded" }
@@ -39,20 +39,21 @@ export const pollStatusHandler = (_parsed: Parsed) => Effect.gen(function* () {
       reachable: false
     }
 
-    if (statsEntry?.stats) {
+    if (statsEntry?.stats && Option.isSome(statsEntry.stats)) {
+      const s = statsEntry.stats.value
       return {
         ...baseOutput,
         reachable: true,
-        builds: statsEntry.stats.builds,
-        cpu_pct: statsEntry.stats.cpuPercent,
-        mem_pct: statsEntry.stats.memTotalKb > 0
-          ? Math.round(statsEntry.stats.memUsedKb * 100 / statsEntry.stats.memTotalKb)
+        builds: s.builds,
+        cpu_pct: s.cpuPercent,
+        mem_pct: s.memTotalKb > 0
+          ? Math.round(s.memUsedKb * 100 / s.memTotalKb)
           : 0,
-        idle_count: statsEntry.stats.idleCount,
-        ts_status: statsEntry.stats.tailscaleStatus,
-        ccache_mount: statsEntry.stats.ccacheMount,
-        ccache_sync: statsEntry.stats.ccacheSync,
-        transfers: statsEntry.stats.serveCount
+        idle_count: s.idleCount,
+        ts_status: s.tailscaleStatus,
+        ccache_mount: s.ccacheMount,
+        ccache_sync: s.ccacheSync,
+        transfers: s.serveCount
       }
     }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test"
 import nodePath from "node:path"
-import { Context, Effect, Fiber } from "effect"
+import { Context, Effect, Fiber, Option } from "effect"
 import { SilentLogger } from "../../../lib/test/logger"
 import { FileSystem, Path } from "@effect/platform"
 import { createWorktree } from "./create-worktree"
@@ -18,7 +18,7 @@ import { StoreService } from "../../Store"
 const kyselyChain = (result: unknown): any => {
   const chain: any = new Proxy({}, {
     get: (_target, prop) => {
-      if (prop === "then" || prop === "catch") return undefined
+      if (prop === "then" || prop === "catch") return
       if (prop === "executeTakeFirst") {
         return () => Promise.resolve(result)
       }
@@ -43,7 +43,7 @@ const kyselyChain = (result: unknown): any => {
 const kyselyRejectChain = (error = new Error("DB error")): any => {
   const chain: any = new Proxy({}, {
     get: (_target, prop) => {
-      if (prop === "then" || prop === "catch") return undefined
+      if (prop === "then" || prop === "catch") return
       if (prop === "executeTakeFirst" || prop === "executeTakeFirstOrThrow" || prop === "execute") {
         return () => Promise.reject(error)
       }
@@ -78,7 +78,7 @@ const mockContext = (overrides: {
       setWindowOption: () => Effect.void,
       sessionExists: () => Effect.succeed(true),
       renameSession: () => Effect.void,
-      findWindow: () => Effect.succeed(null),
+      findWindow: () => Effect.succeed(Option.none()),
       createWindow: () => Effect.succeed("@0"),
       killWindow: () => Effect.void,
       switchWindow: () => Effect.void,
@@ -281,7 +281,7 @@ describe("createWorktree", () => {
     // Create a store where selectFrom throws to fail trackProject before createWindow
     const failingSelectChain: any = new Proxy({}, {
       get: (_target, prop) => {
-        if (prop === "then" || prop === "catch") return undefined
+        if (prop === "then" || prop === "catch") return
         if (prop === "executeTakeFirst" || prop === "executeTakeFirstOrThrow" || prop === "execute") {
           return () => Promise.reject(new Error("DB error"))
         }
@@ -429,7 +429,7 @@ describe("createWorktree", () => {
     // Store that hangs on mux_worktrees insert (after createWindow has completed)
     const hangingInsertChain: any = new Proxy({}, {
       get: (_target, prop) => {
-        if (prop === "then" || prop === "catch") return undefined
+        if (prop === "then" || prop === "catch") return
         if (prop === "execute") {
           return () => {
             resolveReached()

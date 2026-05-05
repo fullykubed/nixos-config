@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Effect, Option } from "effect"
 import { BuildersService, type BuilderStats } from "../../../services/Builders"
 
 // Fetch all builder stats in parallel
@@ -22,9 +22,9 @@ export function fetchAllBuilderStats() {
     )
 
     const results = yield* Effect.all(statsEffects, { concurrency: "unbounded" }).pipe(
-      Effect.catchAll(() => Effect.succeed([] as (BuilderStats | null)[]))
+      Effect.catchAll(() => Effect.succeed([] as Option.Option<BuilderStats>[]))
     )
 
-    return results.filter((s): s is BuilderStats => s !== null)
+    return results.flatMap(Option.toArray)
   })
 }
