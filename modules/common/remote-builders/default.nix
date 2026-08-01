@@ -68,23 +68,72 @@ let
       fallbackServerType = null;
       mandatoryFeatures = [ "big-parallel" ];
     };
-    # AMD Threadripper 9980X bare-metal builder (always-on, no Hetzner API)
-    # 8 CCDs x 8 cores x 2 threads = 128 threads; CCDs 1-7 isolated for builds
-    fullykubed-threadripper-1 = {
+    # Geekom IT15 NUC bare-metal builders (Intel Core Ultra 9 285H, 16 cores, 32 GB)
+    # Always-on; ensure-builder.sh checks SSH reachability only (no Hetzner API)
+    fullykubed-nuc-1 = {
       type = "bare-metal";
-      tier = "big-parallel";
-      maxJobs = 112; # 7 CCDs x 8 cores x 2 threads
-      speedFactor = 8; # Significantly faster than cloud builders
+      tier = "regular";
+      maxJobs = 14; # 14 isolated cores (builderIsolatedCpus = "2-15")
+      speedFactor = 2; # Arrow Lake ~2x faster per core than cloud vCPUs
       sshPort = 3098;
       hostPublicKey = lib.removeSuffix "\n" (
-        builtins.readFile ../../../secrets/machines/fullykubed-threadripper-1/ssh-host-key.pub
+        builtins.readFile ../../../secrets/machines/fullykubed-nuc-1/ssh-host-key.pub
       );
       serverType = null;
       fallbackServerType = null;
-      mandatoryFeatures = [
-        "big-parallel"
-        "benchmark"
-      ];
+      mandatoryFeatures = [ ];
+    };
+    fullykubed-nuc-2 = {
+      type = "bare-metal";
+      tier = "regular";
+      maxJobs = 14;
+      speedFactor = 2;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (
+        builtins.readFile ../../../secrets/machines/fullykubed-nuc-2/ssh-host-key.pub
+      );
+      serverType = null;
+      fallbackServerType = null;
+      mandatoryFeatures = [ ];
+    };
+    fullykubed-nuc-3 = {
+      type = "bare-metal";
+      tier = "regular";
+      maxJobs = 14;
+      speedFactor = 2;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (
+        builtins.readFile ../../../secrets/machines/fullykubed-nuc-3/ssh-host-key.pub
+      );
+      serverType = null;
+      fallbackServerType = null;
+      mandatoryFeatures = [ ];
+    };
+    fullykubed-nuc-4 = {
+      type = "bare-metal";
+      tier = "regular";
+      maxJobs = 14;
+      speedFactor = 2;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (
+        builtins.readFile ../../../secrets/machines/fullykubed-nuc-4/ssh-host-key.pub
+      );
+      serverType = null;
+      fallbackServerType = null;
+      mandatoryFeatures = [ ];
+    };
+    fullykubed-nuc-5 = {
+      type = "bare-metal";
+      tier = "regular";
+      maxJobs = 14;
+      speedFactor = 2;
+      sshPort = 3098;
+      hostPublicKey = lib.removeSuffix "\n" (
+        builtins.readFile ../../../secrets/machines/fullykubed-nuc-5/ssh-host-key.pub
+      );
+      serverType = null;
+      fallbackServerType = null;
+      mandatoryFeatures = [ ];
     };
   };
 

@@ -41,16 +41,26 @@
     ) { powerManagement.cpuFreqGovernor = "performance"; })
     # ── Remote-builder power throttling ─────────────────────────────────────
     # Disable all power management features that reduce sustained build throughput.
-    # Deep C-states add wake latency between build tasks; AMD P-State active mode
-    # keeps the boost clock engaged continuously.
+    # Deep C-states add wake latency between build tasks.
     (lib.mkIf (config.deviceType == "remote-builder") {
       boot.kernelParams = [
         "processor.max_cstate=1" # Prevent deep C-states (latency on wake)
-        "amd_pstate=active" # AMD P-State driver in active mode (full boost)
       ];
       # Disable thermald if present — let the hardware handle thermal limits
       # directly rather than throttling from userspace.
       services.thermald.enable = lib.mkForce false;
+    })
+    # AMD remote-builders: enable P-State active mode for sustained boost clock
+    (lib.mkIf (config.deviceType == "remote-builder" && config.cpuVendor == "amd") {
+      boot.kernelParams = [
+        "amd_pstate=active" # AMD P-State driver in active mode (full boost)
+      ];
+    })
+    # Intel remote-builders: enable P-State active mode (Hardware P-States/HWP)
+    (lib.mkIf (config.deviceType == "remote-builder" && config.cpuVendor == "intel") {
+      boot.kernelParams = [
+        "intel_pstate=active" # Intel P-State: hardware-guided HWP (equivalent)
+      ];
     })
     (lib.mkIf (config.deviceType == "laptop") {
       services.auto-cpufreq = {

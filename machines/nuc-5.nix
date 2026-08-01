@@ -3,43 +3,26 @@ let
   disko = import ../lib/util/disko.nix;
 in
 {
-  cpuVendor = "amd";
-  cpuCount = 64;
-  cpuArch = "x86-64-v3"; # Portable ISA level; znver5-specific scheduling via cpuTune
-  cpuTune = "znver5";
-  systemRam = 256;
-  gpuVendor = "amd";
-  deviceType = "desktop";
-  disableWakeupTriggers = true;
+  cpuVendor = "intel";
+  cpuCount = 16;
+  cpuArch = "x86-64-v3"; # Portable ISA level; arrowlake-specific scheduling via cpuTune
+  cpuTune = "arrowlake";
+  systemRam = 32;
+  deviceType = "remote-builder";
+
+  # CPU isolation: 2 P-cores for housekeeping, remaining 14 cores for builds
+  # Intel Core Ultra 9 285H: 6 P-cores (0-5), 8 E-cores (6-13), 2 LP E-cores (14-15)
+  # Housekeeping on P-cores 0-1 for OS responsiveness; builds on 2-15
+  # Verify topology on first boot: lscpu -e
+  builderHousekeepingCpus = "0-1";
+  builderIsolatedCpus = "2-15";
 
   ######################################
   ## Networking
   ######################################
   networking = {
-    hostName = "fullykubed-threadripper-1";
-    hostId = "5a39f3c2";
-  };
-
-  ######################################
-  ## Monitors
-  ######################################
-  monitors = {
-    "DP-1" = {
-      mode = "3840x2160";
-      pos = "0 0";
-      num = 1;
-    };
-    "DP-2" = {
-      mode = "3840x2160";
-      pos = "3840 0";
-      num = 2;
-      notifications = true;
-    };
-    "DP-3" = {
-      mode = "3840x2160";
-      pos = "7680 0";
-      num = 3;
-    };
+    hostName = "fullykubed-nuc-5";
+    hostId = "b1495bae";
   };
 
   ######################################
@@ -54,7 +37,7 @@ in
         boot1 = disko.mkBootPartition 1;
         boot2 = disko.mkBootPartition 2;
         swap1 = {
-          size = "256G";
+          size = "32G";
           content = {
             type = "swap";
             randomEncryption = true;
